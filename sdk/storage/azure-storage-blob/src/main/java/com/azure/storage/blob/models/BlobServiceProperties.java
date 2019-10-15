@@ -22,7 +22,7 @@ public final class BlobServiceProperties {
      * The logging property.
      */
     @JsonProperty(value = "Logging")
-    private Logging logging;
+    private ServerLoggingConfigurations serverLoggingConfigurations;
 
     /*
      * The hourMetrics property.
@@ -77,8 +77,8 @@ public final class BlobServiceProperties {
      *
      * @return the logging value.
      */
-    public Logging getLogging() {
-        return this.logging;
+    public ServerLoggingConfigurations getServerLoggingConfigurations() {
+        return this.serverLoggingConfigurations;
     }
 
     /**
@@ -87,8 +87,8 @@ public final class BlobServiceProperties {
      * @param logging the logging value to set.
      * @return the BlobServiceProperties object itself.
      */
-    public BlobServiceProperties setLogging(Logging logging) {
-        this.logging = logging;
+    public BlobServiceProperties setServerLoggingConfigurations(ServerLoggingConfigurations logging) {
+        this.serverLoggingConfigurations = logging;
         return this;
     }
 

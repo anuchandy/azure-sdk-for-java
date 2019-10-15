@@ -229,3 +229,18 @@ directive:
         "StorageException.class"
       );
 ```
+
+### Rename the model Logging to ServerLoggingConfigurations
+``` yaml
+directive:
+- from: swagger-document
+  where: $.definitions
+  transform: >
+    if (!$.Logging) {
+        $.ServerLoggingConfigurations = $.Logging;
+        delete $.Logging;
+        const path = $.StorageServiceProperties.properties.Logging.$ref.replace(/[#].*$/, "#/definitions/ServerLoggingConfigurations");
+        $.StorageServiceProperties.properties.Logging.$ref = path;
+        $.StorageServiceProperties.properties.Logging["x-ms-client-name"] = "serverLoggingConfigurations";
+    }
+```

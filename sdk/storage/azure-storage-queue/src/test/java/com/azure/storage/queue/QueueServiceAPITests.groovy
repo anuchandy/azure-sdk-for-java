@@ -4,7 +4,7 @@
 package com.azure.storage.queue
 
 
-import com.azure.storage.queue.models.Logging
+import com.azure.storage.queue.models.ServerLoggingConfigurations
 import com.azure.storage.queue.models.Metrics
 import com.azure.storage.queue.models.QueueItem
 import com.azure.storage.queue.models.QueuesSegmentOptions
@@ -160,7 +160,7 @@ class QueueServiceAPITests extends APISpec {
         def originalProperties = primaryQueueServiceClient.getProperties()
         def retentionPolicy = new RetentionPolicy().setEnabled(true)
             .setDays(3)
-        def logging = new Logging().setVersion("1.0")
+        def logging = new ServerLoggingConfigurations().setVersion("1.0")
             .setDelete(true)
             .setWrite(true)
             .setRetentionPolicy(retentionPolicy)
@@ -168,7 +168,7 @@ class QueueServiceAPITests extends APISpec {
             .setIncludeAPIs(false)
             .setRetentionPolicy(retentionPolicy)
             .setVersion("1.0")
-        def updatedProperties = new StorageServiceProperties().setLogging(logging)
+        def updatedProperties = new StorageServiceProperties().setServerLoggingConfigurations(logging)
             .setHourMetrics(metrics)
             .setMinuteMetrics(metrics)
             .setCors(new ArrayList<>())

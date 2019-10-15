@@ -7,7 +7,7 @@ import com.azure.core.util.Context;
 import com.azure.storage.blob.models.BlobContainerListDetails;
 import com.azure.storage.blob.models.BlobServiceProperties;
 import com.azure.storage.blob.models.ListBlobContainersOptions;
-import com.azure.storage.blob.models.Logging;
+import com.azure.storage.blob.models.ServerLoggingConfigurations;
 import com.azure.storage.blob.models.Metrics;
 import com.azure.storage.blob.models.PublicAccessType;
 import com.azure.storage.blob.models.RetentionPolicy;
@@ -128,7 +128,7 @@ public class BlobServiceAsyncClientJavaDocCodeSnippets {
         RetentionPolicy metricsRetentionPolicy = new RetentionPolicy().setEnabled(true).setDays(1);
 
         BlobServiceProperties properties = new BlobServiceProperties()
-            .setLogging(new Logging()
+            .setServerLoggingConfigurations(new ServerLoggingConfigurations()
                 .setWrite(true)
                 .setDelete(true)
                 .setRetentionPolicy(loggingRetentionPolicy))
@@ -154,7 +154,7 @@ public class BlobServiceAsyncClientJavaDocCodeSnippets {
         RetentionPolicy metricsRetentionPolicy = new RetentionPolicy().setEnabled(true).setDays(1);
 
         BlobServiceProperties properties = new BlobServiceProperties()
-            .setLogging(new Logging()
+            .setServerLoggingConfigurations(new ServerLoggingConfigurations()
                 .setWrite(true)
                 .setDelete(true)
                 .setRetentionPolicy(loggingRetentionPolicy))

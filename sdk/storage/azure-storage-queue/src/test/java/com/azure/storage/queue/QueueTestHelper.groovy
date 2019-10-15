@@ -7,7 +7,7 @@ import com.azure.core.http.rest.Response
 import com.azure.core.implementation.util.ImplUtils
 import com.azure.core.util.Configuration
 import com.azure.storage.queue.models.CorsRule
-import com.azure.storage.queue.models.Logging
+import com.azure.storage.queue.models.ServerLoggingConfigurations
 import com.azure.storage.queue.models.Metrics
 import com.azure.storage.queue.models.QueueItem
 import com.azure.storage.queue.models.RetentionPolicy
@@ -49,7 +49,7 @@ class QueueTestHelper {
         } else {
             return assertMetricsAreEqual(expected.getHourMetrics(), actual.getHourMetrics()) &&
                 assertMetricsAreEqual(expected.getMinuteMetrics(), actual.getMinuteMetrics()) &&
-                assertLoggingAreEqual(expected.getLogging(), actual.getLogging()) &&
+                assertLoggingAreEqual(expected.getServerLoggingConfigurations(), actual.getServerLoggingConfigurations()) &&
                 assertCorsAreEqual(expected.getCors(), actual.getCors())
         }
     }
@@ -65,7 +65,7 @@ class QueueTestHelper {
         }
     }
 
-    static boolean assertLoggingAreEqual(Logging expected, Logging actual) {
+    static boolean assertLoggingAreEqual(ServerLoggingConfigurations expected, ServerLoggingConfigurations actual) {
         if (expected == null) {
             return actual == null
         } else {

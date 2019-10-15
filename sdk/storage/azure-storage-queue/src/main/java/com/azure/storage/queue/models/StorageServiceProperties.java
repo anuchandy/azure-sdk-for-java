@@ -22,7 +22,7 @@ public final class StorageServiceProperties {
      * Azure Analytics Logging settings
      */
     @JsonProperty(value = "Logging")
-    private Logging logging;
+    private ServerLoggingConfigurations serverLoggingConfigurations;
 
     /*
      * A summary of request statistics grouped by API in hourly aggregates for
@@ -59,8 +59,8 @@ public final class StorageServiceProperties {
      *
      * @return the logging value.
      */
-    public Logging getLogging() {
-        return this.logging;
+    public ServerLoggingConfigurations getServerLoggingConfigurations() {
+        return this.serverLoggingConfigurations;
     }
 
     /**
@@ -69,8 +69,8 @@ public final class StorageServiceProperties {
      * @param logging the logging value to set.
      * @return the StorageServiceProperties object itself.
      */
-    public StorageServiceProperties setLogging(Logging logging) {
-        this.logging = logging;
+    public StorageServiceProperties setServerLoggingConfigurations(ServerLoggingConfigurations logging) {
+        this.serverLoggingConfigurations = logging;
         return this;
     }
 

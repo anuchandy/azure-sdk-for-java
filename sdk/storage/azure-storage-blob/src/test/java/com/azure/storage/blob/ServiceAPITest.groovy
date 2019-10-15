@@ -10,7 +10,7 @@ import com.azure.storage.blob.models.BlobContainerListDetails
 import com.azure.storage.blob.models.BlobServiceProperties
 import com.azure.storage.blob.models.CorsRule
 import com.azure.storage.blob.models.ListBlobContainersOptions
-import com.azure.storage.blob.models.Logging
+import com.azure.storage.blob.models.ServerLoggingConfigurations
 
 import com.azure.storage.blob.models.Metrics
 import com.azure.storage.blob.models.RetentionPolicy
@@ -37,7 +37,7 @@ class ServiceAPITest extends APISpec {
                 .setRetentionPolicy(disabled))
             .setMinuteMetrics(new Metrics().setVersion("1.0").setEnabled(false)
                 .setRetentionPolicy(disabled))
-            .setLogging(new Logging().setVersion("1.0")
+            .setServerLoggingConfigurations(new ServerLoggingConfigurations().setVersion("1.0")
                 .setRetentionPolicy(disabled))
             .setDefaultServiceVersion("2018-03-28"))
     }
@@ -52,7 +52,7 @@ class ServiceAPITest extends APISpec {
                 .setRetentionPolicy(disabled))
             .setMinuteMetrics(new Metrics().setVersion("1.0").setEnabled(false)
                 .setRetentionPolicy(disabled))
-            .setLogging(new Logging().setVersion("1.0")
+            .setServerLoggingConfigurations(new ServerLoggingConfigurations().setVersion("1.0")
                 .setRetentionPolicy(disabled))
             .setDefaultServiceVersion("2018-03-28"))
     }
@@ -161,12 +161,12 @@ class ServiceAPITest extends APISpec {
     }
 
     def validatePropsSet(BlobServiceProperties sent, BlobServiceProperties received) {
-        return received.getLogging().isRead() == sent.getLogging().isRead() &&
-            received.getLogging().isDelete() == sent.getLogging().isDelete() &&
-            received.getLogging().isWrite() == sent.getLogging().isWrite() &&
-            received.getLogging().getVersion() == sent.getLogging().getVersion() &&
-            received.getLogging().getRetentionPolicy().getDays() == sent.getLogging().getRetentionPolicy().getDays() &&
-            received.getLogging().getRetentionPolicy().isEnabled() == sent.getLogging().getRetentionPolicy().isEnabled() &&
+        return received.getServerLoggingConfigurations().isRead() == sent.getServerLoggingConfigurations().isRead() &&
+            received.getServerLoggingConfigurations().isDelete() == sent.getServerLoggingConfigurations().isDelete() &&
+            received.getServerLoggingConfigurations().isWrite() == sent.getServerLoggingConfigurations().isWrite() &&
+            received.getServerLoggingConfigurations().getVersion() == sent.getServerLoggingConfigurations().getVersion() &&
+            received.getServerLoggingConfigurations().getRetentionPolicy().getDays() == sent.getServerLoggingConfigurations().getRetentionPolicy().getDays() &&
+            received.getServerLoggingConfigurations().getRetentionPolicy().isEnabled() == sent.getServerLoggingConfigurations().getRetentionPolicy().isEnabled() &&
 
             received.getCors().size() == sent.getCors().size() &&
             received.getCors().get(0).getAllowedMethods() == sent.getCors().get(0).getAllowedMethods() &&
@@ -200,7 +200,7 @@ class ServiceAPITest extends APISpec {
     def "Set get properties"() {
         when:
         RetentionPolicy retentionPolicy = new RetentionPolicy().setDays(5).setEnabled(true)
-        Logging logging = new Logging().setRead(true).setVersion("1.0")
+        ServerLoggingConfigurations logging = new ServerLoggingConfigurations().setRead(true).setVersion("1.0")
             .setRetentionPolicy(retentionPolicy)
         ArrayList<CorsRule> corsRules = new ArrayList<>()
         corsRules.add(new CorsRule().setAllowedMethods("GET,PUT,HEAD")
@@ -218,7 +218,7 @@ class ServiceAPITest extends APISpec {
             .setErrorDocument404Path("custom/error/path.html")
 
         BlobServiceProperties sentProperties = new BlobServiceProperties()
-            .setLogging(logging).setCors(corsRules).setDefaultServiceVersion(defaultServiceVersion)
+            .setServerLoggingConfigurations(logging).setCors(corsRules).setDefaultServiceVersion(defaultServiceVersion)
             .setMinuteMetrics(minuteMetrics).setHourMetrics(hourMetrics)
             .setDeleteRetentionPolicy(retentionPolicy)
             .setStaticWebsite(website)
@@ -241,7 +241,7 @@ class ServiceAPITest extends APISpec {
     def "Set props min"() {
         setup:
         RetentionPolicy retentionPolicy = new RetentionPolicy().setDays(5).setEnabled(true)
-        Logging logging = new Logging().setRead(true).setVersion("1.0")
+        ServerLoggingConfigurations logging = new ServerLoggingConfigurations().setRead(true).setVersion("1.0")
             .setRetentionPolicy(retentionPolicy)
         ArrayList<CorsRule> corsRules = new ArrayList<>()
         corsRules.add(new CorsRule().setAllowedMethods("GET,PUT,HEAD")
@@ -259,7 +259,7 @@ class ServiceAPITest extends APISpec {
             .setErrorDocument404Path("custom/error/path.html")
 
         BlobServiceProperties sentProperties = new BlobServiceProperties()
-            .setLogging(logging).setCors(corsRules).setDefaultServiceVersion(defaultServiceVersion)
+            .setServerLoggingConfigurations(logging).setCors(corsRules).setDefaultServiceVersion(defaultServiceVersion)
             .setMinuteMetrics(minuteMetrics).setHourMetrics(hourMetrics)
             .setDeleteRetentionPolicy(retentionPolicy)
             .setStaticWebsite(website)
