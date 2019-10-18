@@ -55,10 +55,10 @@ public class PageBlobClientJavaDocCodeSnippets {
      * Code snippets for {@link PageBlobClient#create(long)}
      */
     public void createCodeSnippet() {
-        // BEGIN: com.azure.storage.blob.PageBlobClient.create#long
+        // BEGIN: com.azure.storage.blob.PageBlobClient.fromStorageSettings#long
         PageBlobItem pageBlob = client.create(size);
         System.out.printf("Created page blob with sequence number %s%n", pageBlob.getBlobSequenceNumber());
-        // END: com.azure.storage.blob.PageBlobClient.create#long
+        // END: com.azure.storage.blob.PageBlobClient.fromStorageSettings#long
     }
 
     /**

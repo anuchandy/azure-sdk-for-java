@@ -159,7 +159,7 @@ class APISpec extends Specification {
         }
 
         if (accountName == null || accountKey == null) {
-            logger.warning("Account name or key for the {} account was null. Test's requiring these credentials will fail.", accountType)
+            logger.warning("Account name or key for the {} account was null. Test's requiring these storageAuthSettings will fail.", accountType)
             return null
         }
 

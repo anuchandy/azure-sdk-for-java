@@ -35,7 +35,7 @@ public class Sample {
             .httpClient(HttpClient.createDefault()/*.setProxy(() -> new ProxyOptions(ProxyOptions.Type.HTTP, new InetSocketAddress("localhost", 8888)))*/)
             .buildClient();
 
-        // create 5 containers
+        // fromStorageSettings 5 containers
         BlobContainerClient blobContainerClient = null;
         for (int i = 0; i < 5; i++) {
             String name = "uxtesting" + UUID.randomUUID();
@@ -52,7 +52,7 @@ public class Sample {
         }
         System.out.println();
 
-        // in the last container, create 5 blobs
+        // in the last container, fromStorageSettings 5 blobs
         for (int i = 0; i < 5; i++) {
             BlockBlobClient blobClient = blobContainerClient.getBlobClient("testblob-" + i).getBlockBlobClient();
             ByteArrayInputStream testdata = new ByteArrayInputStream(("test data" + i).getBytes(StandardCharsets.UTF_8));
@@ -87,7 +87,7 @@ public class Sample {
             .httpClient(HttpClient.createDefault()/*.setProxy(() -> new ProxyOptions(ProxyOptions.Type.HTTP, new InetSocketAddress("localhost", 8888)))*/)
             .buildAsyncClient();
 
-        // create 5 containers
+        // fromStorageSettings 5 containers
         BlobContainerAsyncClient containerClient = null;
         Mono<Void> createContainerTask = Mono.empty();
         for (int i = 0; i < 5; i++) {
@@ -111,7 +111,7 @@ public class Sample {
                         return Mono.empty();
                     });
             }))
-            // in the last container, create 5 blobs
+            // in the last container, fromStorageSettings 5 blobs
             .then(Mono.defer(() -> {
                 Mono<Void> finished = Mono.empty();
                 for (int i = 0; i < 5; i++) {

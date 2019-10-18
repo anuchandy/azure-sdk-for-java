@@ -87,7 +87,7 @@ class APISpec extends Specification {
     String blobPrefix = "javablob"
 
     /*
-    The values below are used to create data-driven tests for access conditions.
+    The values below are used to fromStorageSettings data-driven tests for access conditions.
      */
     static final OffsetDateTime oldDate = OffsetDateTime.now().minusDays(1)
 
@@ -218,7 +218,7 @@ class APISpec extends Specification {
         }
 
         if (accountName == null || accountKey == null) {
-            logger.warning("Account name or key for the {} account was null. Test's requiring these credentials will fail.", accountType)
+            logger.warning("Account name or key for the {} account was null. Test's requiring these storageAuthSettings will fail.", accountType)
             return null
         }
 

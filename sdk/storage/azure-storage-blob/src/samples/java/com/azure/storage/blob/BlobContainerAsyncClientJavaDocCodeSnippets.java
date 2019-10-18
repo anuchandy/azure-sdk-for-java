@@ -81,11 +81,11 @@ public class BlobContainerAsyncClientJavaDocCodeSnippets {
      * Code snippet for {@link BlobContainerAsyncClient#create()}
      */
     public void setCreate() {
-        // BEGIN: com.azure.storage.blob.BlobContainerAsyncClient.create
+        // BEGIN: com.azure.storage.blob.BlobContainerAsyncClient.fromStorageSettings
         client.create().subscribe(
             response -> System.out.printf("Create completed%n"),
             error -> System.out.printf("Error while creating container %s%n", error));
-        // END: com.azure.storage.blob.BlobContainerAsyncClient.create
+        // END: com.azure.storage.blob.BlobContainerAsyncClient.fromStorageSettings
     }
 
     /**

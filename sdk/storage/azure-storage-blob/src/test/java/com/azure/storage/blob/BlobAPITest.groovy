@@ -307,7 +307,7 @@ class BlobAPITest extends APISpec {
         properties.getContentDisposition() == null // tested in "set HTTP headers"
         properties.getContentLanguage() == null // tested in "set HTTP headers"
         properties.getCacheControl() == null // tested in "set HTTP headers"
-        properties.getBlobSequenceNumber() == null // tested in PageBlob."create sequence number"
+        properties.getBlobSequenceNumber() == null // tested in PageBlob."fromStorageSettings sequence number"
         headers.getValue("Accept-Ranges") == "bytes"
         properties.getCommittedBlockCount() == null // tested in AppendBlob."append block"
         properties.isServerEncrypted()
@@ -885,7 +885,7 @@ class BlobAPITest extends APISpec {
             .blobClient(bc)
             .buildBlockBlobClient()
             .upload(new ByteArrayInputStream(getRandomByteArray(8 * 1024 * 1024)), 8 * 1024 * 1024)
-        // So we don't have to create a SAS.
+        // So we don't have to fromStorageSettings a SAS.
         cc.setAccessPolicy(PublicAccessType.BLOB, null)
 
         def cu2 = alternateBlobServiceClient.getBlobContainerClient(generateBlobName())
@@ -913,7 +913,7 @@ class BlobAPITest extends APISpec {
         new SpecializedBlobClientBuilder().blobClient(bc)
             .buildBlockBlobClient()
             .upload(new ByteArrayInputStream(getRandomByteArray(8 * 1024 * 1024)), 8 * 1024 * 1024)
-        // So we don't have to create a SAS.
+        // So we don't have to fromStorageSettings a SAS.
         cc.setAccessPolicy(PublicAccessType.BLOB, null)
 
         def cu2 = alternateBlobServiceClient.getBlobContainerClient(generateBlobName())
@@ -940,7 +940,7 @@ class BlobAPITest extends APISpec {
         new SpecializedBlobClientBuilder().blobClient(bc)
             .buildBlockBlobClient()
             .upload(new ByteArrayInputStream(getRandomByteArray(8 * 1024 * 1024)), 8 * 1024 * 1024)
-        // So we don't have to create a SAS.
+        // So we don't have to fromStorageSettings a SAS.
         cc.setAccessPolicy(PublicAccessType.BLOB, null)
 
         def cu2 = alternateBlobServiceClient.getBlobContainerClient(generateBlobName())
@@ -960,7 +960,7 @@ class BlobAPITest extends APISpec {
         new SpecializedBlobClientBuilder().blobClient(bc)
             .buildBlockBlobClient()
             .upload(new ByteArrayInputStream(getRandomByteArray(8 * 1024 * 1024)), 8 * 1024 * 1024)
-        // So we don't have to create a SAS.
+        // So we don't have to fromStorageSettings a SAS.
         cc.setAccessPolicy(PublicAccessType.BLOB, null)
 
         def cu2 = alternateBlobServiceClient.getBlobContainerClient(generateContainerName())

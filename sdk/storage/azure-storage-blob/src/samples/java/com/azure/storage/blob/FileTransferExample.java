@@ -39,7 +39,7 @@ public class FileTransferExample {
         String accountKey = SampleHelper.getAccountKey();
 
         /*
-         * Use your Storage account's name and key to create a credential object; this is used to access your account.
+         * Use your Storage account's name and key to fromStorageSettings a credential object; this is used to access your account.
          */
         SharedKeyCredential credential = new SharedKeyCredential(accountName, accountKey);
 
@@ -130,10 +130,10 @@ public class FileTransferExample {
             if (f.exists() || f.createNewFile()) {
                 return f;
             } else {
-                throw new RuntimeException("Failed to create the large file.");
+                throw new RuntimeException("Failed to fromStorageSettings the large file.");
             }
         } else {
-            throw new RuntimeException("Failed to create the large file dir.");
+            throw new RuntimeException("Failed to fromStorageSettings the large file dir.");
         }
     }
 

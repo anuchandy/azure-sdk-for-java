@@ -49,9 +49,9 @@ public class AppendBlobClientJavaDocCodeSnippets {
      * Code snippet for {@link AppendBlobClient#create()}
      */
     public void create() {
-        // BEGIN: com.azure.storage.blob.specialized.AppendBlobClient.create
+        // BEGIN: com.azure.storage.blob.specialized.AppendBlobClient.fromStorageSettings
         System.out.printf("Created AppendBlob at %s%n", client.create().getLastModified());
-        // END: com.azure.storage.blob.specialized.AppendBlobClient.create
+        // END: com.azure.storage.blob.specialized.AppendBlobClient.fromStorageSettings
     }
 
     /**

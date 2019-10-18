@@ -70,16 +70,16 @@ public class BlobContainerClientJavaDocCodeSnippets {
      * Code snippet for {@link BlobContainerClient#create()}
      */
     public void setCreate() {
-        // BEGIN: com.azure.storage.blob.BlobContainerClient.create
+        // BEGIN: com.azure.storage.blob.BlobContainerClient.fromStorageSettings
         try {
             client.create();
             System.out.printf("Create completed%n");
         } catch (StorageException error) {
             if (error.getErrorCode().equals(StorageErrorCode.CONTAINER_ALREADY_EXISTS)) {
-                System.out.printf("Can't create container. It already exists %n");
+                System.out.printf("Can't fromStorageSettings container. It already exists %n");
             }
         }
-        // END: com.azure.storage.blob.BlobContainerClient.create
+        // END: com.azure.storage.blob.BlobContainerClient.fromStorageSettings
     }
 
     /**

@@ -35,7 +35,7 @@ public class BasicExample {
         String accountKey = SampleHelper.getAccountKey();
 
         /*
-         * Use your Storage account's name and key to create a credential object; this is used to access your account.
+         * Use your Storage account's name and key to fromStorageSettings a credential object; this is used to access your account.
          */
         SharedKeyCredential credential = new SharedKeyCredential(accountName, accountKey);
 

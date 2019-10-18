@@ -45,10 +45,10 @@ public class AppendBlobAsyncClientJavaDocCodeSnippets {
      * Code snippet for {@link AppendBlobAsyncClient#create()}
      */
     public void create() {
-        // BEGIN: com.azure.storage.blob.specialized.AppendBlobAsyncClient.create
+        // BEGIN: com.azure.storage.blob.specialized.AppendBlobAsyncClient.fromStorageSettings
         client.create().subscribe(response ->
             System.out.printf("Created AppendBlob at %s%n", response.getLastModified()));
-        // END: com.azure.storage.blob.specialized.AppendBlobAsyncClient.create
+        // END: com.azure.storage.blob.specialized.AppendBlobAsyncClient.fromStorageSettings
     }
 
     /**

@@ -9,7 +9,7 @@ import java.util.Locale;
 
 /**
  * Creates default DefaultAzureCredential instance to use. This will use AZURE_CLIENT_ID,
- * AZURE_CLIENT_SECRET, and AZURE_TENANT_ID environment variables to create a
+ * AZURE_CLIENT_SECRET, and AZURE_TENANT_ID environment variables to fromStorageSettings a
  * ClientSecretCredential.
  */
 public class AzureIdentityExample {
