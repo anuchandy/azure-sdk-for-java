@@ -29,8 +29,12 @@ import reactor.netty.tcp.TcpClient;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -186,11 +190,24 @@ class NettyAsyncHttpClient implements HttpClient {
 
         @Override
         public Flux<ByteBuffer> getBody() {
-            return bodyIntern().doFinally(s -> {
-                if (!reactorNettyConnection.isDisposed()) {
-                    reactorNettyConnection.channel().eventLoop().execute(reactorNettyConnection::dispose);
+            return Flux.using((Callable<List<ByteBuf>>) () -> new ArrayList<>(),
+                new Function<List<ByteBuf>, Publisher<ByteBuffer>>() {
+                    @Override
+                    public Publisher<ByteBuffer> apply(List<ByteBuf> refs) {
+                        return bodyIntern().doFinally(s -> {
+                            if (!reactorNettyConnection.isDisposed()) {
+                                reactorNettyConnection.channel().eventLoop().execute(reactorNettyConnection::dispose);
+                            }
+                        }).map(byteBuf -> {
+                            refs.add(byteBuf.retain());
+                            return byteBuf.nioBuffer();
+                        });
+                    }
+            }, refs -> {
+                for (ByteBuf ref : refs) {
+                    ref.release();
                 }
-            }).map(ByteBuf::nioBuffer);
+            });
         }
 
         @Override
