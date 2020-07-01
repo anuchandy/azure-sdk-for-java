@@ -94,6 +94,7 @@
             <bannedDependencies>
               <includes>
                 <include>com.azure:*</include>
+                <include>com.microsoft.azure:azure-data-lake-store-sdk:[2.3.8]</include> <!-- {x-include-update;com.microsoft.azure:azure-data-lake-store-sdk;external_dependency} -->
                 <include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310:[2.10.1]</include> <!-- {x-include-update;com.fasterxml.jackson.datatype:jackson-datatype-jsr310;external_dependency} -->
                 <include>com.fasterxml.jackson.dataformat:jackson-dataformat-xml:[2.10.1]</include> <!-- {x-include-update;com.fasterxml.jackson.core:jackson-databind;external_dependency} -->
               </includes>
