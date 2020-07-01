@@ -70,6 +70,7 @@ public class G1UploadFromFileTest extends G1DataLakeFileTestBase<PerfStressOptio
             copyStream(inputStream, outStream);
             outStream.close();
         } catch (IOException ioe) {
+            ioe.printStackTrace();
             throw new RuntimeException(ioe);
         }
     }
