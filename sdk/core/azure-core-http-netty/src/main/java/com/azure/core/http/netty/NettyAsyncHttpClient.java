@@ -193,20 +193,16 @@ class NettyAsyncHttpClient implements HttpClient {
 
         @Override
         public Flux<ByteBuffer> getBody() {
-            return bodyIntern().doFinally(s -> {
-                if (!reactorNettyConnection.isDisposed()) {
-                    reactorNettyConnection.channel().eventLoop().execute(reactorNettyConnection::dispose);
-                }
-            }).map(byteBuf -> this.disableBufferCopy ? byteBuf.nioBuffer() : deepCopyBuffer(byteBuf));
+            return bodyIntern()
+                .map(byteBuf ->
+                    this.disableBufferCopy ?
+                        byteBuf.nioBuffer() :
+                        deepCopyBuffer(byteBuf));
         }
 
         @Override
         public Mono<byte[]> getBodyAsByteArray() {
-            return bodyIntern().aggregate().asByteArray().doFinally(s -> {
-                if (!reactorNettyConnection.isDisposed()) {
-                    reactorNettyConnection.channel().eventLoop().execute(reactorNettyConnection::dispose);
-                }
-            });
+            return bodyIntern().aggregate().asByteArray();
         }
 
         @Override
@@ -217,18 +213,11 @@ class NettyAsyncHttpClient implements HttpClient {
 
         @Override
         public Mono<String> getBodyAsString(Charset charset) {
-            return bodyIntern().aggregate().asString(charset).doFinally(s -> {
-                if (!reactorNettyConnection.isDisposed()) {
-                    reactorNettyConnection.channel().eventLoop().execute(reactorNettyConnection::dispose);
-                }
-            });
+            return bodyIntern().aggregate().asString(charset);
         }
 
         @Override
         public void close() {
-            if (!reactorNettyConnection.isDisposed()) {
-                reactorNettyConnection.channel().eventLoop().execute(reactorNettyConnection::dispose);
-            }
         }
 
         private ByteBufFlux bodyIntern() {

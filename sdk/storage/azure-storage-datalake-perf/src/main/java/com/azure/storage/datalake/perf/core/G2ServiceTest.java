@@ -4,6 +4,8 @@
 package com.azure.storage.datalake.perf.core;
 
 import com.azure.core.credential.TokenCredential;
+import com.azure.core.http.policy.HttpLogDetailLevel;
+import com.azure.core.http.policy.HttpLogOptions;
 import com.azure.core.util.CoreUtils;
 import com.azure.identity.ClientSecretCredentialBuilder;
 import com.azure.perf.test.core.PerfStressHttpClient;
@@ -51,6 +53,7 @@ public abstract class G2ServiceTest<TOptions extends PerfStressOptions> extends 
         DataLakeServiceClientBuilder builder = new DataLakeServiceClientBuilder()
             .endpoint(endpoint)
             .credential(tokenCredential)
+            .httpLogOptions(new HttpLogOptions().setLogLevel(HttpLogDetailLevel.BASIC))
             .httpClient(PerfStressHttpClient.create(options));
 
         dataLakeServiceClient = builder.buildClient();

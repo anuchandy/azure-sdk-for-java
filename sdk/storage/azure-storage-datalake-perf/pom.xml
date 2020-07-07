@@ -14,7 +14,7 @@
 
   <groupId>com.azure</groupId>
   <artifactId>azure-storage-datalake-g2-perf</artifactId>
-  <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:azure-storage-perf;current} -->
+  <version>1.0.0-beta.2</version> <!-- {x-version-update;com.azure:azure-storage-perf;current} -->
   <packaging>jar</packaging>
 
   <properties>
@@ -24,6 +24,11 @@
   </properties>
 
   <dependencies>
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>azure-core-http-netty</artifactId>
+      <version>1.6.0-beta.2</version>
+    </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-jsr310</artifactId>
@@ -38,23 +43,33 @@
     <dependency>
       <groupId>com.azure</groupId>
       <artifactId>azure-storage-file-datalake</artifactId>
-      <version>12.1.0</version>
+      <version>12.2.0-beta.2</version>
     </dependency>
     <dependency>
       <groupId>com.azure</groupId>
       <artifactId>azure-identity</artifactId>
-      <version>1.0.3</version>
+      <version>1.1.0-beta.8</version>
     </dependency>
     <dependency>
       <groupId>com.azure</groupId>
       <artifactId>perf-test-core</artifactId>
-      <version>1.0.0-beta.1</version> <!-- {x-version-update;com.azure:perf-test-core;current} -->
+      <version>1.0.0-beta.2</version> <!-- {x-version-update;com.azure:perf-test-core;current} -->
     </dependency>
     <!-- G1 Client-->
     <dependency>
       <groupId>com.microsoft.azure</groupId>
       <artifactId>azure-data-lake-store-sdk</artifactId>
       <version>2.3.8</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.7.13</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>1.7.13</version>
     </dependency>
   </dependencies>
 

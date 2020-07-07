@@ -21,6 +21,8 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static reactor.netty.resources.ConnectionProvider.LEASING_STRATEGY_FIFO;
+
 /**
  * Builder class responsible for creating instances of {@link NettyAsyncHttpClient}.
  *
@@ -73,13 +75,18 @@ public class NettyAsyncHttpClientBuilder {
      * @throws IllegalStateException If the builder is configured to use an unknown proxy type.
      */
     public com.azure.core.http.HttpClient build() {
+        System.out.println("Building NettyAsyncHttpClient");
         HttpClient nettyHttpClient;
         if (this.baseHttpClient != null) {
             nettyHttpClient = baseHttpClient;
         } else if (this.connectionProvider != null) {
             nettyHttpClient = HttpClient.create(this.connectionProvider);
         } else {
-            nettyHttpClient = HttpClient.create();
+            nettyHttpClient = HttpClient.create(ConnectionProvider
+                .builder("anu")
+                .lifo()
+                .maxConnections(500)
+                .build());
         }
 
         nettyHttpClient = nettyHttpClient
