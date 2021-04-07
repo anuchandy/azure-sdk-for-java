@@ -19,16 +19,23 @@ import com.azure.storage.blob.models.ParallelTransferOptions;
 import com.azure.storage.common.StorageOutputStream;
 import com.azure.storage.common.implementation.Constants;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_OVERFLOW;
 
 /**
  * BlobOutputStream allows for the uploading of data to a blob using a stream-like approach.
@@ -196,11 +203,14 @@ public abstract class BlobOutputStream extends StorageOutputStream {
     }
 
     private static final class BlockBlobOutputStream extends BlobOutputStream {
-
-        private FluxSink<ByteBuffer> sink;
+        private final ClientLogger logger = new ClientLogger(BlockBlobOutputStream.class);
 
         private final Lock lock;
         private final Condition transferComplete;
+        private final Queue<ByteBuffer> writeLimitQueue;
+        private final Sinks.Many<ByteBuffer> writeSink;
+        private final AtomicBoolean writeInProgress = new AtomicBoolean(false);
+        private static final int WRITE_RETRY_IN_SECONDS = 3;
 
         boolean complete;
 
@@ -214,15 +224,10 @@ public abstract class BlobOutputStream extends StorageOutputStream {
 
             this.lock = new ReentrantLock();
             this.transferComplete = lock.newCondition();
+            this.writeLimitQueue =  new LinkedBlockingQueue<>(256);
+            this.writeSink = Sinks.many().unicast().onBackpressureBuffer(this.writeLimitQueue);
 
-            Flux<ByteBuffer> fbb = Flux.create((FluxSink<ByteBuffer> sink) -> this.sink = sink);
-
-            /* Subscribe by upload takes too long. We need to subscribe so that the sink is actually created. Since
-             this subscriber doesn't do anything and no data has started flowing, there are no drawbacks to this extra
-             subscribe. */
-            fbb.subscribe();
-
-            client.uploadWithResponse(new BlobParallelUploadOptions(fbb).
+            client.uploadWithResponse(new BlobParallelUploadOptions(this.writeSink.asFlux()).
                 setParallelTransferOptions(parallelTransferOptions).setHeaders(headers).setMetadata(metadata)
                 .setTags(tags).setTier(tier).setRequestConditions(requestConditions))
                 // This allows the operation to continue while maintaining the error that occurred.
@@ -254,7 +259,7 @@ public abstract class BlobOutputStream extends StorageOutputStream {
             // Need to wait until the uploadTask completes
             lock.lock();
             try {
-                sink.complete(); /* Allow upload task to try to complete. */
+                writeSink.tryEmitComplete(); /* Allow upload task to try to complete. */
 
                 while (!complete) {
                     transferComplete.await();
@@ -270,6 +275,12 @@ public abstract class BlobOutputStream extends StorageOutputStream {
         @Override
         protected void writeInternal(final byte[] data, int offset, int length) {
             this.checkStreamState();
+
+            if (!this.writeInProgress.compareAndSet(false, true)) {
+                this.lastError = new IOException("Faulted OutputStream due to concurrent writes.");
+                throw logger.logExceptionAsError(new UncheckedIOException(this.lastError));
+            }
+
             /*
             We need to do a deep copy here because the writing is async in this case. It is a common pattern for
             customers writing to an output stream to perform the writes in a tight loop with a reused buffer. This
@@ -277,7 +288,39 @@ public abstract class BlobOutputStream extends StorageOutputStream {
              */
             byte[] buffer = new byte[length];
             System.arraycopy(data, offset, buffer, 0, length);
-            sink.next(ByteBuffer.wrap(buffer));
+
+            boolean shouldRetry;
+            do {
+                final Sinks.EmitResult writeResult;
+                try {
+                    writeResult = writeSink.tryEmitNext(ByteBuffer.wrap(buffer));
+                } catch (Throwable throwable) {
+                    this.lastError = new IOException(throwable);
+                    throw logger.logExceptionAsError(new UncheckedIOException(this.lastError));
+                }
+
+                if (writeResult.isSuccess()) {
+                    this.writeInProgress.set(false);
+                    break;
+                } else {
+                    if (writeResult == FAIL_OVERFLOW) {
+                        shouldRetry = true;
+                        try {
+                            System.out.println("Retrying sink write..");
+                            TimeUnit.SECONDS.sleep(WRITE_RETRY_IN_SECONDS);
+                        } catch (InterruptedException e) {
+                            this.writeInProgress.set(false);
+                            throw logger.logExceptionAsError(new RuntimeException(e));
+                        }
+                    } else {
+                        this.lastError
+                            = new IOException(
+                                "Faulted OutputStream due to underlying sink write failure, result:" + writeResult,
+                            null);
+                        throw logger.logExceptionAsError(new UncheckedIOException(this.lastError));
+                    }
+                }
+            } while (shouldRetry);
         }
 
         // Never called

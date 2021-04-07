@@ -22,6 +22,7 @@ final class PayloadSizeGate {
     private final long threshold;
     private long size = 0;
     private Queue<ByteBuffer> byteBuffers = new LinkedList<>();
+    private final byte[] buffer;
 
     /**
      * Creates a new instance of PayloadSizeGate
@@ -29,6 +30,7 @@ final class PayloadSizeGate {
      */
     PayloadSizeGate(long threshold) {
         this.threshold = threshold;
+        this.buffer = new byte[(int) this.threshold];
     }
 
     /**
@@ -42,12 +44,16 @@ final class PayloadSizeGate {
             size += buf.remaining();
             return Flux.just(buf);
         } else {
-            size += buf.remaining();
-            byteBuffers.add(buf);
+            int r = buf.remaining();
+            buf.get(this.buffer, (int) this.size, r);
+            this.size += r;
+            // byteBuffers.add(buf);
             if (isThresholdBreached()) {
-                Flux<ByteBuffer> result = dequeuingFlux(byteBuffers);
-                byteBuffers = null;
-                return result;
+                this.byteBuffers = null;
+                return Flux.just(ByteBuffer.wrap(this.buffer, 0, (int) this.size));
+                // Flux<ByteBuffer> result = dequeuingFlux(byteBuffers);
+                // byteBuffers = null;
+                // return result;
             } else {
                 return Flux.empty();
             }
@@ -59,11 +65,12 @@ final class PayloadSizeGate {
      * @return Buffered data if threshold has not been broken. Otherwise empty.
      */
     Flux<ByteBuffer> flush() {
-        if (byteBuffers != null) {
+        if (this.byteBuffers != null) {
+            return Flux.just(ByteBuffer.wrap(this.buffer, 0, (int) this.size));
             // We return Flux from iterable in this case to support retries on single upload.
-            Flux<ByteBuffer> result = Flux.fromIterable(byteBuffers);
-            byteBuffers = null;
-            return result;
+//            Flux<ByteBuffer> result = Flux.fromIterable(byteBuffers);
+//            byteBuffers = null;
+//            return result;
         } else {
             return Flux.empty();
         }
@@ -80,18 +87,18 @@ final class PayloadSizeGate {
      * @return A flag indicating if observed data has breached the threshold.
      */
     boolean isThresholdBreached() {
-        return size > threshold;
+        return size >= threshold;
     }
 
-    private static Flux<ByteBuffer> dequeuingFlux(Queue<ByteBuffer> queue) {
-        // Generate is used as opposed to Flux.fromIterable as it allows the buffers to be garbage collected sooner.
-        return Flux.generate(sink -> {
-            ByteBuffer buffer = queue.poll();
-            if (buffer != null) {
-                sink.next(buffer);
-            } else {
-                sink.complete();
-            }
-        });
-    }
+//    private static Flux<ByteBuffer> dequeuingFlux(Queue<ByteBuffer> queue) {
+//        // Generate is used as opposed to Flux.fromIterable as it allows the buffers to be garbage collected sooner.
+//        return Flux.generate(sink -> {
+//            ByteBuffer buffer = queue.poll();
+//            if (buffer != null) {
+//                sink.next(buffer);
+//            } else {
+//                sink.complete();
+//            }
+//        });
+//    }
 }
