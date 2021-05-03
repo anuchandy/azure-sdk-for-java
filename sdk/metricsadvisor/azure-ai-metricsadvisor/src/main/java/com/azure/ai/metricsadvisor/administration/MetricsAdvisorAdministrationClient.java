@@ -7,6 +7,8 @@ import com.azure.ai.metricsadvisor.models.AnomalyAlertConfiguration;
 import com.azure.ai.metricsadvisor.models.DataFeed;
 import com.azure.ai.metricsadvisor.models.DataFeedIngestionProgress;
 import com.azure.ai.metricsadvisor.models.DataFeedIngestionStatus;
+import com.azure.ai.metricsadvisor.models.DataSourceCredentialEntity;
+import com.azure.ai.metricsadvisor.models.ListCredentialEntityOptions;
 import com.azure.ai.metricsadvisor.models.NotificationHook;
 import com.azure.ai.metricsadvisor.models.ListDataFeedIngestionOptions;
 import com.azure.ai.metricsadvisor.models.ListDataFeedOptions;
@@ -18,6 +20,7 @@ import com.azure.core.annotation.ServiceMethod;
 import com.azure.core.http.rest.PagedIterable;
 import com.azure.core.http.rest.Response;
 import com.azure.core.util.Context;
+import reactor.core.publisher.Mono;
 
 import java.time.OffsetDateTime;
 
@@ -903,5 +906,150 @@ public final class MetricsAdvisorAdministrationClient {
         String detectionConfigurationId, Context context) {
         return new PagedIterable<>(client.listAnomalyAlertConfigs(detectionConfigurationId,
             context == null ? Context.NONE : context));
+    }
+
+
+    /**
+     * Create a new credential entity.
+     *
+     * @param credentialEntity The credential entity to be created.
+     * @return The created credential entity.
+     * @throws NullPointerException If {@code credentialEntity} is null.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public DataSourceCredentialEntity createCredentialEntity(DataSourceCredentialEntity credentialEntity) {
+        return createCredentialEntityWithResponse(credentialEntity, Context.NONE).getValue();
+    }
+
+    /**
+     * Create a new credential entity with REST response.
+     *
+     * @param credentialEntity The credential entity to be created.
+     * @param context Additional context that is passed through the HTTP pipeline during the service call.
+     *
+     * @return A {@link Response} containing the created credential entity.
+     * @throws NullPointerException If {@code credentialEntity} is null.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Response<DataSourceCredentialEntity> createCredentialEntityWithResponse(DataSourceCredentialEntity credentialEntity, Context context) {
+        return null;
+        // return client.createCredentialEntityWithResponse(credentialEntity, context).block();
+    }
+
+    /**
+     * Get a credential entity by its id.
+     *
+     * <p><strong>Code sample</strong></p>
+     * {@codesnippet com.azure.ai.metricsadvisor.administration.MetricsAdvisorAdministrationClient.getDataFeed#String}
+     *
+     * @param credentialEntityId The credential entity unique id.
+     *
+     * @return The credential entity for the provided id.
+     * @throws IllegalArgumentException If {@code credentialEntityId} does not conform to the UUID format specification.
+     * @throws NullPointerException thrown if the {@code credentialEntityId} is null.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public DataSourceCredentialEntity getCredentialEntity(String credentialEntityId) {
+        return getCredentialEntityWithResponse(credentialEntityId, Context.NONE).getValue();
+    }
+
+    /**
+     * Get a credential entity by its id with REST response.
+     *
+     * <p><strong>Code sample</strong></p>
+     * {@codesnippet com.azure.ai.metricsadvisor.administration.MetricsAdvisorAdministrationClient.getDataFeedWithResponse#String-Context}
+     *
+     * @param credentialEntityId The credential entity unique id.
+     * @param context Additional context that is passed through the HTTP pipeline during the service call.
+     *
+     * @return The credential entity for the provided id.
+     * @throws IllegalArgumentException If {@code credentialEntityId} does not conform to the UUID format specification.
+     * @throws NullPointerException thrown if the {@code credentialEntityId} is null.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Response<DataSourceCredentialEntity> getCredentialEntityWithResponse(String credentialEntityId, Context context) {
+        return null;
+        // return client.getCredentialEntityWithResponse(credentialEntityId, context).block();
+    }
+
+    /**
+     * Update a credential entity.
+     *
+     * @param credentialEntity The credential entity to be updated.
+     *
+     * @return the updated credential entity.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public DataFeed updateCredentialEntity(DataSourceCredentialEntity credentialEntity) {
+        return updateCredentialEntityWithResponse(credentialEntity, Context.NONE).getValue();
+    }
+
+    /**
+     * Update a credential entity with REST response.
+     *
+     * @param credentialEntity The credential entity to be updated.
+     * @param context Additional context that is passed through the HTTP pipeline during the service call.
+     *
+     * @return the updated data feed.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Response<DataFeed> updateCredentialEntityWithResponse(DataSourceCredentialEntity credentialEntity, Context context) {
+        return null;
+        // return client.updateCredentialEntityWithResponse(credentialEntity, context).block();
+    }
+
+    /**
+     * Delete a credential entity.
+     *
+     * @param credentialEntityId The credential entity unique id.
+     *
+     * @throws IllegalArgumentException If {@code credentialEntityId} does not conform to the UUID format specification.
+     * @throws NullPointerException thrown if the {@code credentialEntityId} is null.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public void deleteCredentialEntity(String credentialEntityId) {
+        deleteCredentialEntityWithResponse(credentialEntityId, Context.NONE);
+    }
+
+    /**
+     * Delete a credential entity with REST response.
+     *
+     * @param credentialEntityId The credential entity unique id.
+     * @param context Additional context that is passed through the HTTP pipeline during the service call.
+     *
+     * @return a REST Response.
+     * @throws IllegalArgumentException If {@code credentialEntityId} does not conform to the UUID format specification.
+     * @throws NullPointerException thrown if the {@code credentialEntityId} is null.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Response<Void> deleteCredentialEntityWithResponse(String credentialEntityId, Context context) {
+        return null;
+        // return client.deleteCredentialEntityWithResponse(credentialEntityId, context).block();
+    }
+
+    /**
+     * List information of all credential entities on the metrics advisor account.
+     *
+     * @return A {@link PagedIterable} containing information of all the {@link DataFeed data feeds} in the account.
+     */
+    @ServiceMethod(returns = ReturnType.COLLECTION)
+    public PagedIterable<DataSourceCredentialEntity> listCredentialEntities() {
+        return listCredentialEntities(null, Context.NONE);
+    }
+
+    /**
+     * List information of all credential entities on the metrics advisor account with REST response.
+     *
+     * @param options The configurable {@link ListCredentialEntityOptions options} to pass for filtering
+     *                the output result.
+     * @param context Additional context that is passed through the Http pipeline during the service call.
+     *
+     * @return A {@link PagedIterable} containing information of all the {@link DataFeed data feeds} in the account.
+     */
+    @ServiceMethod(returns = ReturnType.COLLECTION)
+    public PagedIterable<DataSourceCredentialEntity> listCredentialEntities(ListCredentialEntityOptions options,
+                                                                            Context context) {
+        return null;
+        // return new PagedIterable<>(client.listCredentialEntities(options, context));
     }
 }

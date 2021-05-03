@@ -11,14 +11,9 @@ import com.azure.core.annotation.Immutable;
 @Immutable
 public final class AzureDataLakeStorageGen2DataFeedSource extends DataFeedSource {
     /*
-     * Account name
+     * The storage account
      */
-    private final String accountName;
-
-    /*
-     * Account key
-     */
-    private final String accountKey;
+    private final AzureDataLakeStorageGen2DataSourceAccount storageAccount;
 
     /*
      * File system name (Container)
@@ -46,29 +41,36 @@ public final class AzureDataLakeStorageGen2DataFeedSource extends DataFeedSource
      */
     public AzureDataLakeStorageGen2DataFeedSource(final String accountName, final String accountKey,
         final String fileSystemName, final String directoryTemplate, final String fileTemplate) {
-        this.accountName = accountName;
-        this.accountKey = accountKey;
+        this(AzureDataLakeStorageGen2DataSourceAccount.withBasicCredentials(accountName, accountKey),
+            fileSystemName,
+            directoryTemplate,
+            fileTemplate);
+    }
+
+    /**
+     * Constructs a AzureDataLakeStorageGen2DataFeedSource object.
+     *
+     * @param storageAccount the the storage account.
+     * @param fileSystemName the file system name.
+     * @param directoryTemplate the directoty template of the storage account.
+     * @param fileTemplate the file template.
+     */
+    public AzureDataLakeStorageGen2DataFeedSource(final AzureDataLakeStorageGen2DataSourceAccount storageAccount,
+                                                  final String fileSystemName, final String directoryTemplate,
+                                                  final String fileTemplate) {
+        this.storageAccount = storageAccount;
         this.fileSystemName = fileSystemName;
         this.directoryTemplate = directoryTemplate;
         this.fileTemplate = fileTemplate;
     }
 
     /**
-     * Get the the account name for the AzureDataLakeStorageGen2DataFeedSource.
+     * Get the the account for the AzureDataLakeStorageGen2DataFeedSource.
      *
-     * @return the accountName value.
+     * @return the account value.
      */
-    public String getAccountName() {
-        return this.accountName;
-    }
-
-    /**
-     * Get the account key value for the AzureDataLakeStorageGen2DataFeedSource.
-     *
-     * @return the accountKey value.
-     */
-    public String getAccountKey() {
-        return this.accountKey;
+    public AzureDataLakeStorageGen2DataSourceAccount getStorageAccount() {
+        return this.storageAccount;
     }
 
     /**

@@ -10,10 +10,10 @@ import com.azure.core.annotation.Immutable;
  */
 @Immutable
 public final class AzureBlobDataFeedSource extends DataFeedSource {
-    /*
-     * Azure Blob connection string
+    /**
+     * The connection string.
      */
-    private final String connectionString;
+    private final AzureBlobDataSourceConnectionString connectionString;
 
     /*
      * Container
@@ -33,6 +33,19 @@ public final class AzureBlobDataFeedSource extends DataFeedSource {
      * @param blobTemplate the blob template name
      */
     public AzureBlobDataFeedSource(final String connectionString, final String container, final String blobTemplate) {
+        this(AzureBlobDataSourceConnectionString.withBasicCredential(connectionString), container, blobTemplate);
+    }
+
+    /**
+     * Create a AzureBlobDataFeedSource instance.
+     *
+     * @param connectionString the Azure Blob connection string
+     * @param container the container name
+     * @param blobTemplate the blob template name
+     */
+    public AzureBlobDataFeedSource(final AzureBlobDataSourceConnectionString connectionString,
+                                   final String container,
+                                   final String blobTemplate) {
         this.connectionString = connectionString;
         this.container = container;
         this.blobTemplate = blobTemplate;
@@ -43,7 +56,7 @@ public final class AzureBlobDataFeedSource extends DataFeedSource {
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
+    public AzureBlobDataSourceConnectionString getConnectionString() {
         return this.connectionString;
     }
 

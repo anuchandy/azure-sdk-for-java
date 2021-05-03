@@ -280,7 +280,7 @@ public final class DataFeedTransforms {
             final AzureBlobDataFeedSource azureBlobDataFeedSource = ((AzureBlobDataFeedSource) dataFeedSource);
             dataFeedDetail = new AzureBlobDataFeed()
                 .setDataSourceParameter(new AzureBlobParameter()
-                    .setConnectionString(azureBlobDataFeedSource.getConnectionString())
+                    .setConnectionString(azureBlobDataFeedSource.getConnectionString().getValue())
                     .setContainer(azureBlobDataFeedSource.getContainer())
                     .setBlobTemplate(azureBlobDataFeedSource.getBlobTemplate()));
         } else if (dataFeedSource instanceof AzureCosmosDataFeedSource) {
@@ -296,7 +296,7 @@ public final class DataFeedTransforms {
                 ((AzureDataExplorerDataFeedSource) dataFeedSource);
             dataFeedDetail = new AzureDataExplorerDataFeed()
                 .setDataSourceParameter(new SqlSourceParameter()
-                    .setConnectionString(azureDataExplorerDataFeedSource.getConnectionString())
+                    .setConnectionString(azureDataExplorerDataFeedSource.getConnectionString().getValue())
                     .setQuery(azureDataExplorerDataFeedSource.getQuery()));
         } else if (dataFeedSource instanceof AzureTableDataFeedSource) {
             final AzureTableDataFeedSource azureTableDataFeedSource = ((AzureTableDataFeedSource) dataFeedSource);
@@ -338,7 +338,7 @@ public final class DataFeedTransforms {
             final SQLServerDataFeedSource sqlServerDataFeedSource = ((SQLServerDataFeedSource) dataFeedSource);
             dataFeedDetail = new SQLServerDataFeed()
                 .setDataSourceParameter(new SqlSourceParameter()
-                    .setConnectionString(sqlServerDataFeedSource.getConnectionString())
+                    .setConnectionString(sqlServerDataFeedSource.getConnectionString().getValue())
                     .setQuery(sqlServerDataFeedSource.getQuery()));
         } else if (dataFeedSource instanceof MongoDBDataFeedSource) {
             final MongoDBDataFeedSource azureCosmosDataFeedSource = ((MongoDBDataFeedSource) dataFeedSource);
@@ -352,8 +352,9 @@ public final class DataFeedTransforms {
                 ((AzureDataLakeStorageGen2DataFeedSource) dataFeedSource);
             dataFeedDetail = new AzureDataLakeStorageGen2DataFeed()
                 .setDataSourceParameter(new AzureDataLakeStorageGen2Parameter()
-                    .setAccountKey(azureDataLakeStorageGen2DataFeedSource.getAccountKey())
-                    .setAccountName(azureDataLakeStorageGen2DataFeedSource.getAccountName())
+                    .setAccountKey(AzureDataLakeStorageGen2DataSourceAccountHelper
+                        .getAccountKey(azureDataLakeStorageGen2DataFeedSource.getStorageAccount()))
+                    .setAccountName(azureDataLakeStorageGen2DataFeedSource.getStorageAccount().getAccountName())
                     .setDirectoryTemplate(azureDataLakeStorageGen2DataFeedSource.getDirectoryTemplate())
                     .setFileSystemName(azureDataLakeStorageGen2DataFeedSource.getFileSystemName())
                     .setFileTemplate(azureDataLakeStorageGen2DataFeedSource.getFileTemplate()));
@@ -395,7 +396,7 @@ public final class DataFeedTransforms {
             final AzureBlobDataFeedSource azureBlobDataFeedSource = ((AzureBlobDataFeedSource) dataFeedSource);
             dataFeedDetailPatch = new AzureBlobDataFeedPatch()
                 .setDataSourceParameter(new AzureBlobParameter()
-                    .setConnectionString(azureBlobDataFeedSource.getConnectionString())
+                    .setConnectionString(azureBlobDataFeedSource.getConnectionString().getValue())
                     .setContainer(azureBlobDataFeedSource.getContainer())
                     .setBlobTemplate(azureBlobDataFeedSource.getBlobTemplate()));
         } else if (dataFeedSource instanceof AzureCosmosDataFeedSource) {
@@ -411,7 +412,7 @@ public final class DataFeedTransforms {
                 ((AzureDataExplorerDataFeedSource) dataFeedSource);
             dataFeedDetailPatch = new AzureDataExplorerDataFeedPatch()
                 .setDataSourceParameter(new SqlSourceParameter()
-                    .setConnectionString(azureDataExplorerDataFeedSource.getConnectionString())
+                    .setConnectionString(azureDataExplorerDataFeedSource.getConnectionString().getValue())
                     .setQuery(azureDataExplorerDataFeedSource.getQuery()));
         } else if (dataFeedSource instanceof AzureTableDataFeedSource) {
             final AzureTableDataFeedSource azureTableDataFeedSource = ((AzureTableDataFeedSource) dataFeedSource);
@@ -453,7 +454,7 @@ public final class DataFeedTransforms {
             final SQLServerDataFeedSource sqlServerDataFeedSource = ((SQLServerDataFeedSource) dataFeedSource);
             dataFeedDetailPatch = new SQLServerDataFeedPatch()
                 .setDataSourceParameter(new SqlSourceParameter()
-                    .setConnectionString(sqlServerDataFeedSource.getConnectionString())
+                    .setConnectionString(sqlServerDataFeedSource.getConnectionString().getValue())
                     .setQuery(sqlServerDataFeedSource.getQuery()));
         } else if (dataFeedSource instanceof MongoDBDataFeedSource) {
             final MongoDBDataFeedSource azureCosmosDataFeedSource = ((MongoDBDataFeedSource) dataFeedSource);
@@ -467,8 +468,9 @@ public final class DataFeedTransforms {
                 ((AzureDataLakeStorageGen2DataFeedSource) dataFeedSource);
             dataFeedDetailPatch = new AzureDataLakeStorageGen2DataFeedPatch()
                 .setDataSourceParameter(new AzureDataLakeStorageGen2Parameter()
-                    .setAccountKey(azureDataLakeStorageGen2DataFeedSource.getAccountKey())
-                    .setAccountName(azureDataLakeStorageGen2DataFeedSource.getAccountName())
+                    .setAccountKey(AzureDataLakeStorageGen2DataSourceAccountHelper
+                        .getAccountKey(azureDataLakeStorageGen2DataFeedSource.getStorageAccount()))
+                    .setAccountName(azureDataLakeStorageGen2DataFeedSource.getStorageAccount().getAccountName())
                     .setDirectoryTemplate(azureDataLakeStorageGen2DataFeedSource.getDirectoryTemplate())
                     .setFileSystemName(azureDataLakeStorageGen2DataFeedSource.getFileSystemName())
                     .setFileTemplate(azureDataLakeStorageGen2DataFeedSource.getFileTemplate()));

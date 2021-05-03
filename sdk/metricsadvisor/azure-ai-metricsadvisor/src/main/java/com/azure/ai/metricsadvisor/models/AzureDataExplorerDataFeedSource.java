@@ -13,7 +13,7 @@ public final class AzureDataExplorerDataFeedSource extends DataFeedSource {
     /*
      * Database connection string
      */
-    private final String connectionString;
+    private final AzureDataExplorerDataSourceConnectionString connectionString;
 
     /*
      * Query script
@@ -27,6 +27,17 @@ public final class AzureDataExplorerDataFeedSource extends DataFeedSource {
      * @param query the query script.
      */
     public AzureDataExplorerDataFeedSource(final String connectionString, final String query) {
+        this(AzureDataExplorerDataSourceConnectionString.withBasicCredential(connectionString), query);
+    }
+
+    /**
+     * Create a AzureDataExplorerDataFeedSource instance.
+     *
+     * @param connectionString the database connection string.
+     * @param query the query script.
+     */
+    public AzureDataExplorerDataFeedSource(final AzureDataExplorerDataSourceConnectionString connectionString,
+                                           final String query) {
         this.connectionString = connectionString;
         this.query = query;
     }
@@ -36,7 +47,7 @@ public final class AzureDataExplorerDataFeedSource extends DataFeedSource {
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
+    public AzureDataExplorerDataSourceConnectionString getConnectionString() {
         return this.connectionString;
     }
 

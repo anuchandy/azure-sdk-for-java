@@ -13,7 +13,7 @@ public final class SQLServerDataFeedSource extends DataFeedSource {
     /*
      * Database connection string
      */
-    private final String connectionString;
+    private final SQLServerDataSourceConnectionString connectionString;
 
     /*
      * Query script
@@ -27,6 +27,16 @@ public final class SQLServerDataFeedSource extends DataFeedSource {
      * @param query the query value.
      */
     public SQLServerDataFeedSource(final String connectionString, final String query) {
+        this(SQLServerDataSourceConnectionString.withBasicCredential(connectionString), query);
+    }
+
+    /**
+     * Create a SQLServerDataFeedSource instance
+     *
+     * @param connectionString the database connection string.
+     * @param query the query value.
+     */
+    public SQLServerDataFeedSource(final SQLServerDataSourceConnectionString connectionString, final String query) {
         this.connectionString = connectionString;
         this.query = query;
     }
@@ -36,7 +46,7 @@ public final class SQLServerDataFeedSource extends DataFeedSource {
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
+    public SQLServerDataSourceConnectionString getConnectionString() {
         return this.connectionString;
     }
 

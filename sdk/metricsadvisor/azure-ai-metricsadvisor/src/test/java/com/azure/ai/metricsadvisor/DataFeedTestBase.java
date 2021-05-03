@@ -320,8 +320,9 @@ public abstract class DataFeedTestBase extends MetricsAdvisorAdministrationClien
                     (AzureDataLakeStorageGen2DataFeedSource) expectedDataFeed.getSource();
                 final AzureDataLakeStorageGen2DataFeedSource actualDataLakeFeedSource =
                     (AzureDataLakeStorageGen2DataFeedSource) actualDataFeed.getSource();
-                assertNotNull(actualDataLakeFeedSource.getAccountKey());
-                assertNotNull(actualDataLakeFeedSource.getAccountName());
+                assertNotNull(actualDataLakeFeedSource.getStorageAccount());
+                assertNotNull(actualDataLakeFeedSource.getStorageAccount().getCredentialType());
+                assertNotNull(actualDataLakeFeedSource.getStorageAccount().getAccountName());
                 assertEquals(expDataLakeStorageGen2DataFeedSource.getDirectoryTemplate(),
                     actualDataLakeFeedSource.getDirectoryTemplate());
                 assertEquals(expDataLakeStorageGen2DataFeedSource.getFileSystemName(),
