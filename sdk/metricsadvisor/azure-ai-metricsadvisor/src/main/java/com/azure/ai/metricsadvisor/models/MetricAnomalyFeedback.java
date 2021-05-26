@@ -9,7 +9,7 @@ import com.azure.core.annotation.Fluent;
 import java.time.OffsetDateTime;
 
 /**
- * The MetricAnomalyFeedback class.
+ * A feedback to indicate a set of data points as Anomaly or NotAnomaly.
  */
 @Fluent
 public final class MetricAnomalyFeedback extends MetricFeedback {

@@ -6,7 +6,8 @@ package com.azure.ai.metricsadvisor.models;
 import com.azure.core.annotation.Immutable;
 
 /**
- * The MetricPeriodFeedback model.
+ * The Feedback that helps the service in estimating period(seasonality)
+ * of the time series.
  */
 @Immutable
 public final class MetricPeriodFeedback extends MetricFeedback {

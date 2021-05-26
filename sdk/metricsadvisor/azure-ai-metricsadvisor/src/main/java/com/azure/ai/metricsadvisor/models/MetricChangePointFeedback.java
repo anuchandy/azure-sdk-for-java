@@ -8,7 +8,8 @@ import com.azure.core.annotation.Immutable;
 import java.time.OffsetDateTime;
 
 /**
- * The MetricChangePointFeedback class.
+ * The Feedback that allows the user to mark the exact change point when the time series has
+ * a trend change. This helps the anomaly detector in future analysis.
  */
 @Immutable
 public final class MetricChangePointFeedback extends MetricFeedback {

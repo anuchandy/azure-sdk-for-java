@@ -8,7 +8,8 @@ import com.azure.core.annotation.Immutable;
 import java.time.OffsetDateTime;
 
 /**
- * The MetricCommentFeedback class.
+ * The feedback that allows adding comments in plain text providing more
+ * context about the data.
  */
 @Immutable
 public final class MetricCommentFeedback extends MetricFeedback {

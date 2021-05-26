@@ -3,11 +3,12 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.MongoDbDataFeedSourceAccessor;
 import com.azure.core.annotation.Immutable;
 
-/** The MongoDBDataFeedSource model. */
+/** The MongoDbDataFeedSource model. */
 @Immutable
-public final class MongoDBDataFeedSource extends DataFeedSource {
+public final class MongoDbDataFeedSource extends DataFeedSource {
     /*
      * MongoDB connection string
      */
@@ -23,28 +24,28 @@ public final class MongoDBDataFeedSource extends DataFeedSource {
      */
     private final String command;
 
+    static {
+        MongoDbDataFeedSourceAccessor.setAccessor(
+            new MongoDbDataFeedSourceAccessor.Accessor() {
+                @Override
+                public String getConnectionString(MongoDbDataFeedSource feedSource) {
+                    return feedSource.getConnectionString();
+                }
+            });
+    }
+
     /**
-     * Create a MongoDBDataFeedSource instance.
+     * Create a MongoDbDataFeedSource instance.
      *
      * @param connectionString The connection string.
      * @param database The database name.
      * @param command The command value.
      */
-    public MongoDBDataFeedSource(final String connectionString, final String database, final String command) {
+    public MongoDbDataFeedSource(final String connectionString, final String database, final String command) {
         this.connectionString = connectionString;
         this.database = database;
         this.command = command;
     }
-
-    /**
-     * Get the connectionString property: MongoDB connection string.
-     *
-     * @return the connectionString value.
-     */
-    public String getConnectionString() {
-        return this.connectionString;
-    }
-
 
     /**
      * Get the database property: Database name.
@@ -65,4 +66,7 @@ public final class MongoDBDataFeedSource extends DataFeedSource {
         return this.command;
     }
 
+    private String getConnectionString() {
+        return this.connectionString;
+    }
 }
