@@ -3,9 +3,13 @@
 
 package com.azure.ai.metricsadvisor.implementation.util;
 
+import com.azure.core.annotation.Fluent;
 import com.azure.core.util.serializer.JacksonAdapter;
 import com.azure.core.util.serializer.SerializerEncoding;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -71,6 +75,39 @@ public class OptionSerializerTests {
         Assertions.assertEquals("\"test\"", serialized1);
     }
 
+    @Test
+    public void canSerializePolymorphicType() throws IOException {
+        ExtendedPatchModel patch = new ExtendedPatchModel();
+        patch.setParameters(new ParamExtendedPatch().setConnectionString("con-str"));
+
+        PolymorphicPatchModel basePatch = patch;
+        final String serialized1 = getSerializer().serialize(basePatch, SerializerEncoding.JSON);
+        Assertions
+            .assertEquals(
+                "{\"actualType\":\"PolymorphicPatch\",\"parameters\":{\"connectionString\":\"con-str\"}}",
+                serialized1);
+
+        patch = new ExtendedPatchModel();
+        patch.setParameters(new ParamExtendedPatch().setConnectionString(null));
+
+        basePatch = patch;
+        final String serialized2 = getSerializer().serialize(basePatch, SerializerEncoding.JSON);
+        Assertions
+            .assertEquals(
+                "{\"actualType\":\"PolymorphicPatch\",\"parameters\":{\"connectionString\":null}}",
+                serialized2);
+
+        patch = new ExtendedPatchModel();
+        patch.setParameters(new ParamExtendedPatch());
+
+        basePatch = patch;
+        final String serialized3 = getSerializer().serialize(basePatch, SerializerEncoding.JSON);
+        Assertions
+            .assertEquals(
+                "{\"actualType\":\"PolymorphicPatch\",\"parameters\":{}}",
+                serialized3);
+    }
+
     private static class PatchModel {
         @JsonProperty("sku")
         private Option<String> sku;
@@ -87,6 +124,44 @@ public class OptionSerializerTests {
 
         RawModel setName(String name) {
             this.name = name;
+            return this;
+        }
+    }
+
+    @JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "actualType",
+        defaultImpl = PolymorphicPatchModel.class)
+    @JsonTypeName("PolymorphicPatch")
+    @JsonSubTypes({
+        @JsonSubTypes.Type(name = "ExtendedPatch", value = ExtendedPatchModel.class),
+    })
+    @Fluent
+    private static class PolymorphicPatchModel {
+
+    }
+
+    private static class ExtendedPatchModel extends PolymorphicPatchModel {
+        @JsonProperty(value = "parameters")
+        private ParamExtendedPatch parameters;
+
+        public ExtendedPatchModel setParameters(ParamExtendedPatch parameters) {
+            this.parameters = parameters;
+            return this;
+        }
+    }
+
+    private static class ParamExtendedPatch {
+        @JsonProperty(value = "connectionString")
+        private Option<String> connectionString;
+
+        public ParamExtendedPatch setConnectionString(String connectionString) {
+            if (connectionString == null) {
+                this.connectionString = Option.empty();
+            } else {
+                this.connectionString = Option.of(connectionString);
+            }
             return this;
         }
     }
