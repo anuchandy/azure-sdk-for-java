@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,33 +15,36 @@ public final class AzureCosmosDBParameterPatch {
      * The connection string of this Azure CosmosDB
      */
     @JsonProperty(value = "connectionString")
-    private String connectionString;
+    private Option<String> connectionString;
 
     /*
      * The statement to query this collection
      */
     @JsonProperty(value = "sqlQuery")
-    private String sqlQuery;
+    private Option<String> sqlQuery;
 
     /*
      * A database name in this Azure CosmosDB
      */
     @JsonProperty(value = "database")
-    private String database;
+    private Option<String> database;
 
     /*
      * A collection id in this database
      */
     @JsonProperty(value = "collectionId")
-    private String collectionId;
+    private Option<String> collectionId;
 
     /**
      * Get the connectionString property: The connection string of this Azure CosmosDB.
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
-        return this.connectionString;
+    String getConnectionString() {
+        if (this.connectionString != null) {
+            this.connectionString.getValue();
+        }
+        return null;
     }
 
     /**
@@ -50,7 +54,11 @@ public final class AzureCosmosDBParameterPatch {
      * @return the AzureCosmosDBParameterPatch object itself.
      */
     public AzureCosmosDBParameterPatch setConnectionString(String connectionString) {
-        this.connectionString = connectionString;
+        if (connectionString == null) {
+            this.connectionString = Option.empty();
+        } else {
+            this.connectionString = Option.of(connectionString);
+        }
         return this;
     }
 
@@ -59,8 +67,11 @@ public final class AzureCosmosDBParameterPatch {
      *
      * @return the sqlQuery value.
      */
-    public String getSqlQuery() {
-        return this.sqlQuery;
+    String getSqlQuery() {
+        if (this.sqlQuery != null) {
+            this.sqlQuery.getValue();
+        }
+        return null;
     }
 
     /**
@@ -70,7 +81,11 @@ public final class AzureCosmosDBParameterPatch {
      * @return the AzureCosmosDBParameterPatch object itself.
      */
     public AzureCosmosDBParameterPatch setSqlQuery(String sqlQuery) {
-        this.sqlQuery = sqlQuery;
+        if (sqlQuery == null) {
+            this.sqlQuery = Option.empty();
+        } else {
+            this.sqlQuery = Option.of(sqlQuery);
+        }
         return this;
     }
 
@@ -79,8 +94,11 @@ public final class AzureCosmosDBParameterPatch {
      *
      * @return the database value.
      */
-    public String getDatabase() {
-        return this.database;
+    String getDatabase() {
+        if (this.database != null) {
+            this.database.getValue();
+        }
+        return null;
     }
 
     /**
@@ -90,7 +108,11 @@ public final class AzureCosmosDBParameterPatch {
      * @return the AzureCosmosDBParameterPatch object itself.
      */
     public AzureCosmosDBParameterPatch setDatabase(String database) {
-        this.database = database;
+        if (database == null) {
+            this.database = Option.empty();
+        } else {
+            this.database = Option.of(database);
+        }
         return this;
     }
 
@@ -99,8 +121,11 @@ public final class AzureCosmosDBParameterPatch {
      *
      * @return the collectionId value.
      */
-    public String getCollectionId() {
-        return this.collectionId;
+    String getCollectionId() {
+        if (this.collectionId != null) {
+            this.collectionId.getValue();
+        }
+        return null;
     }
 
     /**
@@ -110,7 +135,11 @@ public final class AzureCosmosDBParameterPatch {
      * @return the AzureCosmosDBParameterPatch object itself.
      */
     public AzureCosmosDBParameterPatch setCollectionId(String collectionId) {
-        this.collectionId = collectionId;
+        if (collectionId == null) {
+            this.collectionId = Option.empty();
+        } else {
+            this.collectionId = Option.of(collectionId);
+        }
         return this;
     }
 }

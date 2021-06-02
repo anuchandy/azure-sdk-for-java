@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,33 +15,36 @@ public final class AzureApplicationInsightsParameterPatch {
      * The Azure cloud that this Azure Application Insights in
      */
     @JsonProperty(value = "azureCloud")
-    private String azureCloud;
+    private Option<String> azureCloud;
 
     /*
      * The application id of this Azure Application Insights
      */
     @JsonProperty(value = "applicationId")
-    private String applicationId;
+    private Option<String> applicationId;
 
     /*
      * The API Key that can access this Azure Application Insights
      */
     @JsonProperty(value = "apiKey")
-    private String apiKey;
+    private Option<String> apiKey;
 
     /*
      * The statement to query this Azure Application Insights
      */
     @JsonProperty(value = "query")
-    private String query;
+    private Option<String> query;
 
     /**
      * Get the azureCloud property: The Azure cloud that this Azure Application Insights in.
      *
      * @return the azureCloud value.
      */
-    public String getAzureCloud() {
-        return this.azureCloud;
+    String getAzureCloud() {
+        if (this.azureCloud != null) {
+            this.azureCloud.getValue();
+        }
+        return null;
     }
 
     /**
@@ -50,7 +54,11 @@ public final class AzureApplicationInsightsParameterPatch {
      * @return the AzureApplicationInsightsParameterPatch object itself.
      */
     public AzureApplicationInsightsParameterPatch setAzureCloud(String azureCloud) {
-        this.azureCloud = azureCloud;
+        if (azureCloud == null) {
+            this.azureCloud = Option.empty();
+        } else {
+            this.azureCloud = Option.of(azureCloud);
+        }
         return this;
     }
 
@@ -59,8 +67,11 @@ public final class AzureApplicationInsightsParameterPatch {
      *
      * @return the applicationId value.
      */
-    public String getApplicationId() {
-        return this.applicationId;
+    String getApplicationId() {
+        if (this.applicationId != null) {
+            this.applicationId.getValue();
+        }
+        return null;
     }
 
     /**
@@ -70,7 +81,11 @@ public final class AzureApplicationInsightsParameterPatch {
      * @return the AzureApplicationInsightsParameterPatch object itself.
      */
     public AzureApplicationInsightsParameterPatch setApplicationId(String applicationId) {
-        this.applicationId = applicationId;
+        if (applicationId == null) {
+            this.applicationId = Option.empty();
+        } else {
+            this.applicationId = Option.of(applicationId);
+        }
         return this;
     }
 
@@ -79,8 +94,11 @@ public final class AzureApplicationInsightsParameterPatch {
      *
      * @return the apiKey value.
      */
-    public String getApiKey() {
-        return this.apiKey;
+    String getApiKey() {
+        if (this.apiKey != null) {
+            this.apiKey.getValue();
+        }
+        return null;
     }
 
     /**
@@ -90,7 +108,11 @@ public final class AzureApplicationInsightsParameterPatch {
      * @return the AzureApplicationInsightsParameterPatch object itself.
      */
     public AzureApplicationInsightsParameterPatch setApiKey(String apiKey) {
-        this.apiKey = apiKey;
+        if (apiKey == null) {
+            this.apiKey = Option.empty();
+        } else {
+            this.apiKey = Option.of(apiKey);
+        }
         return this;
     }
 
@@ -99,8 +121,11 @@ public final class AzureApplicationInsightsParameterPatch {
      *
      * @return the query value.
      */
-    public String getQuery() {
-        return this.query;
+    String getQuery() {
+        if (this.query != null) {
+            this.query.getValue();
+        }
+        return null;
     }
 
     /**
@@ -110,7 +135,11 @@ public final class AzureApplicationInsightsParameterPatch {
      * @return the AzureApplicationInsightsParameterPatch object itself.
      */
     public AzureApplicationInsightsParameterPatch setQuery(String query) {
-        this.query = query;
+        if (query == null) {
+            this.query = Option.empty();
+        } else {
+            this.query = Option.of(query);
+        }
         return this;
     }
 }

@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,39 +15,42 @@ public final class AzureDataLakeStorageGen2ParameterPatch {
      * The account name of this Azure Data Lake
      */
     @JsonProperty(value = "accountName")
-    private String accountName;
+    private Option<String> accountName;
 
     /*
      * The account key that can access this Azure Data Lake
      */
     @JsonProperty(value = "accountKey")
-    private String accountKey;
+    private Option<String> accountKey;
 
     /*
      * The file system (container) name in this Azure Data Lake
      */
     @JsonProperty(value = "fileSystemName")
-    private String fileSystemName;
+    private Option<String> fileSystemName;
 
     /*
      * The directory template under this file system
      */
     @JsonProperty(value = "directoryTemplate")
-    private String directoryTemplate;
+    private Option<String> directoryTemplate;
 
     /*
      * The file template
      */
     @JsonProperty(value = "fileTemplate")
-    private String fileTemplate;
+    private Option<String> fileTemplate;
 
     /**
      * Get the accountName property: The account name of this Azure Data Lake.
      *
      * @return the accountName value.
      */
-    public String getAccountName() {
-        return this.accountName;
+    String getAccountName() {
+        if (this.accountName != null) {
+            this.accountName.getValue();
+        }
+        return null;
     }
 
     /**
@@ -56,7 +60,11 @@ public final class AzureDataLakeStorageGen2ParameterPatch {
      * @return the AzureDataLakeStorageGen2ParameterPatch object itself.
      */
     public AzureDataLakeStorageGen2ParameterPatch setAccountName(String accountName) {
-        this.accountName = accountName;
+        if (accountName == null) {
+            this.accountName = Option.empty();
+        } else {
+            this.accountName = Option.of(accountName);
+        }
         return this;
     }
 
@@ -65,8 +73,11 @@ public final class AzureDataLakeStorageGen2ParameterPatch {
      *
      * @return the accountKey value.
      */
-    public String getAccountKey() {
-        return this.accountKey;
+    String getAccountKey() {
+        if (this.accountKey != null) {
+            this.accountKey.getValue();
+        }
+        return null;
     }
 
     /**
@@ -76,7 +87,11 @@ public final class AzureDataLakeStorageGen2ParameterPatch {
      * @return the AzureDataLakeStorageGen2ParameterPatch object itself.
      */
     public AzureDataLakeStorageGen2ParameterPatch setAccountKey(String accountKey) {
-        this.accountKey = accountKey;
+        if (accountKey == null) {
+            this.accountKey = Option.empty();
+        } else {
+            this.accountKey = Option.of(accountKey);
+        }
         return this;
     }
 
@@ -85,8 +100,11 @@ public final class AzureDataLakeStorageGen2ParameterPatch {
      *
      * @return the fileSystemName value.
      */
-    public String getFileSystemName() {
-        return this.fileSystemName;
+    String getFileSystemName() {
+        if (this.fileSystemName != null) {
+            this.fileSystemName.getValue();
+        }
+        return null;
     }
 
     /**
@@ -96,7 +114,11 @@ public final class AzureDataLakeStorageGen2ParameterPatch {
      * @return the AzureDataLakeStorageGen2ParameterPatch object itself.
      */
     public AzureDataLakeStorageGen2ParameterPatch setFileSystemName(String fileSystemName) {
-        this.fileSystemName = fileSystemName;
+        if (fileSystemName == null) {
+            this.fileSystemName = Option.empty();
+        } else {
+            this.fileSystemName = Option.of(fileSystemName);
+        }
         return this;
     }
 
@@ -105,8 +127,11 @@ public final class AzureDataLakeStorageGen2ParameterPatch {
      *
      * @return the directoryTemplate value.
      */
-    public String getDirectoryTemplate() {
-        return this.directoryTemplate;
+    String getDirectoryTemplate() {
+        if (this.directoryTemplate != null) {
+            this.directoryTemplate.getValue();
+        }
+        return null;
     }
 
     /**
@@ -116,7 +141,11 @@ public final class AzureDataLakeStorageGen2ParameterPatch {
      * @return the AzureDataLakeStorageGen2ParameterPatch object itself.
      */
     public AzureDataLakeStorageGen2ParameterPatch setDirectoryTemplate(String directoryTemplate) {
-        this.directoryTemplate = directoryTemplate;
+        if (directoryTemplate == null) {
+            this.directoryTemplate = Option.empty();
+        } else {
+            this.directoryTemplate = Option.of(directoryTemplate);
+        }
         return this;
     }
 
@@ -125,8 +154,11 @@ public final class AzureDataLakeStorageGen2ParameterPatch {
      *
      * @return the fileTemplate value.
      */
-    public String getFileTemplate() {
-        return this.fileTemplate;
+    String getFileTemplate() {
+        if (this.fileTemplate != null) {
+            this.fileTemplate.getValue();
+        }
+        return null;
     }
 
     /**
@@ -136,7 +168,11 @@ public final class AzureDataLakeStorageGen2ParameterPatch {
      * @return the AzureDataLakeStorageGen2ParameterPatch object itself.
      */
     public AzureDataLakeStorageGen2ParameterPatch setFileTemplate(String fileTemplate) {
-        this.fileTemplate = fileTemplate;
+        if (fileTemplate == null) {
+            this.fileTemplate = Option.empty();
+        } else {
+            this.fileTemplate = Option.of(fileTemplate);
+        }
         return this;
     }
 }

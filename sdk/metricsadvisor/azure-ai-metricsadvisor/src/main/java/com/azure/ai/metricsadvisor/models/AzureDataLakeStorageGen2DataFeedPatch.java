@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -18,15 +19,18 @@ public final class AzureDataLakeStorageGen2DataFeedPatch extends DataFeedDetailP
      * The dataSourceParameter property.
      */
     @JsonProperty(value = "dataSourceParameter")
-    private AzureDataLakeStorageGen2ParameterPatch dataSourceParameter;
+    private Option<AzureDataLakeStorageGen2ParameterPatch> dataSourceParameter;
 
     /**
      * Get the dataSourceParameter property: The dataSourceParameter property.
      *
      * @return the dataSourceParameter value.
      */
-    public AzureDataLakeStorageGen2ParameterPatch getDataSourceParameter() {
-        return this.dataSourceParameter;
+    AzureDataLakeStorageGen2ParameterPatch getDataSourceParameter() {
+        if (this.dataSourceParameter != null) {
+            this.dataSourceParameter.getValue();
+        }
+        return null;
     }
 
     /**
@@ -37,7 +41,11 @@ public final class AzureDataLakeStorageGen2DataFeedPatch extends DataFeedDetailP
      */
     public AzureDataLakeStorageGen2DataFeedPatch setDataSourceParameter(
             AzureDataLakeStorageGen2ParameterPatch dataSourceParameter) {
-        this.dataSourceParameter = dataSourceParameter;
+        if (dataSourceParameter == null) {
+            this.dataSourceParameter = Option.empty();
+        } else {
+            this.dataSourceParameter = Option.of(dataSourceParameter);
+        }
         return this;
     }
 }

@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,27 +15,30 @@ public final class AzureBlobParameterPatch {
      * The connection string of this Azure Blob
      */
     @JsonProperty(value = "connectionString")
-    private String connectionString;
+    private Option<String> connectionString;
 
     /*
      * The container name in this Azure Blob
      */
     @JsonProperty(value = "container")
-    private String container;
+    private Option<String> container;
 
     /*
      * The path template in this container
      */
     @JsonProperty(value = "blobTemplate")
-    private String blobTemplate;
+    private Option<String> blobTemplate;
 
     /**
      * Get the connectionString property: The connection string of this Azure Blob.
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
-        return this.connectionString;
+    String getConnectionString() {
+        if (this.connectionString != null) {
+            this.connectionString.getValue();
+        }
+        return null;
     }
 
     /**
@@ -44,7 +48,11 @@ public final class AzureBlobParameterPatch {
      * @return the AzureBlobParameterPatch object itself.
      */
     public AzureBlobParameterPatch setConnectionString(String connectionString) {
-        this.connectionString = connectionString;
+        if (connectionString == null) {
+            this.connectionString = Option.empty();
+        } else {
+            this.connectionString = Option.of(connectionString);
+        }
         return this;
     }
 
@@ -53,8 +61,11 @@ public final class AzureBlobParameterPatch {
      *
      * @return the container value.
      */
-    public String getContainer() {
-        return this.container;
+    String getContainer() {
+        if (this.container != null) {
+            this.container.getValue();
+        }
+        return null;
     }
 
     /**
@@ -64,7 +75,11 @@ public final class AzureBlobParameterPatch {
      * @return the AzureBlobParameterPatch object itself.
      */
     public AzureBlobParameterPatch setContainer(String container) {
-        this.container = container;
+        if (container == null) {
+            this.container = Option.empty();
+        } else {
+            this.container = Option.of(container);
+        }
         return this;
     }
 
@@ -74,7 +89,10 @@ public final class AzureBlobParameterPatch {
      * @return the blobTemplate value.
      */
     public String getBlobTemplate() {
-        return this.blobTemplate;
+        if (this.blobTemplate != null) {
+            this.blobTemplate.getValue();
+        }
+        return null;
     }
 
     /**
@@ -84,7 +102,11 @@ public final class AzureBlobParameterPatch {
      * @return the AzureBlobParameterPatch object itself.
      */
     public AzureBlobParameterPatch setBlobTemplate(String blobTemplate) {
-        this.blobTemplate = blobTemplate;
+        if (blobTemplate == null) {
+            this.blobTemplate = Option.empty();
+        } else {
+            this.blobTemplate = Option.of(blobTemplate);
+        }
         return this;
     }
 }

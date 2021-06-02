@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,15 +15,18 @@ public final class AzureSQLConnectionStringParamPatch {
      * The connection string to access the Azure SQL.
      */
     @JsonProperty(value = "connectionString")
-    private String connectionString;
+    private Option<String> connectionString;
 
     /**
      * Get the connectionString property: The connection string to access the Azure SQL.
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
-        return this.connectionString;
+    String getConnectionString() {
+        if (this.connectionString != null) {
+            this.connectionString.getValue();
+        }
+        return null;
     }
 
     /**
@@ -32,7 +36,11 @@ public final class AzureSQLConnectionStringParamPatch {
      * @return the AzureSQLConnectionStringParamPatch object itself.
      */
     public AzureSQLConnectionStringParamPatch setConnectionString(String connectionString) {
-        this.connectionString = connectionString;
+        if (connectionString == null) {
+            this.connectionString = Option.empty();
+        } else {
+            this.connectionString = Option.of(connectionString);
+        }
         return this;
     }
 }

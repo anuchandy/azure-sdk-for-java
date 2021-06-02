@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -18,15 +19,18 @@ public final class AzureApplicationInsightsDataFeedPatch extends DataFeedDetailP
      * The dataSourceParameter property.
      */
     @JsonProperty(value = "dataSourceParameter")
-    private AzureApplicationInsightsParameterPatch dataSourceParameter;
+    private Option<AzureApplicationInsightsParameterPatch> dataSourceParameter;
 
     /**
      * Get the dataSourceParameter property: The dataSourceParameter property.
      *
      * @return the dataSourceParameter value.
      */
-    public AzureApplicationInsightsParameterPatch getDataSourceParameter() {
-        return this.dataSourceParameter;
+    AzureApplicationInsightsParameterPatch getDataSourceParameter() {
+        if (this.dataSourceParameter != null) {
+            this.dataSourceParameter.getValue();
+        }
+        return null;
     }
 
     /**
@@ -37,7 +41,11 @@ public final class AzureApplicationInsightsDataFeedPatch extends DataFeedDetailP
      */
     public AzureApplicationInsightsDataFeedPatch setDataSourceParameter(
             AzureApplicationInsightsParameterPatch dataSourceParameter) {
-        this.dataSourceParameter = dataSourceParameter;
+        if (dataSourceParameter == null) {
+            this.dataSourceParameter = Option.empty();
+        } else {
+            this.dataSourceParameter = Option.of(dataSourceParameter);
+        }
         return this;
     }
 }

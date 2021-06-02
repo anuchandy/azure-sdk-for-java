@@ -7,6 +7,7 @@ package com.azure.ai.metricsadvisor.models;
 import com.azure.ai.metricsadvisor.implementation.models.DimensionGroupConfiguration;
 import com.azure.ai.metricsadvisor.implementation.models.SeriesConfiguration;
 import com.azure.ai.metricsadvisor.implementation.util.DetectionConfigurationTransforms;
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.azure.core.util.logging.ClientLogger;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -21,39 +22,42 @@ public final class AnomalyDetectionConfigurationPatch {
      * anomaly detection configuration name
      */
     @JsonProperty(value = "name")
-    private String name;
+    private Option<String> name;
 
     /*
      * anomaly detection configuration description
      */
     @JsonProperty(value = "description")
-    private String description;
+    private Option<String> description;
 
     /*
      * The wholeMetricConfiguration property.
      */
     @JsonProperty(value = "wholeMetricConfiguration")
-    private WholeMetricConfigurationPatch wholeMetricConfiguration;
+    private Option<WholeMetricConfigurationPatch> wholeMetricConfiguration;
 
     /*
      * detection configuration for series group
      */
     @JsonProperty(value = "dimensionGroupOverrideConfigurations")
-    private List<DimensionGroupConfiguration> dimensionGroupOverrideConfigurations;
+    private Option<List<DimensionGroupConfiguration>> dimensionGroupOverrideConfigurations;
 
     /*
      * detection configuration for specific series
      */
     @JsonProperty(value = "seriesOverrideConfigurations")
-    private List<SeriesConfiguration> seriesOverrideConfigurations;
+    private Option<List<SeriesConfiguration>> seriesOverrideConfigurations;
 
     /**
      * Get the name property: anomaly detection configuration name.
      *
      * @return the name value.
      */
-    public String getName() {
-        return this.name;
+    String getName() {
+        if (this.name != null) {
+            this.name.getValue();
+        }
+        return null;
     }
 
     /**
@@ -63,7 +67,11 @@ public final class AnomalyDetectionConfigurationPatch {
      * @return the AnomalyDetectionConfigurationPatch object itself.
      */
     public AnomalyDetectionConfigurationPatch setName(String name) {
-        this.name = name;
+        if (name == null) {
+            this.name = Option.empty();
+        } else {
+            this.name = Option.of(name);
+        }
         return this;
     }
 
@@ -72,8 +80,11 @@ public final class AnomalyDetectionConfigurationPatch {
      *
      * @return the description value.
      */
-    public String getDescription() {
-        return this.description;
+    String getDescription() {
+        if (this.description != null) {
+            this.description.getValue();
+        }
+        return null;
     }
 
     /**
@@ -83,7 +94,11 @@ public final class AnomalyDetectionConfigurationPatch {
      * @return the AnomalyDetectionConfigurationPatch object itself.
      */
     public AnomalyDetectionConfigurationPatch setDescription(String description) {
-        this.description = description;
+        if (description == null) {
+            this.description = Option.empty();
+        } else {
+            this.description = Option.of(description);
+        }
         return this;
     }
 
@@ -92,8 +107,11 @@ public final class AnomalyDetectionConfigurationPatch {
      *
      * @return the wholeMetricConfiguration value.
      */
-    public WholeMetricConfigurationPatch getWholeMetricConfiguration() {
-        return this.wholeMetricConfiguration;
+    WholeMetricConfigurationPatch getWholeMetricConfiguration() {
+        if (this.wholeMetricConfiguration != null) {
+            this.wholeMetricConfiguration.getValue();
+        }
+        return null;
     }
 
     /**
@@ -104,18 +122,25 @@ public final class AnomalyDetectionConfigurationPatch {
      */
     public AnomalyDetectionConfigurationPatch setWholeMetricConfiguration(
             WholeMetricConfigurationPatch wholeMetricConfiguration) {
-        this.wholeMetricConfiguration = wholeMetricConfiguration;
+        if (wholeMetricConfiguration == null) {
+            this.wholeMetricConfiguration = Option.empty();
+        } else {
+            this.wholeMetricConfiguration = Option.of(wholeMetricConfiguration);
+        }
         return this;
     }
 
-//    /**
-//     * Get the dimensionGroupOverrideConfigurations property: detection configuration for series group.
-//     *
-//     * @return the dimensionGroupOverrideConfigurations value.
-//     */
-//    public List<DimensionGroupConfiguration> getDimensionGroupOverrideConfigurations() {
-//        return this.dimensionGroupOverrideConfigurations;
-//    }
+    /**
+     * Get the dimensionGroupOverrideConfigurations property: detection configuration for series group.
+     *
+     * @return the dimensionGroupOverrideConfigurations value.
+     */
+    List<DimensionGroupConfiguration> getDimensionGroupOverrideConfigurations() {
+        if (this.dimensionGroupOverrideConfigurations != null) {
+            this.dimensionGroupOverrideConfigurations.getValue();
+        }
+        return null;
+    }
 
     /**
      * Set the dimensionGroupOverrideConfigurations property: detection configuration for series group.
@@ -125,7 +150,9 @@ public final class AnomalyDetectionConfigurationPatch {
      */
     public AnomalyDetectionConfigurationPatch setDimensionGroupOverrideConfigurations(
             List<MetricSeriesGroupDetectionCondition> dimensionGroupOverrideConfigurations) {
-        if (dimensionGroupOverrideConfigurations != null) {
+        if (dimensionGroupOverrideConfigurations == null) {
+            this.dimensionGroupOverrideConfigurations = Option.empty();
+        } else {
             List<DimensionGroupConfiguration> innerDimensionGroupOverrideConfigurations = new ArrayList<>();
             for (MetricSeriesGroupDetectionCondition config : dimensionGroupOverrideConfigurations) {
                 DimensionGroupConfiguration innerConfig = DetectionConfigurationTransforms
@@ -134,19 +161,22 @@ public final class AnomalyDetectionConfigurationPatch {
                         config);
                 innerDimensionGroupOverrideConfigurations.add(innerConfig);
             }
-            this.dimensionGroupOverrideConfigurations = innerDimensionGroupOverrideConfigurations;
+            this.dimensionGroupOverrideConfigurations = Option.of(innerDimensionGroupOverrideConfigurations);
         }
         return this;
     }
 
-//    /**
-//     * Get the seriesOverrideConfigurations property: detection configuration for specific series.
-//     *
-//     * @return the seriesOverrideConfigurations value.
-//     */
-//    public List<SeriesConfiguration> getSeriesOverrideConfigurations() {
-//        return this.seriesOverrideConfigurations;
-//    }
+    /**
+     * Get the seriesOverrideConfigurations property: detection configuration for specific series.
+     *
+     * @return the seriesOverrideConfigurations value.
+     */
+    List<SeriesConfiguration> getSeriesOverrideConfigurations() {
+        if (this.seriesOverrideConfigurations != null) {
+            this.seriesOverrideConfigurations.getValue();
+        }
+        return null;
+    }
 
     /**
      * Set the seriesOverrideConfigurations property: detection configuration for specific series.
@@ -156,14 +186,16 @@ public final class AnomalyDetectionConfigurationPatch {
      */
     public AnomalyDetectionConfigurationPatch setSeriesOverrideConfigurations(
             List<MetricSingleSeriesDetectionCondition> seriesOverrideConfigurations) {
-        if (seriesOverrideConfigurations != null) {
+        if (seriesOverrideConfigurations == null) {
+            this.seriesOverrideConfigurations = Option.empty();
+        } else {
             List<SeriesConfiguration> innerSeriesOverrideConfigurations = new ArrayList<>();
             for (MetricSingleSeriesDetectionCondition config : seriesOverrideConfigurations) {
                 SeriesConfiguration innerConfig = DetectionConfigurationTransforms.setupInnerSeriesConfiguration(
                     new ClientLogger(AnomalyDetectionConfigurationPatch.class), false, config);
                 innerSeriesOverrideConfigurations.add(innerConfig);
             }
-            this.seriesOverrideConfigurations = innerSeriesOverrideConfigurations;
+            this.seriesOverrideConfigurations = Option.of(innerSeriesOverrideConfigurations);
         }
         return this;
     }

@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -18,15 +19,18 @@ public final class AzureCosmosDBDataFeedPatch extends DataFeedDetailPatch {
      * The dataSourceParameter property.
      */
     @JsonProperty(value = "dataSourceParameter")
-    private AzureCosmosDBParameterPatch dataSourceParameter;
+    private Option<AzureCosmosDBParameterPatch> dataSourceParameter;
 
     /**
      * Get the dataSourceParameter property: The dataSourceParameter property.
      *
      * @return the dataSourceParameter value.
      */
-    public AzureCosmosDBParameterPatch getDataSourceParameter() {
-        return this.dataSourceParameter;
+    AzureCosmosDBParameterPatch getDataSourceParameter() {
+        if (this.dataSourceParameter != null) {
+            this.dataSourceParameter.getValue();
+        }
+        return null;
     }
 
     /**
@@ -36,7 +40,11 @@ public final class AzureCosmosDBDataFeedPatch extends DataFeedDetailPatch {
      * @return the AzureCosmosDBDataFeedPatch object itself.
      */
     public AzureCosmosDBDataFeedPatch setDataSourceParameter(AzureCosmosDBParameterPatch dataSourceParameter) {
-        this.dataSourceParameter = dataSourceParameter;
+        if (dataSourceParameter == null) {
+            this.dataSourceParameter = Option.empty();
+        } else {
+            this.dataSourceParameter = Option.of(dataSourceParameter);
+        }
         return this;
     }
 }

@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -17,45 +18,48 @@ public final class AnomalyAlertingConfigurationPatch {
      * Anomaly alerting configuration name
      */
     @JsonProperty(value = "name")
-    private String name;
+    private Option<String> name;
 
     /*
      * anomaly alerting configuration description
      */
     @JsonProperty(value = "description")
-    private String description;
+    private Option<String> description;
 
     /*
      * cross metrics operator
      */
     @JsonProperty(value = "crossMetricsOperator")
-    private MetricAnomalyAlertConfigurationsOperator crossMetricsOperator;
+    private Option<MetricAnomalyAlertConfigurationsOperator> crossMetricsOperator;
 
     /*
      * dimensions used to split alert
      */
     @JsonProperty(value = "splitAlertByDimensions")
-    private List<String> splitAlertByDimensions;
+    private Option<List<String>> splitAlertByDimensions;
 
     /*
      * hook unique ids
      */
     @JsonProperty(value = "hookIds")
-    private List<UUID> hookIds;
+    private Option<List<UUID>> hookIds;
 
     /*
      * Anomaly alerting configurations
      */
     @JsonProperty(value = "metricAlertingConfigurations")
-    private List<MetricAlertingConfiguration> metricAlertingConfigurations;
+    private Option<List<MetricAlertingConfiguration>> metricAlertingConfigurations;
 
     /**
      * Get the name property: Anomaly alerting configuration name.
      *
      * @return the name value.
      */
-    public String getName() {
-        return this.name;
+    String getName() {
+        if (this.name != null) {
+            this.name.getValue();
+        }
+        return null;
     }
 
     /**
@@ -65,7 +69,11 @@ public final class AnomalyAlertingConfigurationPatch {
      * @return the AnomalyAlertingConfigurationPatch object itself.
      */
     public AnomalyAlertingConfigurationPatch setName(String name) {
-        this.name = name;
+        if (name == null) {
+            this.name = Option.empty();
+        } else {
+            this.name = Option.of(name);
+        }
         return this;
     }
 
@@ -74,8 +82,11 @@ public final class AnomalyAlertingConfigurationPatch {
      *
      * @return the description value.
      */
-    public String getDescription() {
-        return this.description;
+    String getDescription() {
+        if (this.description != null) {
+            this.description.getValue();
+        }
+        return null;
     }
 
     /**
@@ -85,7 +96,11 @@ public final class AnomalyAlertingConfigurationPatch {
      * @return the AnomalyAlertingConfigurationPatch object itself.
      */
     public AnomalyAlertingConfigurationPatch setDescription(String description) {
-        this.description = description;
+        if (description == null) {
+            this.description = Option.empty();
+        } else {
+            this.description = Option.of(description);
+        }
         return this;
     }
 
@@ -94,8 +109,11 @@ public final class AnomalyAlertingConfigurationPatch {
      *
      * @return the crossMetricsOperator value.
      */
-    public MetricAnomalyAlertConfigurationsOperator getCrossMetricsOperator() {
-        return this.crossMetricsOperator;
+    MetricAnomalyAlertConfigurationsOperator getCrossMetricsOperator() {
+        if (this.crossMetricsOperator != null) {
+            this.crossMetricsOperator.getValue();
+        }
+        return null;
     }
 
     /**
@@ -106,7 +124,11 @@ public final class AnomalyAlertingConfigurationPatch {
      */
     public AnomalyAlertingConfigurationPatch setCrossMetricsOperator(
         MetricAnomalyAlertConfigurationsOperator crossMetricsOperator) {
-        this.crossMetricsOperator = crossMetricsOperator;
+        if (crossMetricsOperator == null) {
+            this.crossMetricsOperator = Option.empty();
+        } else {
+            this.crossMetricsOperator = Option.of(crossMetricsOperator);
+        }
         return this;
     }
 
@@ -115,8 +137,11 @@ public final class AnomalyAlertingConfigurationPatch {
      *
      * @return the splitAlertByDimensions value.
      */
-    public List<String> getSplitAlertByDimensions() {
-        return this.splitAlertByDimensions;
+    List<String> getSplitAlertByDimensions() {
+        if (this.splitAlertByDimensions != null) {
+            this.splitAlertByDimensions.getValue();
+        }
+        return null;
     }
 
     /**
@@ -126,7 +151,11 @@ public final class AnomalyAlertingConfigurationPatch {
      * @return the AnomalyAlertingConfigurationPatch object itself.
      */
     public AnomalyAlertingConfigurationPatch setSplitAlertByDimensions(List<String> splitAlertByDimensions) {
-        this.splitAlertByDimensions = splitAlertByDimensions;
+        if (splitAlertByDimensions == null) {
+            this.splitAlertByDimensions = Option.empty();
+        } else {
+            this.splitAlertByDimensions = Option.of(splitAlertByDimensions);
+        }
         return this;
     }
 
@@ -135,8 +164,11 @@ public final class AnomalyAlertingConfigurationPatch {
      *
      * @return the hookIds value.
      */
-    public List<UUID> getHookIds() {
-        return this.hookIds;
+    List<UUID> getHookIds() {
+        if (this.hookIds != null) {
+            this.hookIds.getValue();
+        }
+        return null;
     }
 
     /**
@@ -146,7 +178,11 @@ public final class AnomalyAlertingConfigurationPatch {
      * @return the AnomalyAlertingConfigurationPatch object itself.
      */
     public AnomalyAlertingConfigurationPatch setHookIds(List<UUID> hookIds) {
-        this.hookIds = hookIds;
+        if (hookIds == null) {
+            this.hookIds = Option.empty();
+        } else {
+            this.hookIds = Option.of(hookIds);
+        }
         return this;
     }
 
@@ -155,8 +191,11 @@ public final class AnomalyAlertingConfigurationPatch {
      *
      * @return the metricAlertingConfigurations value.
      */
-    public List<MetricAlertingConfiguration> getMetricAlertingConfigurations() {
-        return this.metricAlertingConfigurations;
+    List<MetricAlertingConfiguration> getMetricAlertingConfigurations() {
+        if (this.metricAlertingConfigurations != null) {
+            this.metricAlertingConfigurations.getValue();
+        }
+        return null;
     }
 
     /**
@@ -167,7 +206,11 @@ public final class AnomalyAlertingConfigurationPatch {
      */
     public AnomalyAlertingConfigurationPatch setMetricAlertingConfigurations(
             List<MetricAlertingConfiguration> metricAlertingConfigurations) {
-        this.metricAlertingConfigurations = metricAlertingConfigurations;
+        if (metricAlertingConfigurations == null) {
+            this.metricAlertingConfigurations = Option.empty();
+        } else {
+            this.metricAlertingConfigurations = Option.of(metricAlertingConfigurations);
+        }
         return this;
     }
 }
