@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,21 +15,24 @@ public final class SQLSourceParameterPatch {
      * The connection string of this database
      */
     @JsonProperty(value = "connectionString")
-    private String connectionString;
+    private Option<String> connectionString;
 
     /*
      * The script to query this database
      */
     @JsonProperty(value = "query")
-    private String query;
+    private Option<String> query;
 
     /**
      * Get the connectionString property: The connection string of this database.
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
-        return this.connectionString;
+    String getConnectionString() {
+        if (this.connectionString != null) {
+            this.connectionString.getValue();
+        }
+        return null;
     }
 
     /**
@@ -38,7 +42,11 @@ public final class SQLSourceParameterPatch {
      * @return the SQLSourceParameterPatch object itself.
      */
     public SQLSourceParameterPatch setConnectionString(String connectionString) {
-        this.connectionString = connectionString;
+        if (connectionString == null) {
+            this.connectionString = Option.empty();
+        } else {
+            this.connectionString = Option.of(connectionString);
+        }
         return this;
     }
 
@@ -47,8 +55,11 @@ public final class SQLSourceParameterPatch {
      *
      * @return the query value.
      */
-    public String getQuery() {
-        return this.query;
+    String getQuery() {
+        if (this.query != null) {
+            this.query.getValue();
+        }
+        return null;
     }
 
     /**
@@ -58,7 +69,11 @@ public final class SQLSourceParameterPatch {
      * @return the SQLSourceParameterPatch object itself.
      */
     public SQLSourceParameterPatch setQuery(String query) {
-        this.query = query;
+        if (query == null) {
+            this.query = Option.empty();
+        } else {
+            this.query = Option.of(query);
+        }
         return this;
     }
 }

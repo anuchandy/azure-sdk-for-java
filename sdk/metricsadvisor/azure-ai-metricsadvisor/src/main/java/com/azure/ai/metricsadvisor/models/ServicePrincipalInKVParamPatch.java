@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,46 +15,49 @@ public final class ServicePrincipalInKVParamPatch {
      * The Key Vault endpoint that storing the service principal.
      */
     @JsonProperty(value = "keyVaultEndpoint")
-    private String keyVaultEndpoint;
+    private Option<String> keyVaultEndpoint;
 
     /*
      * The Client Id to access the Key Vault.
      */
     @JsonProperty(value = "keyVaultClientId")
-    private String keyVaultClientId;
+    private Option<String> keyVaultClientId;
 
     /*
      * The Client Secret to access the Key Vault.
      */
     @JsonProperty(value = "keyVaultClientSecret")
-    private String keyVaultClientSecret;
+    private Option<String> keyVaultClientSecret;
 
     /*
      * The secret name of the service principal's client Id in the Key Vault.
      */
     @JsonProperty(value = "servicePrincipalIdNameInKV")
-    private String servicePrincipalIdNameInKV;
+    private Option<String> servicePrincipalIdNameInKV;
 
     /*
      * The secret name of the service principal's client secret in the Key
      * Vault.
      */
     @JsonProperty(value = "servicePrincipalSecretNameInKV")
-    private String servicePrincipalSecretNameInKV;
+    private Option<String> servicePrincipalSecretNameInKV;
 
     /*
      * The tenant id of your service principal.
      */
     @JsonProperty(value = "tenantId")
-    private String tenantId;
+    private Option<String> tenantId;
 
     /**
      * Get the keyVaultEndpoint property: The Key Vault endpoint that storing the service principal.
      *
      * @return the keyVaultEndpoint value.
      */
-    public String getKeyVaultEndpoint() {
-        return this.keyVaultEndpoint;
+    String getKeyVaultEndpoint() {
+        if (this.keyVaultEndpoint != null) {
+            this.keyVaultEndpoint.getValue();
+        }
+        return null;
     }
 
     /**
@@ -63,7 +67,11 @@ public final class ServicePrincipalInKVParamPatch {
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
     public ServicePrincipalInKVParamPatch setKeyVaultEndpoint(String keyVaultEndpoint) {
-        this.keyVaultEndpoint = keyVaultEndpoint;
+        if (keyVaultEndpoint == null) {
+            this.keyVaultEndpoint = Option.empty();
+        } else {
+            this.keyVaultEndpoint = Option.of(keyVaultEndpoint);
+        }
         return this;
     }
 
@@ -72,8 +80,11 @@ public final class ServicePrincipalInKVParamPatch {
      *
      * @return the keyVaultClientId value.
      */
-    public String getKeyVaultClientId() {
-        return this.keyVaultClientId;
+    String getKeyVaultClientId() {
+        if (this.keyVaultClientId != null) {
+            this.keyVaultClientId.getValue();
+        }
+        return null;
     }
 
     /**
@@ -83,7 +94,11 @@ public final class ServicePrincipalInKVParamPatch {
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
     public ServicePrincipalInKVParamPatch setKeyVaultClientId(String keyVaultClientId) {
-        this.keyVaultClientId = keyVaultClientId;
+        if (keyVaultClientId == null) {
+            this.keyVaultClientId = Option.empty();
+        } else {
+            this.keyVaultClientId = Option.of(keyVaultClientId);
+        }
         return this;
     }
 
@@ -92,8 +107,11 @@ public final class ServicePrincipalInKVParamPatch {
      *
      * @return the keyVaultClientSecret value.
      */
-    public String getKeyVaultClientSecret() {
-        return this.keyVaultClientSecret;
+    String getKeyVaultClientSecret() {
+        if (this.keyVaultClientSecret != null) {
+            this.keyVaultClientSecret.getValue();
+        }
+        return null;
     }
 
     /**
@@ -103,7 +121,11 @@ public final class ServicePrincipalInKVParamPatch {
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
     public ServicePrincipalInKVParamPatch setKeyVaultClientSecret(String keyVaultClientSecret) {
-        this.keyVaultClientSecret = keyVaultClientSecret;
+        if (keyVaultClientSecret == null) {
+            this.keyVaultClientSecret = Option.empty();
+        } else {
+            this.keyVaultClientSecret = Option.of(keyVaultClientSecret);
+        }
         return this;
     }
 
@@ -113,8 +135,11 @@ public final class ServicePrincipalInKVParamPatch {
      *
      * @return the servicePrincipalIdNameInKV value.
      */
-    public String getServicePrincipalIdNameInKV() {
-        return this.servicePrincipalIdNameInKV;
+    String getServicePrincipalIdNameInKV() {
+        if (this.servicePrincipalIdNameInKV != null) {
+            this.servicePrincipalIdNameInKV.getValue();
+        }
+        return null;
     }
 
     /**
@@ -125,7 +150,11 @@ public final class ServicePrincipalInKVParamPatch {
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
     public ServicePrincipalInKVParamPatch setServicePrincipalIdNameInKV(String servicePrincipalIdNameInKV) {
-        this.servicePrincipalIdNameInKV = servicePrincipalIdNameInKV;
+        if (servicePrincipalIdNameInKV == null) {
+            this.servicePrincipalIdNameInKV = Option.empty();
+        } else {
+            this.servicePrincipalIdNameInKV = Option.of(servicePrincipalIdNameInKV);
+        }
         return this;
     }
 
@@ -135,8 +164,11 @@ public final class ServicePrincipalInKVParamPatch {
      *
      * @return the servicePrincipalSecretNameInKV value.
      */
-    public String getServicePrincipalSecretNameInKV() {
-        return this.servicePrincipalSecretNameInKV;
+    String getServicePrincipalSecretNameInKV() {
+        if (this.servicePrincipalSecretNameInKV != null) {
+            this.servicePrincipalSecretNameInKV.getValue();
+        }
+        return null;
     }
 
     /**
@@ -147,7 +179,11 @@ public final class ServicePrincipalInKVParamPatch {
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
     public ServicePrincipalInKVParamPatch setServicePrincipalSecretNameInKV(String servicePrincipalSecretNameInKV) {
-        this.servicePrincipalSecretNameInKV = servicePrincipalSecretNameInKV;
+        if (servicePrincipalSecretNameInKV == null) {
+            this.servicePrincipalSecretNameInKV = Option.empty();
+        } else {
+            this.servicePrincipalSecretNameInKV = Option.of(servicePrincipalSecretNameInKV);
+        }
         return this;
     }
 
@@ -156,8 +192,11 @@ public final class ServicePrincipalInKVParamPatch {
      *
      * @return the tenantId value.
      */
-    public String getTenantId() {
-        return this.tenantId;
+    String getTenantId() {
+        if (this.tenantId != null) {
+            this.tenantId.getValue();
+        }
+        return null;
     }
 
     /**
@@ -167,7 +206,11 @@ public final class ServicePrincipalInKVParamPatch {
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
     public ServicePrincipalInKVParamPatch setTenantId(String tenantId) {
-        this.tenantId = tenantId;
+        if (tenantId == null) {
+            this.tenantId = Option.empty();
+        } else {
+            this.tenantId = Option.of(tenantId);
+        }
         return this;
     }
 }

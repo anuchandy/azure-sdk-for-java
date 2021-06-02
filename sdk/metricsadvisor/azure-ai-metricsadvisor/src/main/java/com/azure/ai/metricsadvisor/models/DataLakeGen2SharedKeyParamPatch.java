@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,7 +15,7 @@ public final class DataLakeGen2SharedKeyParamPatch {
      * The account key to access the Azure Data Lake Storage Gen2.
      */
     @JsonProperty(value = "accountKey")
-    private String accountKey;
+    private Option<String> accountKey;
 
     /**
      * Get the accountKey property: The account key to access the Azure Data Lake Storage Gen2.
@@ -22,7 +23,10 @@ public final class DataLakeGen2SharedKeyParamPatch {
      * @return the accountKey value.
      */
     public String getAccountKey() {
-        return this.accountKey;
+        if (this.accountKey != null) {
+            this.accountKey.getValue();
+        }
+        return null;
     }
 
     /**
@@ -32,7 +36,11 @@ public final class DataLakeGen2SharedKeyParamPatch {
      * @return the DataLakeGen2SharedKeyParamPatch object itself.
      */
     public DataLakeGen2SharedKeyParamPatch setAccountKey(String accountKey) {
-        this.accountKey = accountKey;
+        if (accountKey == null) {
+            this.accountKey = Option.empty();
+        } else {
+            this.accountKey = Option.of(accountKey);
+        }
         return this;
     }
 }

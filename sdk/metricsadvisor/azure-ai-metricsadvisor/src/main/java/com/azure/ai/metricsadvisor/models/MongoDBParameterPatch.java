@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,27 +15,30 @@ public final class MongoDBParameterPatch {
      * The connection string of this MongoDB
      */
     @JsonProperty(value = "connectionString")
-    private String connectionString;
+    private Option<String> connectionString;
 
     /*
      * A database name in this MongoDB
      */
     @JsonProperty(value = "database")
-    private String database;
+    private Option<String> database;
 
     /*
      * The script to query this database
      */
     @JsonProperty(value = "command")
-    private String command;
+    private Option<String> command;
 
     /**
      * Get the connectionString property: The connection string of this MongoDB.
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
-        return this.connectionString;
+    String getConnectionString() {
+        if (this.connectionString != null) {
+            this.connectionString.getValue();
+        }
+        return null;
     }
 
     /**
@@ -44,7 +48,11 @@ public final class MongoDBParameterPatch {
      * @return the MongoDBParameterPatch object itself.
      */
     public MongoDBParameterPatch setConnectionString(String connectionString) {
-        this.connectionString = connectionString;
+        if (connectionString == null) {
+            this.connectionString = Option.empty();
+        } else {
+            this.connectionString = Option.of(connectionString);
+        }
         return this;
     }
 
@@ -53,8 +61,11 @@ public final class MongoDBParameterPatch {
      *
      * @return the database value.
      */
-    public String getDatabase() {
-        return this.database;
+    String getDatabase() {
+        if (this.database != null) {
+            this.database.getValue();
+        }
+        return null;
     }
 
     /**
@@ -64,7 +75,11 @@ public final class MongoDBParameterPatch {
      * @return the MongoDBParameterPatch object itself.
      */
     public MongoDBParameterPatch setDatabase(String database) {
-        this.database = database;
+        if (database == null) {
+            this.database = Option.empty();
+        } else {
+            this.database = Option.of(database);
+        }
         return this;
     }
 
@@ -73,8 +88,11 @@ public final class MongoDBParameterPatch {
      *
      * @return the command value.
      */
-    public String getCommand() {
-        return this.command;
+    String getCommand() {
+        if (this.command != null) {
+            this.command.getValue();
+        }
+        return null;
     }
 
     /**
@@ -84,7 +102,11 @@ public final class MongoDBParameterPatch {
      * @return the MongoDBParameterPatch object itself.
      */
     public MongoDBParameterPatch setCommand(String command) {
-        this.command = command;
+        if (command == null) {
+            this.command = Option.empty();
+        } else {
+            this.command = Option.of(command);
+        }
         return this;
     }
 }

@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -18,7 +19,7 @@ public final class EmailHookInfoPatch extends HookInfoPatch {
      * The hookParameter property.
      */
     @JsonProperty(value = "hookParameter")
-    private EmailHookParameterPatch hookParameter;
+    private Option<EmailHookParameterPatch> hookParameter;
 
     /**
      * Get the hookParameter property: The hookParameter property.
@@ -26,7 +27,10 @@ public final class EmailHookInfoPatch extends HookInfoPatch {
      * @return the hookParameter value.
      */
     public EmailHookParameterPatch getHookParameter() {
-        return this.hookParameter;
+        if (this.hookParameter != null) {
+            this.hookParameter.getValue();
+        }
+        return null;
     }
 
     /**
@@ -36,7 +40,11 @@ public final class EmailHookInfoPatch extends HookInfoPatch {
      * @return the EmailHookInfoPatch object itself.
      */
     public EmailHookInfoPatch setHookParameter(EmailHookParameterPatch hookParameter) {
-        this.hookParameter = hookParameter;
+        if (hookParameter == null) {
+            this.hookParameter = Option.empty();
+        } else {
+            this.hookParameter = Option.of(hookParameter);
+        }
         return this;
     }
 }

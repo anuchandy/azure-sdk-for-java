@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -18,7 +19,7 @@ public final class DataLakeGen2SharedKeyCredentialPatch extends DataSourceCreden
      * The parameters property.
      */
     @JsonProperty(value = "parameters")
-    private DataLakeGen2SharedKeyParamPatch parameters;
+    private Option<DataLakeGen2SharedKeyParamPatch> parameters;
 
     /**
      * Get the parameters property: The parameters property.
@@ -26,7 +27,10 @@ public final class DataLakeGen2SharedKeyCredentialPatch extends DataSourceCreden
      * @return the parameters value.
      */
     public DataLakeGen2SharedKeyParamPatch getParameters() {
-        return this.parameters;
+        if (this.parameters != null) {
+            this.parameters.getValue();
+        }
+        return null;
     }
 
     /**
@@ -36,7 +40,11 @@ public final class DataLakeGen2SharedKeyCredentialPatch extends DataSourceCreden
      * @return the DataLakeGen2SharedKeyCredentialPatch object itself.
      */
     public DataLakeGen2SharedKeyCredentialPatch setParameters(DataLakeGen2SharedKeyParamPatch parameters) {
-        this.parameters = parameters;
+        if (parameters == null) {
+            this.parameters = Option.empty();
+        } else {
+            this.parameters = Option.of(parameters);
+        }
         return this;
     }
 }

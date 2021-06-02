@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -41,139 +42,142 @@ public class DataFeedDetailPatch {
      * data feed name
      */
     @JsonProperty(value = "dataFeedName")
-    private String dataFeedName;
+    private Option<String> dataFeedName;
 
     /*
      * data feed description
      */
     @JsonProperty(value = "dataFeedDescription")
-    private String dataFeedDescription;
+    private Option<String> dataFeedDescription;
 
     /*
      * user-defined timestamp column. if timestampColumn is null, start time of
      * every time slice will be used as default value.
      */
     @JsonProperty(value = "timestampColumn")
-    private String timestampColumn;
+    private Option<String> timestampColumn;
 
     /*
      * ingestion start time
      */
     @JsonProperty(value = "dataStartFrom")
-    private OffsetDateTime dataStartFrom;
+    private Option<OffsetDateTime> dataStartFrom;
 
     /*
      * the time that the beginning of data ingestion task will delay for every
      * data slice according to this offset.
      */
     @JsonProperty(value = "startOffsetInSeconds")
-    private Long startOffsetInSeconds;
+    private Option<Long> startOffsetInSeconds;
 
     /*
      * the max concurrency of data ingestion queries against user data source.
      * 0 means no limitation.
      */
     @JsonProperty(value = "maxConcurrency")
-    private Integer maxConcurrency;
+    private Option<Integer> maxConcurrency;
 
     /*
      * the min retry interval for failed data ingestion tasks.
      */
     @JsonProperty(value = "minRetryIntervalInSeconds")
-    private Long minRetryIntervalInSeconds;
+    private Option<Long> minRetryIntervalInSeconds;
 
     /*
      * stop retry data ingestion after the data slice first schedule time in
      * seconds.
      */
     @JsonProperty(value = "stopRetryAfterInSeconds")
-    private Long stopRetryAfterInSeconds;
+    private Option<Long> stopRetryAfterInSeconds;
 
     /*
      * mark if the data feed need rollup
      */
     @JsonProperty(value = "needRollup")
-    private DataFeedRollupType needRollup;
+    private Option<DataFeedRollupType> needRollup;
 
     /*
      * roll up method
      */
     @JsonProperty(value = "rollUpMethod")
-    private DataFeedAutoRollUpMethod rollUpMethod;
+    private Option<DataFeedAutoRollUpMethod> rollUpMethod;
 
     /*
      * roll up columns
      */
     @JsonProperty(value = "rollUpColumns")
-    private List<String> rollUpColumns;
+    private Option<List<String>> rollUpColumns;
 
     /*
      * the identification value for the row of calculated all-up value.
      */
     @JsonProperty(value = "allUpIdentification")
-    private String allUpIdentification;
+    private Option<String> allUpIdentification;
 
     /*
      * the type of fill missing point for anomaly detection
      */
     @JsonProperty(value = "fillMissingPointType")
-    private DataFeedMissingDataPointFillType fillMissingPointType;
+    private Option<DataFeedMissingDataPointFillType> fillMissingPointType;
 
     /*
      * the value of fill missing point for anomaly detection
      */
     @JsonProperty(value = "fillMissingPointValue")
-    private Double fillMissingPointValue;
+    private Option<Double> fillMissingPointValue;
 
     /*
      * data feed access mode, default is Private
      */
     @JsonProperty(value = "viewMode")
-    private DataFeedAccessMode viewMode;
+    private Option<DataFeedAccessMode> viewMode;
 
     /*
      * data feed administrator
      */
     @JsonProperty(value = "admins")
-    private List<String> admins;
+    private Option<List<String>> admins;
 
     /*
      * data feed viewer
      */
     @JsonProperty(value = "viewers")
-    private List<String> viewers;
+    private Option<List<String>> viewers;
 
     /*
      * data feed status
      */
     @JsonProperty(value = "status")
-    private DataFeedStatus status;
+    private Option<DataFeedStatus> status;
 
     /*
      * action link for alert
      */
     @JsonProperty(value = "actionLinkTemplate")
-    private String actionLinkTemplate;
+    private Option<String> actionLinkTemplate;
 
     /*
      * authentication type for corresponding data source
      */
     @JsonProperty(value = "authenticationType")
-    private DatasourceAuthenticationType authenticationType;
+    private Option<DatasourceAuthenticationType> authenticationType;
 
     /*
      * The credential entity id
      */
     @JsonProperty(value = "credentialId")
-    private String credentialId;
+    private Option<String> credentialId;
 
     /**
      * Get the dataFeedName property: data feed name.
      *
      * @return the dataFeedName value.
      */
-    public String getDataFeedName() {
-        return this.dataFeedName;
+    String getDataFeedName() {
+        if (this.dataFeedName != null) {
+            this.dataFeedName.getValue();
+        }
+        return null;
     }
 
     /**
@@ -183,7 +187,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setDataFeedName(String dataFeedName) {
-        this.dataFeedName = dataFeedName;
+        if (dataFeedName == null) {
+            this.dataFeedName = Option.empty();
+        } else {
+            this.dataFeedName = Option.of(dataFeedName);
+        }
         return this;
     }
 
@@ -192,8 +200,11 @@ public class DataFeedDetailPatch {
      *
      * @return the dataFeedDescription value.
      */
-    public String getDataFeedDescription() {
-        return this.dataFeedDescription;
+    String getDataFeedDescription() {
+        if (this.dataFeedDescription != null) {
+            this.dataFeedDescription.getValue();
+        }
+        return null;
     }
 
     /**
@@ -203,7 +214,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setDataFeedDescription(String dataFeedDescription) {
-        this.dataFeedDescription = dataFeedDescription;
+        if (dataFeedDescription == null) {
+            this.dataFeedDescription = Option.empty();
+        } else {
+            this.dataFeedDescription = Option.of(dataFeedDescription);
+        }
         return this;
     }
 
@@ -213,8 +228,11 @@ public class DataFeedDetailPatch {
      *
      * @return the timestampColumn value.
      */
-    public String getTimestampColumn() {
-        return this.timestampColumn;
+    String getTimestampColumn() {
+        if (this.timestampColumn != null) {
+            this.timestampColumn.getValue();
+        }
+        return null;
     }
 
     /**
@@ -225,7 +243,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setTimestampColumn(String timestampColumn) {
-        this.timestampColumn = timestampColumn;
+        if (timestampColumn == null) {
+            this.timestampColumn = Option.empty();
+        } else {
+            this.timestampColumn = Option.of(timestampColumn);
+        }
         return this;
     }
 
@@ -234,8 +256,11 @@ public class DataFeedDetailPatch {
      *
      * @return the dataStartFrom value.
      */
-    public OffsetDateTime getDataStartFrom() {
-        return this.dataStartFrom;
+    OffsetDateTime getDataStartFrom() {
+        if (this.dataStartFrom != null) {
+            this.dataStartFrom.getValue();
+        }
+        return null;
     }
 
     /**
@@ -245,7 +270,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setDataStartFrom(OffsetDateTime dataStartFrom) {
-        this.dataStartFrom = dataStartFrom;
+        if (dataStartFrom == null) {
+            this.dataStartFrom = Option.empty();
+        } else {
+            this.dataStartFrom = Option.of(dataStartFrom);
+        }
         return this;
     }
 
@@ -255,8 +284,11 @@ public class DataFeedDetailPatch {
      *
      * @return the startOffsetInSeconds value.
      */
-    public Long getStartOffsetInSeconds() {
-        return this.startOffsetInSeconds;
+    Long getStartOffsetInSeconds() {
+        if (this.startOffsetInSeconds != null) {
+            this.startOffsetInSeconds.getValue();
+        }
+        return null;
     }
 
     /**
@@ -267,7 +299,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setStartOffsetInSeconds(Long startOffsetInSeconds) {
-        this.startOffsetInSeconds = startOffsetInSeconds;
+        if (startOffsetInSeconds == null) {
+            this.startOffsetInSeconds = Option.empty();
+        } else {
+            this.startOffsetInSeconds = Option.of(startOffsetInSeconds);
+        }
         return this;
     }
 
@@ -277,8 +313,11 @@ public class DataFeedDetailPatch {
      *
      * @return the maxConcurrency value.
      */
-    public Integer getMaxConcurrency() {
-        return this.maxConcurrency;
+    Integer getMaxConcurrency() {
+        if (this.maxConcurrency != null) {
+            this.maxConcurrency.getValue();
+        }
+        return null;
     }
 
     /**
@@ -289,7 +328,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setMaxConcurrency(Integer maxConcurrency) {
-        this.maxConcurrency = maxConcurrency;
+        if (maxConcurrency == null) {
+            this.maxConcurrency = Option.empty();
+        } else {
+            this.maxConcurrency = Option.of(maxConcurrency);
+        }
         return this;
     }
 
@@ -298,8 +341,11 @@ public class DataFeedDetailPatch {
      *
      * @return the minRetryIntervalInSeconds value.
      */
-    public Long getMinRetryIntervalInSeconds() {
-        return this.minRetryIntervalInSeconds;
+    Long getMinRetryIntervalInSeconds() {
+        if (this.minRetryIntervalInSeconds != null) {
+            this.minRetryIntervalInSeconds.getValue();
+        }
+        return null;
     }
 
     /**
@@ -309,7 +355,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setMinRetryIntervalInSeconds(Long minRetryIntervalInSeconds) {
-        this.minRetryIntervalInSeconds = minRetryIntervalInSeconds;
+        if (minRetryIntervalInSeconds == null) {
+            this.minRetryIntervalInSeconds = Option.empty();
+        } else {
+            this.minRetryIntervalInSeconds = Option.of(minRetryIntervalInSeconds);
+        }
         return this;
     }
 
@@ -319,8 +369,11 @@ public class DataFeedDetailPatch {
      *
      * @return the stopRetryAfterInSeconds value.
      */
-    public Long getStopRetryAfterInSeconds() {
-        return this.stopRetryAfterInSeconds;
+    Long getStopRetryAfterInSeconds() {
+        if (this.stopRetryAfterInSeconds != null) {
+            this.stopRetryAfterInSeconds.getValue();
+        }
+        return null;
     }
 
     /**
@@ -331,7 +384,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setStopRetryAfterInSeconds(Long stopRetryAfterInSeconds) {
-        this.stopRetryAfterInSeconds = stopRetryAfterInSeconds;
+        if (stopRetryAfterInSeconds == null) {
+            this.stopRetryAfterInSeconds = Option.empty();
+        } else {
+            this.stopRetryAfterInSeconds = Option.of(stopRetryAfterInSeconds);
+        }
         return this;
     }
 
@@ -340,8 +397,11 @@ public class DataFeedDetailPatch {
      *
      * @return the needRollup value.
      */
-    public DataFeedRollupType getNeedRollup() {
-        return this.needRollup;
+    DataFeedRollupType getNeedRollup() {
+        if (this.needRollup != null) {
+            this.needRollup.getValue();
+        }
+        return null;
     }
 
     /**
@@ -351,7 +411,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setNeedRollup(DataFeedRollupType needRollup) {
-        this.needRollup = needRollup;
+        if (needRollup == null) {
+            this.needRollup = Option.empty();
+        } else {
+            this.needRollup = Option.of(needRollup);
+        }
         return this;
     }
 
@@ -360,8 +424,11 @@ public class DataFeedDetailPatch {
      *
      * @return the rollUpMethod value.
      */
-    public DataFeedAutoRollUpMethod getRollUpMethod() {
-        return this.rollUpMethod;
+    DataFeedAutoRollUpMethod getRollUpMethod() {
+        if (this.rollUpMethod != null) {
+            this.rollUpMethod.getValue();
+        }
+        return null;
     }
 
     /**
@@ -371,7 +438,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setRollUpMethod(DataFeedAutoRollUpMethod rollUpMethod) {
-        this.rollUpMethod = rollUpMethod;
+        if (rollUpMethod == null) {
+            this.rollUpMethod = Option.empty();
+        } else {
+            this.rollUpMethod = Option.of(rollUpMethod);
+        }
         return this;
     }
 
@@ -380,8 +451,11 @@ public class DataFeedDetailPatch {
      *
      * @return the rollUpColumns value.
      */
-    public List<String> getRollUpColumns() {
-        return this.rollUpColumns;
+    List<String> getRollUpColumns() {
+        if (this.rollUpColumns != null) {
+            this.rollUpColumns.getValue();
+        }
+        return null;
     }
 
     /**
@@ -391,7 +465,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setRollUpColumns(List<String> rollUpColumns) {
-        this.rollUpColumns = rollUpColumns;
+        if (rollUpColumns == null) {
+            this.rollUpColumns = Option.empty();
+        } else {
+            this.rollUpColumns = Option.of(rollUpColumns);
+        }
         return this;
     }
 
@@ -400,8 +478,11 @@ public class DataFeedDetailPatch {
      *
      * @return the allUpIdentification value.
      */
-    public String getAllUpIdentification() {
-        return this.allUpIdentification;
+    String getAllUpIdentification() {
+        if (this.allUpIdentification != null) {
+            this.allUpIdentification.getValue();
+        }
+        return null;
     }
 
     /**
@@ -411,7 +492,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setAllUpIdentification(String allUpIdentification) {
-        this.allUpIdentification = allUpIdentification;
+        if (allUpIdentification == null) {
+            this.allUpIdentification = Option.empty();
+        } else {
+            this.allUpIdentification = Option.of(allUpIdentification);
+        }
         return this;
     }
 
@@ -420,8 +505,11 @@ public class DataFeedDetailPatch {
      *
      * @return the fillMissingPointType value.
      */
-    public DataFeedMissingDataPointFillType getFillMissingPointType() {
-        return this.fillMissingPointType;
+    DataFeedMissingDataPointFillType getFillMissingPointType() {
+        if (this.fillMissingPointType != null) {
+            this.fillMissingPointType.getValue();
+        }
+        return null;
     }
 
     /**
@@ -431,7 +519,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setFillMissingPointType(DataFeedMissingDataPointFillType fillMissingPointType) {
-        this.fillMissingPointType = fillMissingPointType;
+        if (fillMissingPointType == null) {
+            this.fillMissingPointType = Option.empty();
+        } else {
+            this.fillMissingPointType = Option.of(fillMissingPointType);
+        }
         return this;
     }
 
@@ -440,8 +532,11 @@ public class DataFeedDetailPatch {
      *
      * @return the fillMissingPointValue value.
      */
-    public Double getFillMissingPointValue() {
-        return this.fillMissingPointValue;
+    Double getFillMissingPointValue() {
+        if (this.fillMissingPointValue != null) {
+            this.fillMissingPointValue.getValue();
+        }
+        return null;
     }
 
     /**
@@ -451,7 +546,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setFillMissingPointValue(Double fillMissingPointValue) {
-        this.fillMissingPointValue = fillMissingPointValue;
+        if (fillMissingPointValue == null) {
+            this.fillMissingPointValue = Option.empty();
+        } else {
+            this.fillMissingPointValue = Option.of(fillMissingPointValue);
+        }
         return this;
     }
 
@@ -460,8 +559,11 @@ public class DataFeedDetailPatch {
      *
      * @return the viewMode value.
      */
-    public DataFeedAccessMode getViewMode() {
-        return this.viewMode;
+    DataFeedAccessMode getViewMode() {
+        if (this.viewMode != null) {
+            this.viewMode.getValue();
+        }
+        return null;
     }
 
     /**
@@ -471,7 +573,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setViewMode(DataFeedAccessMode viewMode) {
-        this.viewMode = viewMode;
+        if (viewMode == null) {
+            this.viewMode = Option.empty();
+        } else {
+            this.viewMode = Option.of(viewMode);
+        }
         return this;
     }
 
@@ -480,8 +586,11 @@ public class DataFeedDetailPatch {
      *
      * @return the admins value.
      */
-    public List<String> getAdmins() {
-        return this.admins;
+    List<String> getAdmins() {
+        if (this.admins != null) {
+            this.admins.getValue();
+        }
+        return null;
     }
 
     /**
@@ -491,7 +600,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setAdmins(List<String> admins) {
-        this.admins = admins;
+        if (admins == null) {
+            this.admins = Option.empty();
+        } else {
+            this.admins = Option.of(admins);
+        }
         return this;
     }
 
@@ -500,8 +613,11 @@ public class DataFeedDetailPatch {
      *
      * @return the viewers value.
      */
-    public List<String> getViewers() {
-        return this.viewers;
+    List<String> getViewers() {
+        if (this.viewers != null) {
+            this.viewers.getValue();
+        }
+        return null;
     }
 
     /**
@@ -511,7 +627,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setViewers(List<String> viewers) {
-        this.viewers = viewers;
+        if (viewers == null) {
+            this.viewers = Option.empty();
+        } else {
+            this.viewers = Option.of(viewers);
+        }
         return this;
     }
 
@@ -520,8 +640,11 @@ public class DataFeedDetailPatch {
      *
      * @return the status value.
      */
-    public DataFeedStatus getStatus() {
-        return this.status;
+    DataFeedStatus getStatus() {
+        if (this.status != null) {
+            this.status.getValue();
+        }
+        return null;
     }
 
     /**
@@ -531,7 +654,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setStatus(DataFeedStatus status) {
-        this.status = status;
+        if (status == null) {
+            this.status = Option.empty();
+        } else {
+            this.status = Option.of(status);
+        }
         return this;
     }
 
@@ -540,8 +667,11 @@ public class DataFeedDetailPatch {
      *
      * @return the actionLinkTemplate value.
      */
-    public String getActionLinkTemplate() {
-        return this.actionLinkTemplate;
+    String getActionLinkTemplate() {
+        if (this.actionLinkTemplate != null) {
+            this.actionLinkTemplate.getValue();
+        }
+        return null;
     }
 
     /**
@@ -551,7 +681,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setActionLinkTemplate(String actionLinkTemplate) {
-        this.actionLinkTemplate = actionLinkTemplate;
+        if (actionLinkTemplate == null) {
+            this.actionLinkTemplate = Option.empty();
+        } else {
+            this.actionLinkTemplate = Option.of(actionLinkTemplate);
+        }
         return this;
     }
 
@@ -560,8 +694,11 @@ public class DataFeedDetailPatch {
      *
      * @return the authenticationType value.
      */
-    public DatasourceAuthenticationType getAuthenticationType() {
-        return this.authenticationType;
+    DatasourceAuthenticationType getAuthenticationType() {
+        if (this.authenticationType != null) {
+            this.authenticationType.getValue();
+        }
+        return null;
     }
 
     /**
@@ -571,7 +708,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setAuthenticationType(DatasourceAuthenticationType authenticationType) {
-        this.authenticationType = authenticationType;
+        if (authenticationType == null) {
+            this.authenticationType = Option.empty();
+        } else {
+            this.authenticationType = Option.of(authenticationType);
+        }
         return this;
     }
 
@@ -580,8 +721,11 @@ public class DataFeedDetailPatch {
      *
      * @return the credentialId value.
      */
-    public String getCredentialId() {
-        return this.credentialId;
+    String getCredentialId() {
+        if (this.credentialId != null) {
+            this.credentialId.getValue();
+        }
+        return null;
     }
 
     /**
@@ -591,7 +735,11 @@ public class DataFeedDetailPatch {
      * @return the DataFeedDetailPatch object itself.
      */
     public DataFeedDetailPatch setCredentialId(String credentialId) {
-        this.credentialId = credentialId;
+        if (credentialId == null) {
+            this.credentialId = Option.empty();
+        } else {
+            this.credentialId = Option.of(credentialId);
+        }
         return this;
     }
 }

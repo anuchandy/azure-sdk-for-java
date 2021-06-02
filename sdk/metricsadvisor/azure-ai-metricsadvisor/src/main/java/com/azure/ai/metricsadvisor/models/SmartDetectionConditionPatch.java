@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,27 +15,30 @@ public final class SmartDetectionConditionPatch {
      * sensitivity, value range : (0, 100]
      */
     @JsonProperty(value = "sensitivity")
-    private Double sensitivity;
+    private  Option<Double> sensitivity;
 
     /*
      * detection direction
      */
     @JsonProperty(value = "anomalyDetectorDirection")
-    private AnomalyDetectorDirection anomalyDetectorDirection;
+    private Option<AnomalyDetectorDirection> anomalyDetectorDirection;
 
     /*
      * The suppressCondition property.
      */
     @JsonProperty(value = "suppressCondition")
-    private SuppressConditionPatch suppressCondition;
+    private  Option<SuppressConditionPatch> suppressCondition;
 
     /**
      * Get the sensitivity property: sensitivity, value range : (0, 100].
      *
      * @return the sensitivity value.
      */
-    public Double getSensitivity() {
-        return this.sensitivity;
+    Double getSensitivity() {
+        if (this.sensitivity != null) {
+            this.sensitivity.getValue();
+        }
+        return null;
     }
 
     /**
@@ -44,7 +48,11 @@ public final class SmartDetectionConditionPatch {
      * @return the SmartDetectionConditionPatch object itself.
      */
     public SmartDetectionConditionPatch setSensitivity(Double sensitivity) {
-        this.sensitivity = sensitivity;
+        if (sensitivity == null) {
+            this.sensitivity = Option.empty();
+        } else {
+            this.sensitivity = Option.of(sensitivity);
+        }
         return this;
     }
 
@@ -53,8 +61,11 @@ public final class SmartDetectionConditionPatch {
      *
      * @return the anomalyDetectorDirection value.
      */
-    public AnomalyDetectorDirection getAnomalyDetectorDirection() {
-        return this.anomalyDetectorDirection;
+    AnomalyDetectorDirection getAnomalyDetectorDirection() {
+        if (this.anomalyDetectorDirection != null) {
+            this.anomalyDetectorDirection.getValue();
+        }
+        return null;
     }
 
     /**
@@ -64,7 +75,11 @@ public final class SmartDetectionConditionPatch {
      * @return the SmartDetectionConditionPatch object itself.
      */
     public SmartDetectionConditionPatch setAnomalyDetectorDirection(AnomalyDetectorDirection anomalyDetectorDirection) {
-        this.anomalyDetectorDirection = anomalyDetectorDirection;
+        if (anomalyDetectorDirection == null) {
+            this.anomalyDetectorDirection = Option.empty();
+        } else {
+            this.anomalyDetectorDirection = Option.of(anomalyDetectorDirection);
+        }
         return this;
     }
 
@@ -73,8 +88,11 @@ public final class SmartDetectionConditionPatch {
      *
      * @return the suppressCondition value.
      */
-    public SuppressConditionPatch getSuppressCondition() {
-        return this.suppressCondition;
+    SuppressConditionPatch getSuppressCondition() {
+        if (this.suppressCondition != null) {
+            this.suppressCondition.getValue();
+        }
+        return null;
     }
 
     /**
@@ -84,7 +102,11 @@ public final class SmartDetectionConditionPatch {
      * @return the SmartDetectionConditionPatch object itself.
      */
     public SmartDetectionConditionPatch setSuppressCondition(SuppressConditionPatch suppressCondition) {
-        this.suppressCondition = suppressCondition;
+        if (suppressCondition == null) {
+            this.suppressCondition = Option.empty();
+        } else {
+            this.suppressCondition = Option.of(suppressCondition);
+        }
         return this;
     }
 }

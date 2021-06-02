@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -17,45 +18,48 @@ public final class WebhookHookParameterPatch {
      * method via SSL
      */
     @JsonProperty(value = "endpoint")
-    private String endpoint;
+    private Option<String> endpoint;
 
     /*
      * (Deprecated) The username, if using basic authentication
      */
     @JsonProperty(value = "username")
-    private String username;
+    private Option<String> username;
 
     /*
      * (Deprecated) The password, if using basic authentication
      */
     @JsonProperty(value = "password")
-    private String password;
+    private Option<String> password;
 
     /*
      * custom headers in api call
      */
     @JsonProperty(value = "headers")
-    private Map<String, String> headers;
+    private Option<Map<String, String>> headers;
 
     /*
      * The certificate key, if using client certificate
      */
     @JsonProperty(value = "certificateKey")
-    private String certificateKey;
+    private Option<String> certificateKey;
 
     /*
      * The certificate password, if using client certificate
      */
     @JsonProperty(value = "certificatePassword")
-    private String certificatePassword;
+    private Option<String> certificatePassword;
 
     /**
      * Get the endpoint property: API address, will be called when alert is triggered, only support POST method via SSL.
      *
      * @return the endpoint value.
      */
-    public String getEndpoint() {
-        return this.endpoint;
+    String getEndpoint() {
+        if (this.endpoint != null) {
+            this.endpoint.getValue();
+        }
+        return null;
     }
 
     /**
@@ -65,7 +69,11 @@ public final class WebhookHookParameterPatch {
      * @return the WebhookHookParameterPatch object itself.
      */
     public WebhookHookParameterPatch setEndpoint(String endpoint) {
-        this.endpoint = endpoint;
+        if (endpoint == null) {
+            this.endpoint = Option.empty();
+        } else {
+            this.endpoint = Option.of(endpoint);
+        }
         return this;
     }
 
@@ -74,8 +82,11 @@ public final class WebhookHookParameterPatch {
      *
      * @return the username value.
      */
-    public String getUsername() {
-        return this.username;
+    String getUsername() {
+        if (this.username != null) {
+            this.username.getValue();
+        }
+        return null;
     }
 
     /**
@@ -85,7 +96,11 @@ public final class WebhookHookParameterPatch {
      * @return the WebhookHookParameterPatch object itself.
      */
     public WebhookHookParameterPatch setUsername(String username) {
-        this.username = username;
+        if (username == null) {
+            this.username = Option.empty();
+        } else {
+            this.username = Option.of(username);
+        }
         return this;
     }
 
@@ -94,8 +109,11 @@ public final class WebhookHookParameterPatch {
      *
      * @return the password value.
      */
-    public String getPassword() {
-        return this.password;
+    String getPassword() {
+        if (this.password != null) {
+            this.password.getValue();
+        }
+        return null;
     }
 
     /**
@@ -105,7 +123,11 @@ public final class WebhookHookParameterPatch {
      * @return the WebhookHookParameterPatch object itself.
      */
     public WebhookHookParameterPatch setPassword(String password) {
-        this.password = password;
+        if (password == null) {
+            this.password = Option.empty();
+        } else {
+            this.password = Option.of(password);
+        }
         return this;
     }
 
@@ -114,8 +136,11 @@ public final class WebhookHookParameterPatch {
      *
      * @return the headers value.
      */
-    public Map<String, String> getHeaders() {
-        return this.headers;
+    Map<String, String> getHeaders() {
+        if (this.headers != null) {
+            this.headers.getValue();
+        }
+        return null;
     }
 
     /**
@@ -125,7 +150,11 @@ public final class WebhookHookParameterPatch {
      * @return the WebhookHookParameterPatch object itself.
      */
     public WebhookHookParameterPatch setHeaders(Map<String, String> headers) {
-        this.headers = headers;
+        if (headers == null) {
+            this.headers = Option.empty();
+        } else {
+            this.headers = Option.of(headers);
+        }
         return this;
     }
 
@@ -134,8 +163,11 @@ public final class WebhookHookParameterPatch {
      *
      * @return the certificateKey value.
      */
-    public String getCertificateKey() {
-        return this.certificateKey;
+    String getCertificateKey() {
+        if (this.certificateKey != null) {
+            this.certificateKey.getValue();
+        }
+        return null;
     }
 
     /**
@@ -145,7 +177,11 @@ public final class WebhookHookParameterPatch {
      * @return the WebhookHookParameterPatch object itself.
      */
     public WebhookHookParameterPatch setCertificateKey(String certificateKey) {
-        this.certificateKey = certificateKey;
+        if (certificateKey == null) {
+            this.certificateKey = Option.empty();
+        } else {
+            this.certificateKey = Option.of(certificateKey);
+        }
         return this;
     }
 
@@ -154,8 +190,11 @@ public final class WebhookHookParameterPatch {
      *
      * @return the certificatePassword value.
      */
-    public String getCertificatePassword() {
-        return this.certificatePassword;
+    String getCertificatePassword() {
+        if (this.certificatePassword != null) {
+            this.certificatePassword.getValue();
+        }
+        return null;
     }
 
     /**
@@ -165,7 +204,11 @@ public final class WebhookHookParameterPatch {
      * @return the WebhookHookParameterPatch object itself.
      */
     public WebhookHookParameterPatch setCertificatePassword(String certificatePassword) {
-        this.certificatePassword = certificatePassword;
+        if (certificatePassword == null) {
+            this.certificatePassword = Option.empty();
+        } else {
+            this.certificatePassword = Option.of(certificatePassword);
+        }
         return this;
     }
 }

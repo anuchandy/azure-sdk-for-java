@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,31 +15,31 @@ public final class InfluxDBParameterPatch {
      * The connection string of this InfluxDB
      */
     @JsonProperty(value = "connectionString")
-    private String connectionString;
+    private Option<String> connectionString;
 
     /*
      * A database name
      */
     @JsonProperty(value = "database")
-    private String database;
+    private Option<String> database;
 
     /*
      * The user name of the account that can access this database
      */
     @JsonProperty(value = "userName")
-    private String userName;
+    private Option<String> userName;
 
     /*
      * The password of the account that can access this database
      */
     @JsonProperty(value = "password")
-    private String password;
+    private Option<String> password;
 
     /*
      * The script to query this database
      */
     @JsonProperty(value = "query")
-    private String query;
+    private Option<String> query;
 
     /**
      * Get the connectionString property: The connection string of this InfluxDB.
@@ -46,7 +47,10 @@ public final class InfluxDBParameterPatch {
      * @return the connectionString value.
      */
     public String getConnectionString() {
-        return this.connectionString;
+        if (this.connectionString != null) {
+            this.connectionString.getValue();
+        }
+        return null;
     }
 
     /**
@@ -56,7 +60,11 @@ public final class InfluxDBParameterPatch {
      * @return the InfluxDBParameterPatch object itself.
      */
     public InfluxDBParameterPatch setConnectionString(String connectionString) {
-        this.connectionString = connectionString;
+        if (connectionString == null) {
+            this.connectionString = Option.empty();
+        } else {
+            this.connectionString = Option.of(connectionString);
+        }
         return this;
     }
 
@@ -66,7 +74,10 @@ public final class InfluxDBParameterPatch {
      * @return the database value.
      */
     public String getDatabase() {
-        return this.database;
+        if (this.database != null) {
+            this.database.getValue();
+        }
+        return null;
     }
 
     /**
@@ -76,7 +87,11 @@ public final class InfluxDBParameterPatch {
      * @return the InfluxDBParameterPatch object itself.
      */
     public InfluxDBParameterPatch setDatabase(String database) {
-        this.database = database;
+        if (database == null) {
+            this.database = Option.empty();
+        } else {
+            this.database = Option.of(database);
+        }
         return this;
     }
 
@@ -86,7 +101,10 @@ public final class InfluxDBParameterPatch {
      * @return the userName value.
      */
     public String getUserName() {
-        return this.userName;
+        if (this.userName != null) {
+            this.userName.getValue();
+        }
+        return null;
     }
 
     /**
@@ -96,7 +114,11 @@ public final class InfluxDBParameterPatch {
      * @return the InfluxDBParameterPatch object itself.
      */
     public InfluxDBParameterPatch setUserName(String userName) {
-        this.userName = userName;
+        if (userName == null) {
+            this.userName = Option.empty();
+        } else {
+            this.userName = Option.of(userName);
+        }
         return this;
     }
 
@@ -106,7 +128,10 @@ public final class InfluxDBParameterPatch {
      * @return the password value.
      */
     public String getPassword() {
-        return this.password;
+        if (this.password != null) {
+            this.password.getValue();
+        }
+        return null;
     }
 
     /**
@@ -116,7 +141,11 @@ public final class InfluxDBParameterPatch {
      * @return the InfluxDBParameterPatch object itself.
      */
     public InfluxDBParameterPatch setPassword(String password) {
-        this.password = password;
+        if (password == null) {
+            this.password = Option.empty();
+        } else {
+            this.password = Option.of(password);
+        }
         return this;
     }
 
@@ -126,7 +155,10 @@ public final class InfluxDBParameterPatch {
      * @return the query value.
      */
     public String getQuery() {
-        return this.query;
+        if (this.query != null) {
+            this.query.getValue();
+        }
+        return null;
     }
 
     /**
@@ -136,7 +168,11 @@ public final class InfluxDBParameterPatch {
      * @return the InfluxDBParameterPatch object itself.
      */
     public InfluxDBParameterPatch setQuery(String query) {
-        this.query = query;
+        if (query == null) {
+            this.query = Option.empty();
+        } else {
+            this.query = Option.of(query);
+        }
         return this;
     }
 }

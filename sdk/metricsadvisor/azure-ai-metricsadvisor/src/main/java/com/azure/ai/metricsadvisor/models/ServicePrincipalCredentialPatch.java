@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -18,15 +19,18 @@ public final class ServicePrincipalCredentialPatch extends DataSourceCredentialP
      * The parameters property.
      */
     @JsonProperty(value = "parameters")
-    private ServicePrincipalParamPatch parameters;
+    private Option<ServicePrincipalParamPatch> parameters;
 
     /**
      * Get the parameters property: The parameters property.
      *
      * @return the parameters value.
      */
-    public ServicePrincipalParamPatch getParameters() {
-        return this.parameters;
+    ServicePrincipalParamPatch getParameters() {
+        if (this.parameters != null) {
+            this.parameters.getValue();
+        }
+        return null;
     }
 
     /**
@@ -36,7 +40,11 @@ public final class ServicePrincipalCredentialPatch extends DataSourceCredentialP
      * @return the ServicePrincipalCredentialPatch object itself.
      */
     public ServicePrincipalCredentialPatch setParameters(ServicePrincipalParamPatch parameters) {
-        this.parameters = parameters;
+        if (parameters == null) {
+            this.parameters = Option.empty();
+        } else {
+            this.parameters = Option.of(parameters);
+        }
         return this;
     }
 }

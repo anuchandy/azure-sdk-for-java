@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -16,7 +17,7 @@ public final class EmailHookParameterPatch {
      * Email TO: list.
      */
     @JsonProperty(value = "toList")
-    private List<String> toList;
+    private Option<List<String>> toList;
 
     /**
      * Get the toList property: Email TO: list.
@@ -24,7 +25,10 @@ public final class EmailHookParameterPatch {
      * @return the toList value.
      */
     public List<String> getToList() {
-        return this.toList;
+        if (this.toList != null) {
+            this.toList.getValue();
+        }
+        return null;
     }
 
     /**
@@ -34,7 +38,11 @@ public final class EmailHookParameterPatch {
      * @return the EmailHookParameterPatch object itself.
      */
     public EmailHookParameterPatch setToList(List<String> toList) {
-        this.toList = toList;
+        if (toList == null) {
+            this.toList = Option.empty();
+        } else {
+            this.toList = Option.of(toList);
+        }
         return this;
     }
 }

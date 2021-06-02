@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,27 +15,30 @@ public final class ServicePrincipalParamPatch {
      * The client id of the service principal.
      */
     @JsonProperty(value = "clientId")
-    private String clientId;
+    private Option<String> clientId;
 
     /*
      * The client secret of the service principal.
      */
     @JsonProperty(value = "clientSecret")
-    private String clientSecret;
+    private Option<String> clientSecret;
 
     /*
      * The tenant id of the service principal.
      */
     @JsonProperty(value = "tenantId")
-    private String tenantId;
+    private Option<String> tenantId;
 
     /**
      * Get the clientId property: The client id of the service principal.
      *
      * @return the clientId value.
      */
-    public String getClientId() {
-        return this.clientId;
+    String getClientId() {
+        if (this.clientId != null) {
+            this.clientId.getValue();
+        }
+        return null;
     }
 
     /**
@@ -44,7 +48,11 @@ public final class ServicePrincipalParamPatch {
      * @return the ServicePrincipalParamPatch object itself.
      */
     public ServicePrincipalParamPatch setClientId(String clientId) {
-        this.clientId = clientId;
+        if (clientId == null) {
+            this.clientId = Option.empty();
+        } else {
+            this.clientId = Option.of(clientId);
+        }
         return this;
     }
 
@@ -53,8 +61,11 @@ public final class ServicePrincipalParamPatch {
      *
      * @return the clientSecret value.
      */
-    public String getClientSecret() {
-        return this.clientSecret;
+    String getClientSecret() {
+        if (this.clientSecret != null) {
+            this.clientSecret.getValue();
+        }
+        return null;
     }
 
     /**
@@ -64,7 +75,11 @@ public final class ServicePrincipalParamPatch {
      * @return the ServicePrincipalParamPatch object itself.
      */
     public ServicePrincipalParamPatch setClientSecret(String clientSecret) {
-        this.clientSecret = clientSecret;
+        if (clientSecret == null) {
+            this.clientSecret = Option.empty();
+        } else {
+            this.clientSecret = Option.of(clientSecret);
+        }
         return this;
     }
 
@@ -73,8 +88,11 @@ public final class ServicePrincipalParamPatch {
      *
      * @return the tenantId value.
      */
-    public String getTenantId() {
-        return this.tenantId;
+    String getTenantId() {
+        if (this.tenantId != null) {
+            this.tenantId.getValue();
+        }
+        return null;
     }
 
     /**
@@ -84,7 +102,11 @@ public final class ServicePrincipalParamPatch {
      * @return the ServicePrincipalParamPatch object itself.
      */
     public ServicePrincipalParamPatch setTenantId(String tenantId) {
-        this.tenantId = tenantId;
+        if (tenantId == null) {
+            this.tenantId = Option.empty();
+        } else {
+            this.tenantId = Option.of(tenantId);
+        }
         return this;
     }
 }

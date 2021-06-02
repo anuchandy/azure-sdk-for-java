@@ -109,7 +109,7 @@ public final class ChangeThresholdConditionPatch {
         if (this.withinRange != null) {
             this.withinRange.getValue();
         }
-        return null;
+        return false;
     }
 
     /**

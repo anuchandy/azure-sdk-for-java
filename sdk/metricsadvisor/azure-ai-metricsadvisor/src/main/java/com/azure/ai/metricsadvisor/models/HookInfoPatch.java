@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -29,25 +30,25 @@ public class HookInfoPatch {
      * hook unique name
      */
     @JsonProperty(value = "hookName")
-    private String hookName;
+    private Option<String> hookName;
 
     /*
      * hook description
      */
     @JsonProperty(value = "description")
-    private String description;
+    private Option<String> description;
 
     /*
      * hook external link
      */
     @JsonProperty(value = "externalLink")
-    private String externalLink;
+    private Option<String> externalLink;
 
     /*
      * hook administrators
      */
     @JsonProperty(value = "admins", access = JsonProperty.Access.WRITE_ONLY)
-    private List<String> admins;
+    private Option<List<String>> admins;
 
     /**
      * Get the hookName property: hook unique name.
@@ -55,7 +56,10 @@ public class HookInfoPatch {
      * @return the hookName value.
      */
     public String getHookName() {
-        return this.hookName;
+        if (this.hookName != null) {
+            this.hookName.getValue();
+        }
+        return null;
     }
 
     /**
@@ -65,7 +69,11 @@ public class HookInfoPatch {
      * @return the HookInfoPatch object itself.
      */
     public HookInfoPatch setHookName(String hookName) {
-        this.hookName = hookName;
+        if (hookName == null) {
+            this.hookName = Option.empty();
+        } else {
+            this.hookName = Option.of(hookName);
+        }
         return this;
     }
 
@@ -75,7 +83,10 @@ public class HookInfoPatch {
      * @return the description value.
      */
     public String getDescription() {
-        return this.description;
+        if (this.description != null) {
+            this.description.getValue();
+        }
+        return null;
     }
 
     /**
@@ -85,7 +96,11 @@ public class HookInfoPatch {
      * @return the HookInfoPatch object itself.
      */
     public HookInfoPatch setDescription(String description) {
-        this.description = description;
+        if (description == null) {
+            this.description = Option.empty();
+        } else {
+            this.description = Option.of(description);
+        }
         return this;
     }
 
@@ -95,7 +110,10 @@ public class HookInfoPatch {
      * @return the externalLink value.
      */
     public String getExternalLink() {
-        return this.externalLink;
+        if (this.externalLink != null) {
+            this.externalLink.getValue();
+        }
+        return null;
     }
 
     /**
@@ -105,7 +123,11 @@ public class HookInfoPatch {
      * @return the HookInfoPatch object itself.
      */
     public HookInfoPatch setExternalLink(String externalLink) {
-        this.externalLink = externalLink;
+        if (externalLink == null) {
+            this.externalLink = Option.empty();
+        } else {
+            this.externalLink = Option.of(externalLink);
+        }
         return this;
     }
 
@@ -115,6 +137,9 @@ public class HookInfoPatch {
      * @return the admins value.
      */
     public List<String> getAdmins() {
-        return this.admins;
+        if (this.admins != null) {
+            this.admins.getValue();
+        }
+        return null;
     }
 }

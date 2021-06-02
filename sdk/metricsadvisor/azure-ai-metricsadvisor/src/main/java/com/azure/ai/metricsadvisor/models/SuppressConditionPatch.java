@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,21 +15,24 @@ public final class SuppressConditionPatch {
      * min point number, value range : [1, +∞)
      */
     @JsonProperty(value = "minNumber")
-    private Integer minNumber;
+    private Option<Integer> minNumber;
 
     /*
      * min point ratio, value range : (0, 100]
      */
     @JsonProperty(value = "minRatio")
-    private Double minRatio;
+    private Option<Double> minRatio;
 
     /**
      * Get the minNumber property: min point number, value range : [1, +∞).
      *
      * @return the minNumber value.
      */
-    public Integer getMinNumber() {
-        return this.minNumber;
+    Integer getMinNumber() {
+        if (this.minNumber != null) {
+            this.minNumber.getValue();
+        }
+        return null;
     }
 
     /**
@@ -38,7 +42,11 @@ public final class SuppressConditionPatch {
      * @return the SuppressConditionPatch object itself.
      */
     public SuppressConditionPatch setMinNumber(Integer minNumber) {
-        this.minNumber = minNumber;
+        if (minNumber == null) {
+            this.minNumber = Option.empty();
+        } else {
+            this.minNumber = Option.of(minNumber);
+        }
         return this;
     }
 
@@ -47,8 +55,11 @@ public final class SuppressConditionPatch {
      *
      * @return the minRatio value.
      */
-    public Double getMinRatio() {
-        return this.minRatio;
+    Double getMinRatio() {
+        if (this.minRatio != null) {
+            this.minRatio.getValue();
+        }
+        return null;
     }
 
     /**
@@ -58,7 +69,11 @@ public final class SuppressConditionPatch {
      * @return the SuppressConditionPatch object itself.
      */
     public SuppressConditionPatch setMinRatio(Double minRatio) {
-        this.minRatio = minRatio;
+        if (minRatio == null) {
+            this.minRatio = Option.empty();
+        } else {
+            this.minRatio = Option.of(minRatio);
+        }
         return this;
     }
 }

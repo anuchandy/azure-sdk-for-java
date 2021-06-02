@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -16,25 +17,25 @@ public final class WholeMetricConfigurationPatch {
      * should be specified when combining multiple detection conditions
      */
     @JsonProperty(value = "conditionOperator")
-    private DetectionConditionsOperator conditionOperator;
+    private Option<DetectionConditionsOperator> conditionOperator;
 
     /*
      * The smartDetectionCondition property.
      */
     @JsonProperty(value = "smartDetectionCondition")
-    private SmartDetectionConditionPatch smartDetectionCondition;
+    private Option<SmartDetectionConditionPatch> smartDetectionCondition;
 
     /*
      * The hardThresholdCondition property.
      */
     @JsonProperty(value = "hardThresholdCondition")
-    private HardThresholdConditionPatch hardThresholdCondition;
+    private Option<HardThresholdConditionPatch> hardThresholdCondition;
 
     /*
      * The changeThresholdCondition property.
      */
     @JsonProperty(value = "changeThresholdCondition")
-    private ChangeThresholdConditionPatch changeThresholdCondition;
+    private Option<ChangeThresholdConditionPatch> changeThresholdCondition;
 
     /**
      * Get the conditionOperator property: condition operator
@@ -43,8 +44,11 @@ public final class WholeMetricConfigurationPatch {
      *
      * @return the conditionOperator value.
      */
-    public DetectionConditionsOperator getConditionOperator() {
-        return this.conditionOperator;
+    DetectionConditionsOperator getConditionOperator() {
+        if (this.conditionOperator != null) {
+            this.conditionOperator.getValue();
+        }
+        return null;
     }
 
     /**
@@ -57,7 +61,11 @@ public final class WholeMetricConfigurationPatch {
      */
     public WholeMetricConfigurationPatch setConditionOperator(
         DetectionConditionsOperator conditionOperator) {
-        this.conditionOperator = conditionOperator;
+        if (conditionOperator == null) {
+            this.conditionOperator = Option.empty();
+        } else {
+            this.conditionOperator = Option.of(conditionOperator);
+        }
         return this;
     }
 
@@ -66,8 +74,11 @@ public final class WholeMetricConfigurationPatch {
      *
      * @return the smartDetectionCondition value.
      */
-    public SmartDetectionConditionPatch getSmartDetectionCondition() {
-        return this.smartDetectionCondition;
+    SmartDetectionConditionPatch getSmartDetectionCondition() {
+        if (this.smartDetectionCondition != null) {
+            this.smartDetectionCondition.getValue();
+        }
+        return null;
     }
 
     /**
@@ -78,7 +89,11 @@ public final class WholeMetricConfigurationPatch {
      */
     public WholeMetricConfigurationPatch setSmartDetectionCondition(
             SmartDetectionConditionPatch smartDetectionCondition) {
-        this.smartDetectionCondition = smartDetectionCondition;
+        if (smartDetectionCondition == null) {
+            this.smartDetectionCondition = Option.empty();
+        } else {
+            this.smartDetectionCondition = Option.of(smartDetectionCondition);
+        }
         return this;
     }
 
@@ -87,8 +102,11 @@ public final class WholeMetricConfigurationPatch {
      *
      * @return the hardThresholdCondition value.
      */
-    public HardThresholdConditionPatch getHardThresholdCondition() {
-        return this.hardThresholdCondition;
+    HardThresholdConditionPatch getHardThresholdCondition() {
+        if (this.hardThresholdCondition != null) {
+            this.hardThresholdCondition.getValue();
+        }
+        return null;
     }
 
     /**
@@ -98,7 +116,11 @@ public final class WholeMetricConfigurationPatch {
      * @return the WholeMetricConfigurationPatch object itself.
      */
     public WholeMetricConfigurationPatch setHardThresholdCondition(HardThresholdConditionPatch hardThresholdCondition) {
-        this.hardThresholdCondition = hardThresholdCondition;
+        if (hardThresholdCondition == null) {
+            this.hardThresholdCondition = Option.empty();
+        } else {
+            this.hardThresholdCondition = Option.of(hardThresholdCondition);
+        }
         return this;
     }
 
@@ -107,8 +129,11 @@ public final class WholeMetricConfigurationPatch {
      *
      * @return the changeThresholdCondition value.
      */
-    public ChangeThresholdConditionPatch getChangeThresholdCondition() {
-        return this.changeThresholdCondition;
+    ChangeThresholdConditionPatch getChangeThresholdCondition() {
+        if (this.changeThresholdCondition != null) {
+            this.changeThresholdCondition.getValue();
+        }
+        return null;
     }
 
     /**
@@ -119,7 +144,11 @@ public final class WholeMetricConfigurationPatch {
      */
     public WholeMetricConfigurationPatch setChangeThresholdCondition(
             ChangeThresholdConditionPatch changeThresholdCondition) {
-        this.changeThresholdCondition = changeThresholdCondition;
+        if (changeThresholdCondition == null) {
+            this.changeThresholdCondition = Option.empty();
+        } else {
+            this.changeThresholdCondition = Option.of(changeThresholdCondition);
+        }
         return this;
     }
 }

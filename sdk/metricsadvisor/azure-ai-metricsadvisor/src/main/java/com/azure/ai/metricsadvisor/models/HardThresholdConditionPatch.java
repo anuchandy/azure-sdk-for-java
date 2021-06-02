@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -16,7 +17,7 @@ public final class HardThresholdConditionPatch {
      * should be specified when anomalyDetectorDirection is Both or Down
      */
     @JsonProperty(value = "lowerBound")
-    private Double lowerBound;
+    private Option<Double> lowerBound;
 
     /*
      * upper bound
@@ -24,19 +25,19 @@ public final class HardThresholdConditionPatch {
      * should be specified when anomalyDetectorDirection is Both or Up
      */
     @JsonProperty(value = "upperBound")
-    private Double upperBound;
+    private Option<Double> upperBound;
 
     /*
      * detection direction
      */
     @JsonProperty(value = "anomalyDetectorDirection")
-    private AnomalyDetectorDirection anomalyDetectorDirection;
+    private Option<AnomalyDetectorDirection> anomalyDetectorDirection;
 
     /*
      * The suppressCondition property.
      */
     @JsonProperty(value = "suppressCondition")
-    private SuppressConditionPatch suppressCondition;
+    private Option<SuppressConditionPatch> suppressCondition;
 
     /**
      * Get the lowerBound property: lower bound
@@ -46,7 +47,10 @@ public final class HardThresholdConditionPatch {
      * @return the lowerBound value.
      */
     public Double getLowerBound() {
-        return this.lowerBound;
+        if (this.lowerBound != null) {
+            this.lowerBound.getValue();
+        }
+        return null;
     }
 
     /**
@@ -58,7 +62,11 @@ public final class HardThresholdConditionPatch {
      * @return the HardThresholdConditionPatch object itself.
      */
     public HardThresholdConditionPatch setLowerBound(Double lowerBound) {
-        this.lowerBound = lowerBound;
+        if (lowerBound == null) {
+            this.lowerBound = Option.empty();
+        } else {
+            this.lowerBound = Option.of(lowerBound);
+        }
         return this;
     }
 
@@ -70,7 +78,10 @@ public final class HardThresholdConditionPatch {
      * @return the upperBound value.
      */
     public Double getUpperBound() {
-        return this.upperBound;
+        if (this.upperBound != null) {
+            this.upperBound.getValue();
+        }
+        return null;
     }
 
     /**
@@ -82,7 +93,11 @@ public final class HardThresholdConditionPatch {
      * @return the HardThresholdConditionPatch object itself.
      */
     public HardThresholdConditionPatch setUpperBound(Double upperBound) {
-        this.upperBound = upperBound;
+        if (upperBound == null) {
+            this.upperBound = Option.empty();
+        } else {
+            this.upperBound = Option.of(upperBound);
+        }
         return this;
     }
 
@@ -92,7 +107,10 @@ public final class HardThresholdConditionPatch {
      * @return the anomalyDetectorDirection value.
      */
     public AnomalyDetectorDirection getAnomalyDetectorDirection() {
-        return this.anomalyDetectorDirection;
+        if (this.anomalyDetectorDirection != null) {
+            this.anomalyDetectorDirection.getValue();
+        }
+        return null;
     }
 
     /**
@@ -102,7 +120,11 @@ public final class HardThresholdConditionPatch {
      * @return the HardThresholdConditionPatch object itself.
      */
     public HardThresholdConditionPatch setAnomalyDetectorDirection(AnomalyDetectorDirection anomalyDetectorDirection) {
-        this.anomalyDetectorDirection = anomalyDetectorDirection;
+        if (anomalyDetectorDirection == null) {
+            this.anomalyDetectorDirection = Option.empty();
+        } else {
+            this.anomalyDetectorDirection = Option.of(anomalyDetectorDirection);
+        }
         return this;
     }
 
@@ -112,7 +134,10 @@ public final class HardThresholdConditionPatch {
      * @return the suppressCondition value.
      */
     public SuppressConditionPatch getSuppressCondition() {
-        return this.suppressCondition;
+        if (this.suppressCondition != null) {
+            this.suppressCondition.getValue();
+        }
+        return null;
     }
 
     /**
@@ -122,7 +147,11 @@ public final class HardThresholdConditionPatch {
      * @return the HardThresholdConditionPatch object itself.
      */
     public HardThresholdConditionPatch setSuppressCondition(SuppressConditionPatch suppressCondition) {
-        this.suppressCondition = suppressCondition;
+        if (suppressCondition == null) {
+            this.suppressCondition = Option.empty();
+        } else {
+            this.suppressCondition = Option.of(suppressCondition);
+        }
         return this;
     }
 }
