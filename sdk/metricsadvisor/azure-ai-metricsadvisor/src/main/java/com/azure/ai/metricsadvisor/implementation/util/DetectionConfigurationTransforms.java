@@ -354,7 +354,7 @@ public final class DetectionConfigurationTransforms {
         return innerWholeSeriesCondition;
     }
 
-    private static DimensionGroupConfiguration
+    public static DimensionGroupConfiguration
         setupInnerSeriesGroupConfiguration(ClientLogger logger,
         boolean isCreate,
         MetricSeriesGroupDetectionCondition seriesGroupCondition) {
@@ -388,7 +388,7 @@ public final class DetectionConfigurationTransforms {
         return innerConfiguration;
     }
 
-    private static SeriesConfiguration
+    public static SeriesConfiguration
         setupInnerSeriesConfiguration(ClientLogger logger,
         boolean isCreate,
         MetricSingleSeriesDetectionCondition seriesCondition) {

@@ -4,8 +4,6 @@
 
 package com.azure.ai.metricsadvisor.models;
 
-import com.azure.ai.metricsadvisor.implementation.models.AnomalyAlertingConfigurationLogicType;
-import com.azure.ai.metricsadvisor.implementation.models.MetricAlertingConfiguration;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -31,7 +29,7 @@ public final class AnomalyAlertingConfigurationPatch {
      * cross metrics operator
      */
     @JsonProperty(value = "crossMetricsOperator")
-    private AnomalyAlertingConfigurationLogicType crossMetricsOperator;
+    private MetricAnomalyAlertConfigurationsOperator crossMetricsOperator;
 
     /*
      * dimensions used to split alert
@@ -96,7 +94,7 @@ public final class AnomalyAlertingConfigurationPatch {
      *
      * @return the crossMetricsOperator value.
      */
-    public AnomalyAlertingConfigurationLogicType getCrossMetricsOperator() {
+    public MetricAnomalyAlertConfigurationsOperator getCrossMetricsOperator() {
         return this.crossMetricsOperator;
     }
 
@@ -107,7 +105,7 @@ public final class AnomalyAlertingConfigurationPatch {
      * @return the AnomalyAlertingConfigurationPatch object itself.
      */
     public AnomalyAlertingConfigurationPatch setCrossMetricsOperator(
-            AnomalyAlertingConfigurationLogicType crossMetricsOperator) {
+        MetricAnomalyAlertConfigurationsOperator crossMetricsOperator) {
         this.crossMetricsOperator = crossMetricsOperator;
         return this;
     }

@@ -6,9 +6,12 @@ package com.azure.ai.metricsadvisor.models;
 
 import com.azure.ai.metricsadvisor.implementation.models.DimensionGroupConfiguration;
 import com.azure.ai.metricsadvisor.implementation.models.SeriesConfiguration;
+import com.azure.ai.metricsadvisor.implementation.util.DetectionConfigurationTransforms;
 import com.azure.core.annotation.Fluent;
+import com.azure.core.util.logging.ClientLogger;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** The AnomalyDetectionConfigurationPatch model. */
@@ -105,14 +108,14 @@ public final class AnomalyDetectionConfigurationPatch {
         return this;
     }
 
-    /**
-     * Get the dimensionGroupOverrideConfigurations property: detection configuration for series group.
-     *
-     * @return the dimensionGroupOverrideConfigurations value.
-     */
-    public List<DimensionGroupConfiguration> getDimensionGroupOverrideConfigurations() {
-        return this.dimensionGroupOverrideConfigurations;
-    }
+//    /**
+//     * Get the dimensionGroupOverrideConfigurations property: detection configuration for series group.
+//     *
+//     * @return the dimensionGroupOverrideConfigurations value.
+//     */
+//    public List<DimensionGroupConfiguration> getDimensionGroupOverrideConfigurations() {
+//        return this.dimensionGroupOverrideConfigurations;
+//    }
 
     /**
      * Set the dimensionGroupOverrideConfigurations property: detection configuration for series group.
@@ -121,19 +124,29 @@ public final class AnomalyDetectionConfigurationPatch {
      * @return the AnomalyDetectionConfigurationPatch object itself.
      */
     public AnomalyDetectionConfigurationPatch setDimensionGroupOverrideConfigurations(
-            List<DimensionGroupConfiguration> dimensionGroupOverrideConfigurations) {
-        this.dimensionGroupOverrideConfigurations = dimensionGroupOverrideConfigurations;
+            List<MetricSeriesGroupDetectionCondition> dimensionGroupOverrideConfigurations) {
+        if (dimensionGroupOverrideConfigurations != null) {
+            List<DimensionGroupConfiguration> innerDimensionGroupOverrideConfigurations = new ArrayList<>();
+            for (MetricSeriesGroupDetectionCondition config : dimensionGroupOverrideConfigurations) {
+                DimensionGroupConfiguration innerConfig = DetectionConfigurationTransforms
+                    .setupInnerSeriesGroupConfiguration(new ClientLogger(AnomalyDetectionConfigurationPatch.class),
+                        false,
+                        config);
+                innerDimensionGroupOverrideConfigurations.add(innerConfig);
+            }
+            this.dimensionGroupOverrideConfigurations = innerDimensionGroupOverrideConfigurations;
+        }
         return this;
     }
 
-    /**
-     * Get the seriesOverrideConfigurations property: detection configuration for specific series.
-     *
-     * @return the seriesOverrideConfigurations value.
-     */
-    public List<SeriesConfiguration> getSeriesOverrideConfigurations() {
-        return this.seriesOverrideConfigurations;
-    }
+//    /**
+//     * Get the seriesOverrideConfigurations property: detection configuration for specific series.
+//     *
+//     * @return the seriesOverrideConfigurations value.
+//     */
+//    public List<SeriesConfiguration> getSeriesOverrideConfigurations() {
+//        return this.seriesOverrideConfigurations;
+//    }
 
     /**
      * Set the seriesOverrideConfigurations property: detection configuration for specific series.
@@ -142,8 +155,16 @@ public final class AnomalyDetectionConfigurationPatch {
      * @return the AnomalyDetectionConfigurationPatch object itself.
      */
     public AnomalyDetectionConfigurationPatch setSeriesOverrideConfigurations(
-            List<SeriesConfiguration> seriesOverrideConfigurations) {
-        this.seriesOverrideConfigurations = seriesOverrideConfigurations;
+            List<MetricSingleSeriesDetectionCondition> seriesOverrideConfigurations) {
+        if (seriesOverrideConfigurations != null) {
+            List<SeriesConfiguration> innerSeriesOverrideConfigurations = new ArrayList<>();
+            for (MetricSingleSeriesDetectionCondition config : seriesOverrideConfigurations) {
+                SeriesConfiguration innerConfig = DetectionConfigurationTransforms.setupInnerSeriesConfiguration(
+                    new ClientLogger(AnomalyDetectionConfigurationPatch.class), false, config);
+                innerSeriesOverrideConfigurations.add(innerConfig);
+            }
+            this.seriesOverrideConfigurations = innerSeriesOverrideConfigurations;
+        }
         return this;
     }
 }

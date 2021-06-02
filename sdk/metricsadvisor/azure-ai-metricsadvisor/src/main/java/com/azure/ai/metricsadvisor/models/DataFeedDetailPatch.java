@@ -4,12 +4,6 @@
 
 package com.azure.ai.metricsadvisor.models;
 
-import com.azure.ai.metricsadvisor.implementation.models.AuthenticationTypeEnum;
-import com.azure.ai.metricsadvisor.implementation.models.EntityStatus;
-import com.azure.ai.metricsadvisor.implementation.models.FillMissingPointType;
-import com.azure.ai.metricsadvisor.implementation.models.NeedRollupEnum;
-import com.azure.ai.metricsadvisor.implementation.models.RollUpMethod;
-import com.azure.ai.metricsadvisor.implementation.models.ViewMode;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -99,13 +93,13 @@ public class DataFeedDetailPatch {
      * mark if the data feed need rollup
      */
     @JsonProperty(value = "needRollup")
-    private NeedRollupEnum needRollup;
+    private DataFeedRollupType needRollup;
 
     /*
      * roll up method
      */
     @JsonProperty(value = "rollUpMethod")
-    private RollUpMethod rollUpMethod;
+    private DataFeedAutoRollUpMethod rollUpMethod;
 
     /*
      * roll up columns
@@ -123,7 +117,7 @@ public class DataFeedDetailPatch {
      * the type of fill missing point for anomaly detection
      */
     @JsonProperty(value = "fillMissingPointType")
-    private FillMissingPointType fillMissingPointType;
+    private DataFeedMissingDataPointFillType fillMissingPointType;
 
     /*
      * the value of fill missing point for anomaly detection
@@ -135,7 +129,7 @@ public class DataFeedDetailPatch {
      * data feed access mode, default is Private
      */
     @JsonProperty(value = "viewMode")
-    private ViewMode viewMode;
+    private DataFeedAccessMode viewMode;
 
     /*
      * data feed administrator
@@ -153,7 +147,7 @@ public class DataFeedDetailPatch {
      * data feed status
      */
     @JsonProperty(value = "status")
-    private EntityStatus status;
+    private DataFeedStatus status;
 
     /*
      * action link for alert
@@ -165,7 +159,7 @@ public class DataFeedDetailPatch {
      * authentication type for corresponding data source
      */
     @JsonProperty(value = "authenticationType")
-    private AuthenticationTypeEnum authenticationType;
+    private DatasourceAuthenticationType authenticationType;
 
     /*
      * The credential entity id
@@ -346,7 +340,7 @@ public class DataFeedDetailPatch {
      *
      * @return the needRollup value.
      */
-    public NeedRollupEnum getNeedRollup() {
+    public DataFeedRollupType getNeedRollup() {
         return this.needRollup;
     }
 
@@ -356,7 +350,7 @@ public class DataFeedDetailPatch {
      * @param needRollup the needRollup value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setNeedRollup(NeedRollupEnum needRollup) {
+    public DataFeedDetailPatch setNeedRollup(DataFeedRollupType needRollup) {
         this.needRollup = needRollup;
         return this;
     }
@@ -366,7 +360,7 @@ public class DataFeedDetailPatch {
      *
      * @return the rollUpMethod value.
      */
-    public RollUpMethod getRollUpMethod() {
+    public DataFeedAutoRollUpMethod getRollUpMethod() {
         return this.rollUpMethod;
     }
 
@@ -376,7 +370,7 @@ public class DataFeedDetailPatch {
      * @param rollUpMethod the rollUpMethod value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setRollUpMethod(RollUpMethod rollUpMethod) {
+    public DataFeedDetailPatch setRollUpMethod(DataFeedAutoRollUpMethod rollUpMethod) {
         this.rollUpMethod = rollUpMethod;
         return this;
     }
@@ -426,7 +420,7 @@ public class DataFeedDetailPatch {
      *
      * @return the fillMissingPointType value.
      */
-    public FillMissingPointType getFillMissingPointType() {
+    public DataFeedMissingDataPointFillType getFillMissingPointType() {
         return this.fillMissingPointType;
     }
 
@@ -436,7 +430,7 @@ public class DataFeedDetailPatch {
      * @param fillMissingPointType the fillMissingPointType value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setFillMissingPointType(FillMissingPointType fillMissingPointType) {
+    public DataFeedDetailPatch setFillMissingPointType(DataFeedMissingDataPointFillType fillMissingPointType) {
         this.fillMissingPointType = fillMissingPointType;
         return this;
     }
@@ -466,7 +460,7 @@ public class DataFeedDetailPatch {
      *
      * @return the viewMode value.
      */
-    public ViewMode getViewMode() {
+    public DataFeedAccessMode getViewMode() {
         return this.viewMode;
     }
 
@@ -476,7 +470,7 @@ public class DataFeedDetailPatch {
      * @param viewMode the viewMode value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setViewMode(ViewMode viewMode) {
+    public DataFeedDetailPatch setViewMode(DataFeedAccessMode viewMode) {
         this.viewMode = viewMode;
         return this;
     }
@@ -526,7 +520,7 @@ public class DataFeedDetailPatch {
      *
      * @return the status value.
      */
-    public EntityStatus getStatus() {
+    public DataFeedStatus getStatus() {
         return this.status;
     }
 
@@ -536,7 +530,7 @@ public class DataFeedDetailPatch {
      * @param status the status value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setStatus(EntityStatus status) {
+    public DataFeedDetailPatch setStatus(DataFeedStatus status) {
         this.status = status;
         return this;
     }
@@ -566,7 +560,7 @@ public class DataFeedDetailPatch {
      *
      * @return the authenticationType value.
      */
-    public AuthenticationTypeEnum getAuthenticationType() {
+    public DatasourceAuthenticationType getAuthenticationType() {
         return this.authenticationType;
     }
 
@@ -576,7 +570,7 @@ public class DataFeedDetailPatch {
      * @param authenticationType the authenticationType value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setAuthenticationType(AuthenticationTypeEnum authenticationType) {
+    public DataFeedDetailPatch setAuthenticationType(DatasourceAuthenticationType authenticationType) {
         this.authenticationType = authenticationType;
         return this;
     }

@@ -164,6 +164,54 @@ public final class AlertConfigurationTransforms {
         return innerMetricAlertConfigurations;
     }
 
+    public static ValueCondition toInnerValueConditionForUpdate(MetricBoundaryCondition boundaryConditions) {
+        ValueCondition innerValueCondition = new ValueCondition();
+        BoundaryDirection direction = boundaryConditions.getDirection();
+        if (direction == BoundaryDirection.LOWER) {
+            innerValueCondition.setDirection(Direction.DOWN);
+        } else if (direction == BoundaryDirection.UPPER) {
+            innerValueCondition.setDirection(Direction.UP);
+        } else if (direction == BoundaryDirection.BOTH) {
+            innerValueCondition.setDirection(Direction.BOTH);
+        } else {
+            throw LOGGER.logExceptionAsError(new IllegalStateException("Unexpected value: "
+                + direction));
+        }
+        innerValueCondition.setLower(boundaryConditions.getLowerBoundary());
+        innerValueCondition.setUpper(boundaryConditions.getUpperBoundary());
+        if (boundaryConditions.getCompanionMetricId() != null) {
+            innerValueCondition
+                .setMetricId(UUID.fromString(boundaryConditions.getCompanionMetricId()));
+            innerValueCondition.setTriggerForMissing(boundaryConditions.shouldAlertIfDataPointMissing());
+        }
+        return innerValueCondition;
+    }
+
+    public static MetricBoundaryCondition fromInnerValueFilter(ValueCondition innerValueCondition) {
+        MetricBoundaryCondition boundaryCondition = new MetricBoundaryCondition();
+        MetricBoundaryConditionHelper.setLowerBoundary(boundaryCondition,
+            innerValueCondition.getLower());
+        MetricBoundaryConditionHelper.setUpperBoundary(boundaryCondition,
+            innerValueCondition.getUpper());
+        if (innerValueCondition.getDirection() == Direction.DOWN) {
+            MetricBoundaryConditionHelper.setBoundaryDirection(boundaryCondition,
+                BoundaryDirection.LOWER);
+        } else if (innerValueCondition.getDirection() == Direction.UP) {
+            MetricBoundaryConditionHelper.setBoundaryDirection(boundaryCondition,
+                BoundaryDirection.UPPER);
+        } else if (innerValueCondition.getDirection() == Direction.BOTH) {
+            MetricBoundaryConditionHelper.setBoundaryDirection(boundaryCondition,
+                BoundaryDirection.BOTH);
+        }
+        if (innerValueCondition.getMetricId() != null) {
+            boolean triggerIfMissing = innerValueCondition.isTriggerForMissing() != null
+                && innerValueCondition.isTriggerForMissing();
+            boundaryCondition.setCompanionMetricId(innerValueCondition.getMetricId().toString(),
+                triggerIfMissing);
+        }
+        return boundaryCondition;
+    }
+
     public static PagedResponse<AnomalyAlertConfiguration> fromInnerPagedResponse(
         PagedResponse<AnomalyAlertingConfiguration> innerResponse) {
         final List<AnomalyAlertingConfiguration>

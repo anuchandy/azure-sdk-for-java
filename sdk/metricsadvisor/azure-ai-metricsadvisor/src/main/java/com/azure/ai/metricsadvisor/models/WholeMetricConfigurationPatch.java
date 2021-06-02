@@ -4,7 +4,6 @@
 
 package com.azure.ai.metricsadvisor.models;
 
-import com.azure.ai.metricsadvisor.implementation.models.AnomalyDetectionConfigurationLogicType;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -17,7 +16,7 @@ public final class WholeMetricConfigurationPatch {
      * should be specified when combining multiple detection conditions
      */
     @JsonProperty(value = "conditionOperator")
-    private AnomalyDetectionConfigurationLogicType conditionOperator;
+    private DetectionConditionsOperator conditionOperator;
 
     /*
      * The smartDetectionCondition property.
@@ -44,7 +43,7 @@ public final class WholeMetricConfigurationPatch {
      *
      * @return the conditionOperator value.
      */
-    public AnomalyDetectionConfigurationLogicType getConditionOperator() {
+    public DetectionConditionsOperator getConditionOperator() {
         return this.conditionOperator;
     }
 
@@ -57,7 +56,7 @@ public final class WholeMetricConfigurationPatch {
      * @return the WholeMetricConfigurationPatch object itself.
      */
     public WholeMetricConfigurationPatch setConditionOperator(
-            AnomalyDetectionConfigurationLogicType conditionOperator) {
+        DetectionConditionsOperator conditionOperator) {
         this.conditionOperator = conditionOperator;
         return this;
     }
