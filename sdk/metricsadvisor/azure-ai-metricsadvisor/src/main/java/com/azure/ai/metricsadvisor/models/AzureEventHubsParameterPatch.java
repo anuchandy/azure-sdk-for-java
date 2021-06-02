@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,21 +15,24 @@ public final class AzureEventHubsParameterPatch {
      * The connection string of this Azure Event Hubs
      */
     @JsonProperty(value = "connectionString")
-    private String connectionString;
+    private Option<String> connectionString;
 
     /*
      * The consumer group to be used in this data feed
      */
     @JsonProperty(value = "consumerGroup")
-    private String consumerGroup;
+    private Option<String> consumerGroup;
 
     /**
      * Get the connectionString property: The connection string of this Azure Event Hubs.
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
-        return this.connectionString;
+    String getConnectionString() {
+        if (this.connectionString != null) {
+            this.connectionString.getValue();
+        }
+        return null;
     }
 
     /**
@@ -38,7 +42,11 @@ public final class AzureEventHubsParameterPatch {
      * @return the AzureEventHubsParameterPatch object itself.
      */
     public AzureEventHubsParameterPatch setConnectionString(String connectionString) {
-        this.connectionString = connectionString;
+        if (connectionString == null) {
+            this.connectionString = Option.empty();
+        } else {
+            this.connectionString = Option.of(connectionString);
+        }
         return this;
     }
 
@@ -47,8 +55,11 @@ public final class AzureEventHubsParameterPatch {
      *
      * @return the consumerGroup value.
      */
-    public String getConsumerGroup() {
-        return this.consumerGroup;
+    String getConsumerGroup() {
+        if (this.consumerGroup != null) {
+            this.consumerGroup.getValue();
+        }
+        return null;
     }
 
     /**
@@ -58,7 +69,11 @@ public final class AzureEventHubsParameterPatch {
      * @return the AzureEventHubsParameterPatch object itself.
      */
     public AzureEventHubsParameterPatch setConsumerGroup(String consumerGroup) {
-        this.consumerGroup = consumerGroup;
+        if (consumerGroup == null) {
+            this.consumerGroup = Option.empty();
+        } else {
+            this.consumerGroup = Option.of(consumerGroup);
+        }
         return this;
     }
 }

@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -15,42 +16,45 @@ public final class AzureLogAnalyticsParameterPatch {
      * Analytics
      */
     @JsonProperty(value = "tenantId")
-    private String tenantId;
+    private Option<String> tenantId;
 
     /*
      * The client id of service principal that have access to this Log
      * Analytics
      */
     @JsonProperty(value = "clientId")
-    private String clientId;
+    private Option<String> clientId;
 
     /*
      * The client secret of service principal that have access to this Log
      * Analytics
      */
     @JsonProperty(value = "clientSecret")
-    private String clientSecret;
+    private Option<String> clientSecret;
 
     /*
      * The workspace id of this Log Analytics
      */
     @JsonProperty(value = "workspaceId")
-    private String workspaceId;
+    private Option<String> workspaceId;
 
     /*
      * The KQL (Kusto Query Language) query to fetch data from this Log
      * Analytics
      */
     @JsonProperty(value = "query")
-    private String query;
+    private Option<String> query;
 
     /**
      * Get the tenantId property: The tenant id of service principal that have access to this Log Analytics.
      *
      * @return the tenantId value.
      */
-    public String getTenantId() {
-        return this.tenantId;
+    String getTenantId() {
+        if (this.tenantId != null) {
+            this.tenantId.getValue();
+        }
+        return null;
     }
 
     /**
@@ -60,7 +64,11 @@ public final class AzureLogAnalyticsParameterPatch {
      * @return the AzureLogAnalyticsParameterPatch object itself.
      */
     public AzureLogAnalyticsParameterPatch setTenantId(String tenantId) {
-        this.tenantId = tenantId;
+        if (tenantId == null) {
+            this.tenantId = Option.empty();
+        } else {
+            this.tenantId = Option.of(tenantId);
+        }
         return this;
     }
 
@@ -69,8 +77,11 @@ public final class AzureLogAnalyticsParameterPatch {
      *
      * @return the clientId value.
      */
-    public String getClientId() {
-        return this.clientId;
+    String getClientId() {
+        if (this.clientId != null) {
+            this.clientId.getValue();
+        }
+        return null;
     }
 
     /**
@@ -80,7 +91,11 @@ public final class AzureLogAnalyticsParameterPatch {
      * @return the AzureLogAnalyticsParameterPatch object itself.
      */
     public AzureLogAnalyticsParameterPatch setClientId(String clientId) {
-        this.clientId = clientId;
+        if (clientId == null) {
+            this.clientId = Option.empty();
+        } else {
+            this.clientId = Option.of(clientId);
+        }
         return this;
     }
 
@@ -89,8 +104,11 @@ public final class AzureLogAnalyticsParameterPatch {
      *
      * @return the clientSecret value.
      */
-    public String getClientSecret() {
-        return this.clientSecret;
+    String getClientSecret() {
+        if (this.clientSecret != null) {
+            this.clientSecret.getValue();
+        }
+        return null;
     }
 
     /**
@@ -100,7 +118,11 @@ public final class AzureLogAnalyticsParameterPatch {
      * @return the AzureLogAnalyticsParameterPatch object itself.
      */
     public AzureLogAnalyticsParameterPatch setClientSecret(String clientSecret) {
-        this.clientSecret = clientSecret;
+        if (clientSecret == null) {
+            this.clientSecret = Option.empty();
+        } else {
+            this.clientSecret = Option.of(clientSecret);
+        }
         return this;
     }
 
@@ -109,8 +131,11 @@ public final class AzureLogAnalyticsParameterPatch {
      *
      * @return the workspaceId value.
      */
-    public String getWorkspaceId() {
-        return this.workspaceId;
+    String getWorkspaceId() {
+        if (this.workspaceId != null) {
+            this.workspaceId.getValue();
+        }
+        return null;
     }
 
     /**
@@ -120,7 +145,11 @@ public final class AzureLogAnalyticsParameterPatch {
      * @return the AzureLogAnalyticsParameterPatch object itself.
      */
     public AzureLogAnalyticsParameterPatch setWorkspaceId(String workspaceId) {
-        this.workspaceId = workspaceId;
+        if (workspaceId == null) {
+            this.workspaceId = Option.empty();
+        } else {
+            this.workspaceId = Option.of(workspaceId);
+        }
         return this;
     }
 
@@ -129,8 +158,11 @@ public final class AzureLogAnalyticsParameterPatch {
      *
      * @return the query value.
      */
-    public String getQuery() {
-        return this.query;
+    String getQuery() {
+        if (this.query != null) {
+            this.query.getValue();
+        }
+        return null;
     }
 
     /**
@@ -140,7 +172,11 @@ public final class AzureLogAnalyticsParameterPatch {
      * @return the AzureLogAnalyticsParameterPatch object itself.
      */
     public AzureLogAnalyticsParameterPatch setQuery(String query) {
-        this.query = query;
+        if (query == null) {
+            this.query = Option.empty();
+        } else {
+            this.query = Option.of(query);
+        }
         return this;
     }
 }

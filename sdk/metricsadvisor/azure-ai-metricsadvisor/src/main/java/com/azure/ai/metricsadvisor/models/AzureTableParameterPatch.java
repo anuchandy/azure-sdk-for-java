@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,28 +15,31 @@ public final class AzureTableParameterPatch {
      * The connection string of this Azure Table
      */
     @JsonProperty(value = "connectionString")
-    private String connectionString;
+    private Option<String> connectionString;
 
     /*
      * A table name in this Azure Table
      */
     @JsonProperty(value = "table")
-    private String table;
+    private Option<String> table;
 
     /*
      * The statement to query this table. Please find syntax and details from
      * Azure Table documents.
      */
     @JsonProperty(value = "query")
-    private String query;
+    private Option<String> query;
 
     /**
      * Get the connectionString property: The connection string of this Azure Table.
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
-        return this.connectionString;
+    String getConnectionString() {
+        if (this.connectionString != null) {
+            this.connectionString.getValue();
+        }
+        return null;
     }
 
     /**
@@ -45,7 +49,11 @@ public final class AzureTableParameterPatch {
      * @return the AzureTableParameterPatch object itself.
      */
     public AzureTableParameterPatch setConnectionString(String connectionString) {
-        this.connectionString = connectionString;
+        if (connectionString == null) {
+            this.connectionString = Option.empty();
+        } else {
+            this.connectionString = Option.of(connectionString);
+        }
         return this;
     }
 
@@ -54,8 +62,11 @@ public final class AzureTableParameterPatch {
      *
      * @return the table value.
      */
-    public String getTable() {
-        return this.table;
+    String getTable() {
+        if (this.table != null) {
+            this.table.getValue();
+        }
+        return null;
     }
 
     /**
@@ -65,7 +76,11 @@ public final class AzureTableParameterPatch {
      * @return the AzureTableParameterPatch object itself.
      */
     public AzureTableParameterPatch setTable(String table) {
-        this.table = table;
+        if (table == null) {
+            this.table = Option.empty();
+        } else {
+            this.table = Option.of(table);
+        }
         return this;
     }
 
@@ -75,8 +90,11 @@ public final class AzureTableParameterPatch {
      *
      * @return the query value.
      */
-    public String getQuery() {
-        return this.query;
+    String getQuery() {
+        if (this.query != null) {
+            this.query.getValue();
+        }
+        return null;
     }
 
     /**
@@ -87,7 +105,11 @@ public final class AzureTableParameterPatch {
      * @return the AzureTableParameterPatch object itself.
      */
     public AzureTableParameterPatch setQuery(String query) {
-        this.query = query;
+        if (query == null) {
+            this.query = Option.empty();
+        } else {
+            this.query = Option.of(query);
+        }
         return this;
     }
 }

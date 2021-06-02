@@ -4,6 +4,7 @@
 
 package com.azure.ai.metricsadvisor.models;
 
+import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,13 +15,13 @@ public final class ChangeThresholdConditionPatch {
      * change percentage, value range : [0, +∞)
      */
     @JsonProperty(value = "changePercentage")
-    private Double changePercentage;
+    private Option<Double> changePercentage;
 
     /*
      * shift point, value range : [1, +∞)
      */
     @JsonProperty(value = "shiftPoint")
-    private Integer shiftPoint;
+    private Option<Integer> shiftPoint;
 
     /*
      * if the withinRange = true, detected data is abnormal when the value
@@ -29,27 +30,30 @@ public final class ChangeThresholdConditionPatch {
      * falls out of the range
      */
     @JsonProperty(value = "withinRange")
-    private Boolean withinRange;
+    private Option<Boolean> withinRange;
 
     /*
      * detection direction
      */
     @JsonProperty(value = "anomalyDetectorDirection")
-    private AnomalyDetectorDirection anomalyDetectorDirection;
+    private Option<AnomalyDetectorDirection> anomalyDetectorDirection;
 
     /*
      * The suppressCondition property.
      */
     @JsonProperty(value = "suppressCondition")
-    private SuppressConditionPatch suppressCondition;
+    private Option<SuppressConditionPatch> suppressCondition;
 
     /**
      * Get the changePercentage property: change percentage, value range : [0, +∞).
      *
      * @return the changePercentage value.
      */
-    public Double getChangePercentage() {
-        return this.changePercentage;
+    Double getChangePercentage() {
+        if (this.changePercentage != null) {
+            this.changePercentage.getValue();
+        }
+        return null;
     }
 
     /**
@@ -59,7 +63,11 @@ public final class ChangeThresholdConditionPatch {
      * @return the ChangeThresholdConditionPatch object itself.
      */
     public ChangeThresholdConditionPatch setChangePercentage(Double changePercentage) {
-        this.changePercentage = changePercentage;
+        if (changePercentage == null) {
+            this.changePercentage = Option.empty();
+        } else {
+            this.changePercentage = Option.of(changePercentage);
+        }
         return this;
     }
 
@@ -68,8 +76,11 @@ public final class ChangeThresholdConditionPatch {
      *
      * @return the shiftPoint value.
      */
-    public Integer getShiftPoint() {
-        return this.shiftPoint;
+    Integer getShiftPoint() {
+        if (this.shiftPoint != null) {
+            this.shiftPoint.getValue();
+        }
+        return null;
     }
 
     /**
@@ -79,7 +90,11 @@ public final class ChangeThresholdConditionPatch {
      * @return the ChangeThresholdConditionPatch object itself.
      */
     public ChangeThresholdConditionPatch setShiftPoint(Integer shiftPoint) {
-        this.shiftPoint = shiftPoint;
+        if (shiftPoint == null) {
+            this.shiftPoint = Option.empty();
+        } else {
+            this.shiftPoint = Option.of(shiftPoint);
+        }
         return this;
     }
 
@@ -90,8 +105,11 @@ public final class ChangeThresholdConditionPatch {
      *
      * @return the withinRange value.
      */
-    public Boolean isWithinRange() {
-        return this.withinRange;
+    Boolean isWithinRange() {
+        if (this.withinRange != null) {
+            this.withinRange.getValue();
+        }
+        return null;
     }
 
     /**
@@ -103,7 +121,11 @@ public final class ChangeThresholdConditionPatch {
      * @return the ChangeThresholdConditionPatch object itself.
      */
     public ChangeThresholdConditionPatch setWithinRange(Boolean withinRange) {
-        this.withinRange = withinRange;
+        if (withinRange == null) {
+            this.withinRange = Option.empty();
+        } else {
+            this.withinRange = Option.of(withinRange);
+        }
         return this;
     }
 
@@ -112,8 +134,11 @@ public final class ChangeThresholdConditionPatch {
      *
      * @return the anomalyDetectorDirection value.
      */
-    public AnomalyDetectorDirection getAnomalyDetectorDirection() {
-        return this.anomalyDetectorDirection;
+    AnomalyDetectorDirection getAnomalyDetectorDirection() {
+        if (this.anomalyDetectorDirection != null) {
+            this.anomalyDetectorDirection.getValue();
+        }
+        return null;
     }
 
     /**
@@ -124,7 +149,11 @@ public final class ChangeThresholdConditionPatch {
      */
     public ChangeThresholdConditionPatch setAnomalyDetectorDirection(
             AnomalyDetectorDirection anomalyDetectorDirection) {
-        this.anomalyDetectorDirection = anomalyDetectorDirection;
+        if (anomalyDetectorDirection == null) {
+            this.anomalyDetectorDirection = Option.empty();
+        } else {
+            this.anomalyDetectorDirection = Option.of(anomalyDetectorDirection);
+        }
         return this;
     }
 
@@ -133,8 +162,11 @@ public final class ChangeThresholdConditionPatch {
      *
      * @return the suppressCondition value.
      */
-    public SuppressConditionPatch getSuppressCondition() {
-        return this.suppressCondition;
+    SuppressConditionPatch getSuppressCondition() {
+        if (this.suppressCondition != null) {
+            this.suppressCondition.getValue();
+        }
+        return null;
     }
 
     /**
@@ -144,7 +176,11 @@ public final class ChangeThresholdConditionPatch {
      * @return the ChangeThresholdConditionPatch object itself.
      */
     public ChangeThresholdConditionPatch setSuppressCondition(SuppressConditionPatch suppressCondition) {
-        this.suppressCondition = suppressCondition;
+        if (suppressCondition == null) {
+            this.suppressCondition = Option.empty();
+        } else {
+            this.suppressCondition = Option.of(suppressCondition);
+        }
         return this;
     }
 }
