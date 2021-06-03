@@ -135,7 +135,7 @@ public final class AnomalyDetectionConfigurationPatch {
      *
      * @return the dimensionGroupOverrideConfigurations value.
      */
-    List<DimensionGroupConfiguration> getDimensionGroupOverrideConfigurations() {
+    List<DimensionGroupConfiguration> getSeriesGroupConfigurations() {
         if (this.dimensionGroupOverrideConfigurations != null) {
             this.dimensionGroupOverrideConfigurations.getValue();
         }
@@ -145,16 +145,16 @@ public final class AnomalyDetectionConfigurationPatch {
     /**
      * Set the dimensionGroupOverrideConfigurations property: detection configuration for series group.
      *
-     * @param dimensionGroupOverrideConfigurations the dimensionGroupOverrideConfigurations value to set.
+     * @param seriesGroupConfigurations the dimensionGroupOverrideConfigurations value to set.
      * @return the AnomalyDetectionConfigurationPatch object itself.
      */
-    public AnomalyDetectionConfigurationPatch setDimensionGroupOverrideConfigurations(
-            List<MetricSeriesGroupDetectionCondition> dimensionGroupOverrideConfigurations) {
-        if (dimensionGroupOverrideConfigurations == null) {
+    public AnomalyDetectionConfigurationPatch setSeriesGroupConfigurations(
+            List<MetricSeriesGroupDetectionCondition> seriesGroupConfigurations) {
+        if (seriesGroupConfigurations == null) {
             this.dimensionGroupOverrideConfigurations = Option.empty();
         } else {
             List<DimensionGroupConfiguration> innerDimensionGroupOverrideConfigurations = new ArrayList<>();
-            for (MetricSeriesGroupDetectionCondition config : dimensionGroupOverrideConfigurations) {
+            for (MetricSeriesGroupDetectionCondition config : seriesGroupConfigurations) {
                 DimensionGroupConfiguration innerConfig = DetectionConfigurationTransforms
                     .setupInnerSeriesGroupConfiguration(new ClientLogger(AnomalyDetectionConfigurationPatch.class),
                         false,
@@ -171,7 +171,7 @@ public final class AnomalyDetectionConfigurationPatch {
      *
      * @return the seriesOverrideConfigurations value.
      */
-    List<SeriesConfiguration> getSeriesOverrideConfigurations() {
+    List<SeriesConfiguration> getSingleSeriesConfigurations() {
         if (this.seriesOverrideConfigurations != null) {
             this.seriesOverrideConfigurations.getValue();
         }
@@ -181,16 +181,16 @@ public final class AnomalyDetectionConfigurationPatch {
     /**
      * Set the seriesOverrideConfigurations property: detection configuration for specific series.
      *
-     * @param seriesOverrideConfigurations the seriesOverrideConfigurations value to set.
+     * @param singleSeriesConfigurations the seriesOverrideConfigurations value to set.
      * @return the AnomalyDetectionConfigurationPatch object itself.
      */
-    public AnomalyDetectionConfigurationPatch setSeriesOverrideConfigurations(
-            List<MetricSingleSeriesDetectionCondition> seriesOverrideConfigurations) {
-        if (seriesOverrideConfigurations == null) {
+    public AnomalyDetectionConfigurationPatch setSingleSeriesConfigurations(
+            List<MetricSingleSeriesDetectionCondition> singleSeriesConfigurations) {
+        if (singleSeriesConfigurations == null) {
             this.seriesOverrideConfigurations = Option.empty();
         } else {
             List<SeriesConfiguration> innerSeriesOverrideConfigurations = new ArrayList<>();
-            for (MetricSingleSeriesDetectionCondition config : seriesOverrideConfigurations) {
+            for (MetricSingleSeriesDetectionCondition config : singleSeriesConfigurations) {
                 SeriesConfiguration innerConfig = DetectionConfigurationTransforms.setupInnerSeriesConfiguration(
                     new ClientLogger(AnomalyDetectionConfigurationPatch.class), false, config);
                 innerSeriesOverrideConfigurations.add(innerConfig);

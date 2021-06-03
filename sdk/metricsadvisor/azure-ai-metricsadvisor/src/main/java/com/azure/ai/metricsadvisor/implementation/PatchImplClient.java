@@ -9,9 +9,9 @@ import com.azure.ai.metricsadvisor.models.AnomalyAlertingConfigurationPatch;
 import com.azure.ai.metricsadvisor.implementation.models.AnomalyDetectionConfiguration;
 import com.azure.ai.metricsadvisor.models.AnomalyDetectionConfigurationPatch;
 import com.azure.ai.metricsadvisor.implementation.models.DataFeedDetail;
-import com.azure.ai.metricsadvisor.models.DataFeedDetailPatch;
+import com.azure.ai.metricsadvisor.models.DataFeedPatch;
 import com.azure.ai.metricsadvisor.implementation.models.DataSourceCredential;
-import com.azure.ai.metricsadvisor.models.DataSourceCredentialPatch;
+import com.azure.ai.metricsadvisor.models.DatasourceCredentialEntityPatch;
 import com.azure.ai.metricsadvisor.implementation.models.HookInfo;
 import com.azure.ai.metricsadvisor.models.HookInfoPatch;
 import com.azure.ai.metricsadvisor.models.MetricsAdvisorErrorCodeException;
@@ -154,7 +154,7 @@ public final class PatchImplClient {
         Mono<Response<DataSourceCredential>> updateCredential(
                 @HostParam("endpoint") String endpoint,
                 @PathParam("credentialId") UUID credentialId,
-                @BodyParam("application/merge-patch+json") DataSourceCredentialPatch body,
+                @BodyParam("application/merge-patch+json") DatasourceCredentialEntityPatch body,
                 @HeaderParam("Accept") String accept,
                 Context context);
 
@@ -164,7 +164,7 @@ public final class PatchImplClient {
         Mono<Response<DataFeedDetail>> updateDataFeed(
                 @HostParam("endpoint") String endpoint,
                 @PathParam("dataFeedId") UUID dataFeedId,
-                @BodyParam("application/merge-patch+json") DataFeedDetailPatch body,
+                @BodyParam("application/merge-patch+json") DataFeedPatch body,
                 @HeaderParam("Accept") String accept,
                 Context context);
 
@@ -431,7 +431,7 @@ public final class PatchImplClient {
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
     public Mono<Response<DataSourceCredential>> updateCredentialWithResponseAsync(
-            UUID credentialId, DataSourceCredentialPatch body) {
+            UUID credentialId, DatasourceCredentialEntityPatch body) {
         final String accept = "application/json";
         return FluxUtil.withContext(
                 context -> service.updateCredential(this.getEndpoint(), credentialId, body, accept, context));
@@ -450,7 +450,7 @@ public final class PatchImplClient {
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
     public Mono<Response<DataSourceCredential>> updateCredentialWithResponseAsync(
-            UUID credentialId, DataSourceCredentialPatch body, Context context) {
+        UUID credentialId, DatasourceCredentialEntityPatch body, Context context) {
         final String accept = "application/json";
         return service.updateCredential(this.getEndpoint(), credentialId, body, accept, context);
     }
@@ -466,7 +466,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<DataSourceCredential> updateCredentialAsync(UUID credentialId, DataSourceCredentialPatch body) {
+    public Mono<DataSourceCredential> updateCredentialAsync(UUID credentialId, DatasourceCredentialEntityPatch body) {
         return updateCredentialWithResponseAsync(credentialId, body)
                 .flatMap(
                         (Response<DataSourceCredential> res) -> {
@@ -491,7 +491,7 @@ public final class PatchImplClient {
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
     public Mono<DataSourceCredential> updateCredentialAsync(
-            UUID credentialId, DataSourceCredentialPatch body, Context context) {
+        UUID credentialId, DatasourceCredentialEntityPatch body, Context context) {
         return updateCredentialWithResponseAsync(credentialId, body, context)
                 .flatMap(
                         (Response<DataSourceCredential> res) -> {
@@ -514,7 +514,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public DataSourceCredential updateCredential(UUID credentialId, DataSourceCredentialPatch body) {
+    public DataSourceCredential updateCredential(UUID credentialId, DatasourceCredentialEntityPatch body) {
         return updateCredentialAsync(credentialId, body).block();
     }
 
@@ -531,7 +531,7 @@ public final class PatchImplClient {
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
     public Response<DataSourceCredential> updateCredentialWithResponse(
-            UUID credentialId, DataSourceCredentialPatch body, Context context) {
+        UUID credentialId, DatasourceCredentialEntityPatch body, Context context) {
         return updateCredentialWithResponseAsync(credentialId, body, context).block();
     }
 
@@ -546,7 +546,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<Response<DataFeedDetail>> updateDataFeedWithResponseAsync(UUID dataFeedId, DataFeedDetailPatch body) {
+    public Mono<Response<DataFeedDetail>> updateDataFeedWithResponseAsync(UUID dataFeedId, DataFeedPatch body) {
         final String accept = "application/json";
         return FluxUtil.withContext(
                 context -> service.updateDataFeed(this.getEndpoint(), dataFeedId, body, accept, context));
@@ -565,7 +565,7 @@ public final class PatchImplClient {
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
     public Mono<Response<DataFeedDetail>> updateDataFeedWithResponseAsync(
-            UUID dataFeedId, DataFeedDetailPatch body, Context context) {
+        UUID dataFeedId, DataFeedPatch body, Context context) {
         final String accept = "application/json";
         return service.updateDataFeed(this.getEndpoint(), dataFeedId, body, accept, context);
     }
@@ -581,7 +581,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<DataFeedDetail> updateDataFeedAsync(UUID dataFeedId, DataFeedDetailPatch body) {
+    public Mono<DataFeedDetail> updateDataFeedAsync(UUID dataFeedId, DataFeedPatch body) {
         return updateDataFeedWithResponseAsync(dataFeedId, body)
                 .flatMap(
                         (Response<DataFeedDetail> res) -> {
@@ -605,7 +605,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<DataFeedDetail> updateDataFeedAsync(UUID dataFeedId, DataFeedDetailPatch body, Context context) {
+    public Mono<DataFeedDetail> updateDataFeedAsync(UUID dataFeedId, DataFeedPatch body, Context context) {
         return updateDataFeedWithResponseAsync(dataFeedId, body, context)
                 .flatMap(
                         (Response<DataFeedDetail> res) -> {
@@ -628,7 +628,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public DataFeedDetail updateDataFeed(UUID dataFeedId, DataFeedDetailPatch body) {
+    public DataFeedDetail updateDataFeed(UUID dataFeedId, DataFeedPatch body) {
         return updateDataFeedAsync(dataFeedId, body).block();
     }
 
@@ -645,7 +645,7 @@ public final class PatchImplClient {
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
     public Response<DataFeedDetail> updateDataFeedWithResponse(
-            UUID dataFeedId, DataFeedDetailPatch body, Context context) {
+        UUID dataFeedId, DataFeedPatch body, Context context) {
         return updateDataFeedWithResponseAsync(dataFeedId, body, context).block();
     }
 

@@ -10,23 +10,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** The ServicePrincipalCredentialPatch model. */
+/** The DataLakeGen2SharedKeyCredentialPatch model. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceCredentialType")
-@JsonTypeName("ServicePrincipal")
+@JsonTypeName("DataLakeGen2SharedKey")
 @Fluent
-public final class ServicePrincipalCredentialPatch extends DataSourceCredentialPatch {
+public final class DatasourceDataLakeGen2SharedKeyPatch extends DatasourceCredentialEntityPatch {
     /*
      * The parameters property.
      */
     @JsonProperty(value = "parameters")
-    private Option<ServicePrincipalParamPatch> parameters;
+    private Option<DataLakeGen2SharedKeyParamPatch> parameters;
 
     /**
      * Get the parameters property: The parameters property.
      *
      * @return the parameters value.
      */
-    ServicePrincipalParamPatch getParameters() {
+    public DataLakeGen2SharedKeyParamPatch getParameters() {
         if (this.parameters != null) {
             this.parameters.getValue();
         }
@@ -37,9 +37,9 @@ public final class ServicePrincipalCredentialPatch extends DataSourceCredentialP
      * Set the parameters property: The parameters property.
      *
      * @param parameters the parameters value to set.
-     * @return the ServicePrincipalCredentialPatch object itself.
+     * @return the DataLakeGen2SharedKeyCredentialPatch object itself.
      */
-    public ServicePrincipalCredentialPatch setParameters(ServicePrincipalParamPatch parameters) {
+    public DatasourceDataLakeGen2SharedKeyPatch setParameters(DataLakeGen2SharedKeyParamPatch parameters) {
         if (parameters == null) {
             this.parameters = Option.empty();
         } else {

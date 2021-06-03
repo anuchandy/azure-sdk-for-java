@@ -14,19 +14,19 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceCredentialType")
 @JsonTypeName("ServicePrincipalInKV")
 @Fluent
-public final class ServicePrincipalInKVCredentialPatch extends DataSourceCredentialPatch {
+public final class DatasourceServicePrincipalInKeyVaultPatch extends DatasourceCredentialEntityPatch {
     /*
      * The parameters property.
      */
     @JsonProperty(value = "parameters")
-    private Option<ServicePrincipalInKVParamPatch> parameters;
+    private Option<ServicePrincipalInKeyVaultParamPatch> parameters;
 
     /**
      * Get the parameters property: The parameters property.
      *
      * @return the parameters value.
      */
-    ServicePrincipalInKVParamPatch getParameters() {
+    ServicePrincipalInKeyVaultParamPatch getParameters() {
         if (this.parameters != null) {
             this.parameters.getValue();
         }
@@ -39,7 +39,7 @@ public final class ServicePrincipalInKVCredentialPatch extends DataSourceCredent
      * @param parameters the parameters value to set.
      * @return the ServicePrincipalInKVCredentialPatch object itself.
      */
-    public ServicePrincipalInKVCredentialPatch setParameters(ServicePrincipalInKVParamPatch parameters) {
+    public DatasourceServicePrincipalInKeyVaultPatch setParameters(ServicePrincipalInKeyVaultParamPatch parameters) {
         if (parameters == null) {
             this.parameters = Option.empty();
         } else {

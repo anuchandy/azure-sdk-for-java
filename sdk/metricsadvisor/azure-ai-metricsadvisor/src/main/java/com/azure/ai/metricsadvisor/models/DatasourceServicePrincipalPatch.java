@@ -10,23 +10,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** The AzureSQLConnectionStringCredentialPatch model. */
+/** The ServicePrincipalCredentialPatch model. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceCredentialType")
-@JsonTypeName("AzureSQLConnectionString")
+@JsonTypeName("ServicePrincipal")
 @Fluent
-public final class AzureSQLConnectionStringCredentialPatch extends DataSourceCredentialPatch {
+public final class DatasourceServicePrincipalPatch extends DatasourceCredentialEntityPatch {
     /*
      * The parameters property.
      */
     @JsonProperty(value = "parameters")
-    private Option<AzureSQLConnectionStringParamPatch> parameters;
+    private Option<ServicePrincipalParamPatch> parameters;
 
     /**
      * Get the parameters property: The parameters property.
      *
      * @return the parameters value.
      */
-    AzureSQLConnectionStringParamPatch getParameters() {
+    ServicePrincipalParamPatch getParameters() {
         if (this.parameters != null) {
             this.parameters.getValue();
         }
@@ -37,9 +37,9 @@ public final class AzureSQLConnectionStringCredentialPatch extends DataSourceCre
      * Set the parameters property: The parameters property.
      *
      * @param parameters the parameters value to set.
-     * @return the AzureSQLConnectionStringCredentialPatch object itself.
+     * @return the ServicePrincipalCredentialPatch object itself.
      */
-    public AzureSQLConnectionStringCredentialPatch setParameters(AzureSQLConnectionStringParamPatch parameters) {
+    public DatasourceServicePrincipalPatch setParameters(ServicePrincipalParamPatch parameters) {
         if (parameters == null) {
             this.parameters = Option.empty();
         } else {

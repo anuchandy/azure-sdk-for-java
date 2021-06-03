@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceType")
 @JsonTypeName("SqlServer")
 @Fluent
-public final class SQLServerDataFeedPatch extends DataFeedDetailPatch {
+public final class SQLServerDataFeedPatch extends DataFeedPatch {
     /*
      * The dataSourceParameter property.
      */

@@ -19,7 +19,7 @@ import java.util.List;
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.PROPERTY,
         property = "dataSourceType",
-        defaultImpl = DataFeedDetailPatch.class)
+        defaultImpl = DataFeedPatch.class)
 @JsonTypeName("DataFeedDetailPatch")
 @JsonSubTypes({
     @JsonSubTypes.Type(name = "AzureApplicationInsights", value = AzureApplicationInsightsDataFeedPatch.class),
@@ -37,7 +37,7 @@ import java.util.List;
     @JsonSubTypes.Type(name = "MongoDB", value = MongoDBDataFeedPatch.class)
 })
 @Fluent
-public class DataFeedDetailPatch {
+public class DataFeedPatch {
     /*
      * data feed name
      */
@@ -173,7 +173,7 @@ public class DataFeedDetailPatch {
      *
      * @return the dataFeedName value.
      */
-    String getDataFeedName() {
+    String getName() {
         if (this.dataFeedName != null) {
             this.dataFeedName.getValue();
         }
@@ -186,7 +186,7 @@ public class DataFeedDetailPatch {
      * @param dataFeedName the dataFeedName value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setDataFeedName(String dataFeedName) {
+    public DataFeedPatch setName(String dataFeedName) {
         if (dataFeedName == null) {
             this.dataFeedName = Option.empty();
         } else {
@@ -200,7 +200,7 @@ public class DataFeedDetailPatch {
      *
      * @return the dataFeedDescription value.
      */
-    String getDataFeedDescription() {
+    String getDescription() {
         if (this.dataFeedDescription != null) {
             this.dataFeedDescription.getValue();
         }
@@ -213,7 +213,7 @@ public class DataFeedDetailPatch {
      * @param dataFeedDescription the dataFeedDescription value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setDataFeedDescription(String dataFeedDescription) {
+    public DataFeedPatch setDescription(String dataFeedDescription) {
         if (dataFeedDescription == null) {
             this.dataFeedDescription = Option.empty();
         } else {
@@ -242,7 +242,7 @@ public class DataFeedDetailPatch {
      * @param timestampColumn the timestampColumn value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setTimestampColumn(String timestampColumn) {
+    public DataFeedPatch setTimestampColumn(String timestampColumn) {
         if (timestampColumn == null) {
             this.timestampColumn = Option.empty();
         } else {
@@ -269,7 +269,7 @@ public class DataFeedDetailPatch {
      * @param dataStartFrom the dataStartFrom value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setDataStartFrom(OffsetDateTime dataStartFrom) {
+    public DataFeedPatch setDataStartFrom(OffsetDateTime dataStartFrom) {
         if (dataStartFrom == null) {
             this.dataStartFrom = Option.empty();
         } else {
@@ -298,7 +298,7 @@ public class DataFeedDetailPatch {
      * @param startOffsetInSeconds the startOffsetInSeconds value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setStartOffsetInSeconds(Long startOffsetInSeconds) {
+    public DataFeedPatch setStartOffsetInSeconds(Long startOffsetInSeconds) {
         if (startOffsetInSeconds == null) {
             this.startOffsetInSeconds = Option.empty();
         } else {
@@ -327,7 +327,7 @@ public class DataFeedDetailPatch {
      * @param maxConcurrency the maxConcurrency value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setMaxConcurrency(Integer maxConcurrency) {
+    public DataFeedPatch setMaxConcurrency(Integer maxConcurrency) {
         if (maxConcurrency == null) {
             this.maxConcurrency = Option.empty();
         } else {
@@ -354,7 +354,7 @@ public class DataFeedDetailPatch {
      * @param minRetryIntervalInSeconds the minRetryIntervalInSeconds value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setMinRetryIntervalInSeconds(Long minRetryIntervalInSeconds) {
+    public DataFeedPatch setMinRetryIntervalInSeconds(Long minRetryIntervalInSeconds) {
         if (minRetryIntervalInSeconds == null) {
             this.minRetryIntervalInSeconds = Option.empty();
         } else {
@@ -383,7 +383,7 @@ public class DataFeedDetailPatch {
      * @param stopRetryAfterInSeconds the stopRetryAfterInSeconds value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setStopRetryAfterInSeconds(Long stopRetryAfterInSeconds) {
+    public DataFeedPatch setStopRetryAfterInSeconds(Long stopRetryAfterInSeconds) {
         if (stopRetryAfterInSeconds == null) {
             this.stopRetryAfterInSeconds = Option.empty();
         } else {
@@ -410,7 +410,7 @@ public class DataFeedDetailPatch {
      * @param needRollup the needRollup value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setNeedRollup(DataFeedRollupType needRollup) {
+    public DataFeedPatch setNeedRollup(DataFeedRollupType needRollup) {
         if (needRollup == null) {
             this.needRollup = Option.empty();
         } else {
@@ -437,7 +437,7 @@ public class DataFeedDetailPatch {
      * @param rollUpMethod the rollUpMethod value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setRollUpMethod(DataFeedAutoRollUpMethod rollUpMethod) {
+    public DataFeedPatch setRollUpMethod(DataFeedAutoRollUpMethod rollUpMethod) {
         if (rollUpMethod == null) {
             this.rollUpMethod = Option.empty();
         } else {
@@ -464,7 +464,7 @@ public class DataFeedDetailPatch {
      * @param rollUpColumns the rollUpColumns value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setRollUpColumns(List<String> rollUpColumns) {
+    public DataFeedPatch setRollUpColumns(List<String> rollUpColumns) {
         if (rollUpColumns == null) {
             this.rollUpColumns = Option.empty();
         } else {
@@ -491,7 +491,7 @@ public class DataFeedDetailPatch {
      * @param allUpIdentification the allUpIdentification value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setAllUpIdentification(String allUpIdentification) {
+    public DataFeedPatch setAllUpIdentification(String allUpIdentification) {
         if (allUpIdentification == null) {
             this.allUpIdentification = Option.empty();
         } else {
@@ -518,7 +518,7 @@ public class DataFeedDetailPatch {
      * @param fillMissingPointType the fillMissingPointType value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setFillMissingPointType(DataFeedMissingDataPointFillType fillMissingPointType) {
+    public DataFeedPatch setFillMissingPointType(DataFeedMissingDataPointFillType fillMissingPointType) {
         if (fillMissingPointType == null) {
             this.fillMissingPointType = Option.empty();
         } else {
@@ -545,7 +545,7 @@ public class DataFeedDetailPatch {
      * @param fillMissingPointValue the fillMissingPointValue value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setFillMissingPointValue(Double fillMissingPointValue) {
+    public DataFeedPatch setFillMissingPointValue(Double fillMissingPointValue) {
         if (fillMissingPointValue == null) {
             this.fillMissingPointValue = Option.empty();
         } else {
@@ -559,7 +559,7 @@ public class DataFeedDetailPatch {
      *
      * @return the viewMode value.
      */
-    DataFeedAccessMode getViewMode() {
+    DataFeedAccessMode getAccessMode() {
         if (this.viewMode != null) {
             this.viewMode.getValue();
         }
@@ -572,7 +572,7 @@ public class DataFeedDetailPatch {
      * @param viewMode the viewMode value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setViewMode(DataFeedAccessMode viewMode) {
+    public DataFeedPatch setAccessMode(DataFeedAccessMode viewMode) {
         if (viewMode == null) {
             this.viewMode = Option.empty();
         } else {
@@ -599,7 +599,7 @@ public class DataFeedDetailPatch {
      * @param admins the admins value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setAdmins(List<String> admins) {
+    public DataFeedPatch setAdmins(List<String> admins) {
         if (admins == null) {
             this.admins = Option.empty();
         } else {
@@ -626,7 +626,7 @@ public class DataFeedDetailPatch {
      * @param viewers the viewers value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setViewers(List<String> viewers) {
+    public DataFeedPatch setViewers(List<String> viewers) {
         if (viewers == null) {
             this.viewers = Option.empty();
         } else {
@@ -653,7 +653,7 @@ public class DataFeedDetailPatch {
      * @param status the status value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setStatus(DataFeedStatus status) {
+    public DataFeedPatch setStatus(DataFeedStatus status) {
         if (status == null) {
             this.status = Option.empty();
         } else {
@@ -680,7 +680,7 @@ public class DataFeedDetailPatch {
      * @param actionLinkTemplate the actionLinkTemplate value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setActionLinkTemplate(String actionLinkTemplate) {
+    public DataFeedPatch setActionLinkTemplate(String actionLinkTemplate) {
         if (actionLinkTemplate == null) {
             this.actionLinkTemplate = Option.empty();
         } else {
@@ -707,7 +707,7 @@ public class DataFeedDetailPatch {
      * @param authenticationType the authenticationType value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setAuthenticationType(DatasourceAuthenticationType authenticationType) {
+    public DataFeedPatch setAuthenticationType(DatasourceAuthenticationType authenticationType) {
         if (authenticationType == null) {
             this.authenticationType = Option.empty();
         } else {
@@ -734,7 +734,7 @@ public class DataFeedDetailPatch {
      * @param credentialId the credentialId value to set.
      * @return the DataFeedDetailPatch object itself.
      */
-    public DataFeedDetailPatch setCredentialId(String credentialId) {
+    public DataFeedPatch setCredentialId(String credentialId) {
         if (credentialId == null) {
             this.credentialId = Option.empty();
         } else {

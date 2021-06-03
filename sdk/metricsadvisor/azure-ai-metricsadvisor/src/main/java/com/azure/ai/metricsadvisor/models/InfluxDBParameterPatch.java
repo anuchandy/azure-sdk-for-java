@@ -46,7 +46,7 @@ public final class InfluxDBParameterPatch {
      *
      * @return the connectionString value.
      */
-    public String getConnectionString() {
+    String getConnectionString() {
         if (this.connectionString != null) {
             this.connectionString.getValue();
         }
@@ -73,7 +73,7 @@ public final class InfluxDBParameterPatch {
      *
      * @return the database value.
      */
-    public String getDatabase() {
+    String getDatabase() {
         if (this.database != null) {
             this.database.getValue();
         }
@@ -100,7 +100,7 @@ public final class InfluxDBParameterPatch {
      *
      * @return the userName value.
      */
-    public String getUserName() {
+    String getUserName() {
         if (this.userName != null) {
             this.userName.getValue();
         }
@@ -127,7 +127,7 @@ public final class InfluxDBParameterPatch {
      *
      * @return the password value.
      */
-    public String getPassword() {
+    String getPassword() {
         if (this.password != null) {
             this.password.getValue();
         }
@@ -154,7 +154,7 @@ public final class InfluxDBParameterPatch {
      *
      * @return the query value.
      */
-    public String getQuery() {
+    String getQuery() {
         if (this.query != null) {
             this.query.getValue();
         }

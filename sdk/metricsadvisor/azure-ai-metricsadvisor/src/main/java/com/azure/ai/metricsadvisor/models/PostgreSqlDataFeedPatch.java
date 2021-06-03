@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceType")
 @JsonTypeName("PostgreSql")
 @Fluent
-public final class PostgreSqlDataFeedPatch extends DataFeedDetailPatch {
+public final class PostgreSqlDataFeedPatch extends DataFeedPatch {
     /*
      * The dataSourceParameter property.
      */

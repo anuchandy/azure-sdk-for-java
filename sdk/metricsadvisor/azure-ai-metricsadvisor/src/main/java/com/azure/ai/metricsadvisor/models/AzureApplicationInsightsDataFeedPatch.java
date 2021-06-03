@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceType")
 @JsonTypeName("AzureApplicationInsights")
 @Fluent
-public final class AzureApplicationInsightsDataFeedPatch extends DataFeedDetailPatch {
+public final class AzureApplicationInsightsDataFeedPatch extends DataFeedPatch {
     /*
      * The dataSourceParameter property.
      */

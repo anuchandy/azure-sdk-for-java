@@ -8,6 +8,7 @@ import com.azure.ai.metricsadvisor.implementation.util.Option;
 import com.azure.core.annotation.Fluent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -177,11 +178,15 @@ public final class AnomalyAlertingConfigurationPatch {
      * @param hookIds the hookIds value to set.
      * @return the AnomalyAlertingConfigurationPatch object itself.
      */
-    public AnomalyAlertingConfigurationPatch setHookIds(List<UUID> hookIds) {
+    public AnomalyAlertingConfigurationPatch setHookIds(List<String> hookIds) {
         if (hookIds == null) {
             this.hookIds = Option.empty();
         } else {
-            this.hookIds = Option.of(hookIds);
+            List<UUID> uuids = new ArrayList<>();
+            for (String hookId : hookIds) {
+                uuids.add(UUID.fromString(hookId));
+            }
+            this.hookIds = Option.of(uuids);
         }
         return this;
     }

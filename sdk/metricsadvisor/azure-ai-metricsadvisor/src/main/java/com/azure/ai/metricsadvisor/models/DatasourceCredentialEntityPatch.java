@@ -15,16 +15,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.PROPERTY,
         property = "dataSourceCredentialType",
-        defaultImpl = DataSourceCredentialPatch.class)
+        defaultImpl = DatasourceCredentialEntityPatch.class)
 @JsonTypeName("DataSourceCredentialPatch")
 @JsonSubTypes({
-    @JsonSubTypes.Type(name = "AzureSQLConnectionString", value = AzureSQLConnectionStringCredentialPatch.class),
-    @JsonSubTypes.Type(name = "DataLakeGen2SharedKey", value = DataLakeGen2SharedKeyCredentialPatch.class),
-    @JsonSubTypes.Type(name = "ServicePrincipal", value = ServicePrincipalCredentialPatch.class),
-    @JsonSubTypes.Type(name = "ServicePrincipalInKV", value = ServicePrincipalInKVCredentialPatch.class)
+    @JsonSubTypes.Type(name = "AzureSQLConnectionString", value = DatasourceSqlConnectionStringPatch.class),
+    @JsonSubTypes.Type(name = "DataLakeGen2SharedKey", value = DatasourceDataLakeGen2SharedKeyPatch.class),
+    @JsonSubTypes.Type(name = "ServicePrincipal", value = DatasourceServicePrincipalPatch.class),
+    @JsonSubTypes.Type(name = "ServicePrincipalInKV", value = DatasourceServicePrincipalInKeyVaultPatch.class)
 })
 @Fluent
-public class DataSourceCredentialPatch {
+public class DatasourceCredentialEntityPatch {
     /*
      * Name of data source credential
      */
@@ -42,18 +42,18 @@ public class DataSourceCredentialPatch {
      *
      * @return the dataSourceCredentialName value.
      */
-    public String getDataSourceCredentialName() {
+    String getName() {
         return this.dataSourceCredentialName;
     }
 
     /**
      * Set the dataSourceCredentialName property: Name of data source credential.
      *
-     * @param dataSourceCredentialName the dataSourceCredentialName value to set.
+     * @param name the dataSourceCredentialName value to set.
      * @return the DataSourceCredentialPatch object itself.
      */
-    public DataSourceCredentialPatch setDataSourceCredentialName(String dataSourceCredentialName) {
-        this.dataSourceCredentialName = dataSourceCredentialName;
+    public DatasourceCredentialEntityPatch setName(String name) {
+        this.dataSourceCredentialName = name;
         return this;
     }
 
@@ -62,18 +62,18 @@ public class DataSourceCredentialPatch {
      *
      * @return the dataSourceCredentialDescription value.
      */
-    public String getDataSourceCredentialDescription() {
+    String getDescription() {
         return this.dataSourceCredentialDescription;
     }
 
     /**
      * Set the dataSourceCredentialDescription property: Description of data source credential.
      *
-     * @param dataSourceCredentialDescription the dataSourceCredentialDescription value to set.
+     * @param description the dataSourceCredentialDescription value to set.
      * @return the DataSourceCredentialPatch object itself.
      */
-    public DataSourceCredentialPatch setDataSourceCredentialDescription(String dataSourceCredentialDescription) {
-        this.dataSourceCredentialDescription = dataSourceCredentialDescription;
+    public DatasourceCredentialEntityPatch setDescription(String description) {
+        this.dataSourceCredentialDescription = description;
         return this;
     }
 }

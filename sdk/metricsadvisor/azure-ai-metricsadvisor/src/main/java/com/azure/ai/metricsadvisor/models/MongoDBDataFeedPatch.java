@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceType")
 @JsonTypeName("MongoDB")
 @Fluent
-public final class MongoDBDataFeedPatch extends DataFeedDetailPatch {
+public final class MongoDBDataFeedPatch extends DataFeedPatch {
     /*
      * The dataSourceParameter property.
      */

@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceType")
 @JsonTypeName("InfluxDB")
 @Fluent
-public final class InfluxDBDataFeedPatch extends DataFeedDetailPatch {
+public final class InfluxDBDataFeedPatch extends DataFeedPatch {
     /*
      * The dataSourceParameter property.
      */
@@ -26,7 +26,7 @@ public final class InfluxDBDataFeedPatch extends DataFeedDetailPatch {
      *
      * @return the dataSourceParameter value.
      */
-    public InfluxDBParameterPatch getDataSourceParameter() {
+    InfluxDBParameterPatch getDataSourceParameter() {
         if (this.dataSourceParameter != null) {
             this.dataSourceParameter.getValue();
         }

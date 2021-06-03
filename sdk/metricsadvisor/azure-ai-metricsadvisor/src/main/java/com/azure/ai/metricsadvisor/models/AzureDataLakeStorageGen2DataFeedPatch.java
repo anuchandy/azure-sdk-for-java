@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceType")
 @JsonTypeName("AzureDataLakeStorageGen2")
 @Fluent
-public final class AzureDataLakeStorageGen2DataFeedPatch extends DataFeedDetailPatch {
+public final class AzureDataLakeStorageGen2DataFeedPatch extends DataFeedPatch {
     /*
      * The dataSourceParameter property.
      */

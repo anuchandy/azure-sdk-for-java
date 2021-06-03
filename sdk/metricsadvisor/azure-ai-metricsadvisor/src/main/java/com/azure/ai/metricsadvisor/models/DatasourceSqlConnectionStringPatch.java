@@ -10,23 +10,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** The DataLakeGen2SharedKeyCredentialPatch model. */
+/** The AzureSQLConnectionStringCredentialPatch model. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceCredentialType")
-@JsonTypeName("DataLakeGen2SharedKey")
+@JsonTypeName("AzureSQLConnectionString")
 @Fluent
-public final class DataLakeGen2SharedKeyCredentialPatch extends DataSourceCredentialPatch {
+public final class DatasourceSqlConnectionStringPatch extends DatasourceCredentialEntityPatch {
     /*
      * The parameters property.
      */
     @JsonProperty(value = "parameters")
-    private Option<DataLakeGen2SharedKeyParamPatch> parameters;
+    private Option<AzureSQLConnectionStringParamPatch> parameters;
 
     /**
      * Get the parameters property: The parameters property.
      *
      * @return the parameters value.
      */
-    public DataLakeGen2SharedKeyParamPatch getParameters() {
+    AzureSQLConnectionStringParamPatch getParameters() {
         if (this.parameters != null) {
             this.parameters.getValue();
         }
@@ -37,9 +37,9 @@ public final class DataLakeGen2SharedKeyCredentialPatch extends DataSourceCreden
      * Set the parameters property: The parameters property.
      *
      * @param parameters the parameters value to set.
-     * @return the DataLakeGen2SharedKeyCredentialPatch object itself.
+     * @return the AzureSQLConnectionStringCredentialPatch object itself.
      */
-    public DataLakeGen2SharedKeyCredentialPatch setParameters(DataLakeGen2SharedKeyParamPatch parameters) {
+    public DatasourceSqlConnectionStringPatch setParameters(AzureSQLConnectionStringParamPatch parameters) {
         if (parameters == null) {
             this.parameters = Option.empty();
         } else {

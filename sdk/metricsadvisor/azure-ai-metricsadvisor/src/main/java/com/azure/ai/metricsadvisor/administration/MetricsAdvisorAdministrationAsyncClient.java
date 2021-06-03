@@ -23,9 +23,10 @@ import com.azure.ai.metricsadvisor.implementation.models.ViewMode;
 import com.azure.ai.metricsadvisor.implementation.util.Utility;
 import com.azure.ai.metricsadvisor.implementation.util.AlertConfigurationTransforms;
 import com.azure.ai.metricsadvisor.models.AnomalyAlertConfiguration;
+import com.azure.ai.metricsadvisor.models.AnomalyAlertingConfigurationPatch;
 import com.azure.ai.metricsadvisor.models.AnomalyDetectionConfigurationPatch;
 import com.azure.ai.metricsadvisor.models.DataFeed;
-import com.azure.ai.metricsadvisor.models.DataFeedDetailPatch;
+import com.azure.ai.metricsadvisor.models.DataFeedPatch;
 import com.azure.ai.metricsadvisor.models.DataFeedGranularity;
 import com.azure.ai.metricsadvisor.models.DataFeedIngestionProgress;
 import com.azure.ai.metricsadvisor.models.DataFeedIngestionSettings;
@@ -35,7 +36,7 @@ import com.azure.ai.metricsadvisor.models.DataFeedMissingDataPointFillType;
 import com.azure.ai.metricsadvisor.models.DataFeedOptions;
 import com.azure.ai.metricsadvisor.models.DataFeedRollupSettings;
 import com.azure.ai.metricsadvisor.models.DataFeedSchema;
-import com.azure.ai.metricsadvisor.models.DataSourceCredentialPatch;
+import com.azure.ai.metricsadvisor.models.DatasourceCredentialEntityPatch;
 import com.azure.ai.metricsadvisor.models.DatasourceCredentialEntity;
 import com.azure.ai.metricsadvisor.models.HookInfoPatch;
 import com.azure.ai.metricsadvisor.models.ListAnomalyAlertConfigsOptions;
@@ -2010,7 +2011,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
      **/
     @ServiceMethod(returns = ReturnType.SINGLE)
     public Mono<Response<DataFeed>> updateDataFeedWithResponse(String dataFeedId,
-                                                               DataFeedDetailPatch dataFeedPatch) {
+                                                               DataFeedPatch dataFeedPatch) {
         try {
             return withContext(context -> updateDataFeedWithResponse(dataFeedId, dataFeedPatch, context));
         } catch (RuntimeException ex) {
@@ -2019,7 +2020,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
     }
 
     Mono<Response<DataFeed>> updateDataFeedWithResponse(String dataFeedId,
-                                                        DataFeedDetailPatch dataFeedPatch,
+                                                        DataFeedPatch dataFeedPatch,
                                                         Context context) {
         return this.servicePatch.updateDataFeedWithResponseAsync(UUID.fromString(dataFeedId), dataFeedPatch, context)
             .map(response -> new SimpleResponse<>(response, DataFeedTransforms.fromInner(response.getValue())));
@@ -2075,7 +2076,8 @@ public final class MetricsAdvisorAdministrationAsyncClient {
      * specification.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<Response<NotificationHook>> updateHookWithResponse(String hookId, HookInfoPatch hookInfoPatch) {
+    public Mono<Response<NotificationHook>> updateHookWithResponse(String hookId,
+                                                                   HookInfoPatch hookInfoPatch) {
         try {
             return withContext(context -> updateHookWithResponse(hookId, hookInfoPatch, context));
         } catch (RuntimeException e) {
@@ -2083,7 +2085,9 @@ public final class MetricsAdvisorAdministrationAsyncClient {
         }
     }
 
-    Mono<Response<NotificationHook>> updateHookWithResponse(String hookId, HookInfoPatch hookInfoPatch, Context context) {
+    Mono<Response<NotificationHook>> updateHookWithResponse(String hookId,
+                                                            HookInfoPatch hookInfoPatch,
+                                                            Context context) {
         return servicePatch.updateHookWithResponseAsync(UUID.fromString(hookId),
             hookInfoPatch,
             context.addData(AZ_TRACING_NAMESPACE_KEY, METRICS_ADVISOR_TRACING_NAMESPACE_VALUE))
@@ -2110,7 +2114,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
     @ServiceMethod(returns = ReturnType.SINGLE)
     public Mono<Response<AnomalyAlertConfiguration>> updateAnomalyAlertConfigWithResponse(
         String configId,
-        com.azure.ai.metricsadvisor.models.AnomalyAlertingConfigurationPatch alertConfigPatch) {
+        AnomalyAlertingConfigurationPatch alertConfigPatch) {
         try {
             return withContext(context -> updateAnomalyAlertConfigWithResponse(configId, alertConfigPatch, context));
         } catch (RuntimeException ex) {
@@ -2120,7 +2124,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
 
     Mono<Response<AnomalyAlertConfiguration>> updateAnomalyAlertConfigWithResponse(
         String configId,
-        com.azure.ai.metricsadvisor.models.AnomalyAlertingConfigurationPatch alertConfigPatch,
+        AnomalyAlertingConfigurationPatch alertConfigPatch,
         Context context) {
         final Context withTracing = context.addData(AZ_TRACING_NAMESPACE_KEY, METRICS_ADVISOR_TRACING_NAMESPACE_VALUE);
 
@@ -2149,7 +2153,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
     @ServiceMethod(returns = ReturnType.SINGLE)
     public Mono<Response<DatasourceCredentialEntity>> updateDatasourceCredentialWithResponse(
         String credentialId,
-        DataSourceCredentialPatch credentialPatch) {
+        DatasourceCredentialEntityPatch credentialPatch) {
         try {
             return withContext(context -> updateDatasourceCredentialWithResponse(credentialId,
                 credentialPatch,
@@ -2161,7 +2165,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
 
     Mono<Response<DatasourceCredentialEntity>> updateDatasourceCredentialWithResponse(
         String credentialId,
-        DataSourceCredentialPatch credentialPatch,
+        DatasourceCredentialEntityPatch credentialPatch,
         Context context) {
         return servicePatch.updateCredentialWithResponseAsync(UUID.fromString(credentialId),
             credentialPatch,

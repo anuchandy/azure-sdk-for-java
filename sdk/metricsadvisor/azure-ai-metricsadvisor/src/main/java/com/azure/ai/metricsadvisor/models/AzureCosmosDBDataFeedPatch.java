@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceType")
 @JsonTypeName("AzureCosmosDB")
 @Fluent
-public final class AzureCosmosDBDataFeedPatch extends DataFeedDetailPatch {
+public final class AzureCosmosDBDataFeedPatch extends DataFeedPatch {
     /*
      * The dataSourceParameter property.
      */
