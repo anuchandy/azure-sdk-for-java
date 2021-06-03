@@ -10,23 +10,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** The SQLServerDataFeedPatch model. */
+/** The InfluxDBDataFeedPatch model. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceType")
-@JsonTypeName("SqlServer")
+@JsonTypeName("InfluxDB")
 @Fluent
-public final class SQLServerDataFeedPatch extends DataFeedPatch {
+public final class InfluxDbDataFeedPatch extends DataFeedPatch {
     /*
      * The dataSourceParameter property.
      */
     @JsonProperty(value = "dataSourceParameter")
-    private Option<SQLSourceParameterPatch> dataSourceParameter;
+    private Option<InfluxDbParameterPatch> dataSourceParameter;
 
     /**
      * Get the dataSourceParameter property: The dataSourceParameter property.
      *
      * @return the dataSourceParameter value.
      */
-    SQLSourceParameterPatch getDataSourceParameter() {
+    InfluxDbParameterPatch getDataSourceParameter() {
         if (this.dataSourceParameter != null) {
             this.dataSourceParameter.getValue();
         }
@@ -37,9 +37,9 @@ public final class SQLServerDataFeedPatch extends DataFeedPatch {
      * Set the dataSourceParameter property: The dataSourceParameter property.
      *
      * @param dataSourceParameter the dataSourceParameter value to set.
-     * @return the SQLServerDataFeedPatch object itself.
+     * @return the InfluxDBDataFeedPatch object itself.
      */
-    public SQLServerDataFeedPatch setDataSourceParameter(SQLSourceParameterPatch dataSourceParameter) {
+    public InfluxDbDataFeedPatch setDataSourceParameter(InfluxDbParameterPatch dataSourceParameter) {
         if (dataSourceParameter == null) {
             this.dataSourceParameter = Option.empty();
         } else {

@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /** The InfluxDBParameterPatch model. */
 @Fluent
-public final class InfluxDBParameterPatch {
+public final class InfluxDbParameterPatch {
     /*
      * The connection string of this InfluxDB
      */
@@ -59,7 +59,7 @@ public final class InfluxDBParameterPatch {
      * @param connectionString the connectionString value to set.
      * @return the InfluxDBParameterPatch object itself.
      */
-    public InfluxDBParameterPatch setConnectionString(String connectionString) {
+    public InfluxDbParameterPatch setConnectionString(String connectionString) {
         if (connectionString == null) {
             this.connectionString = Option.empty();
         } else {
@@ -86,7 +86,7 @@ public final class InfluxDBParameterPatch {
      * @param database the database value to set.
      * @return the InfluxDBParameterPatch object itself.
      */
-    public InfluxDBParameterPatch setDatabase(String database) {
+    public InfluxDbParameterPatch setDatabase(String database) {
         if (database == null) {
             this.database = Option.empty();
         } else {
@@ -113,7 +113,7 @@ public final class InfluxDBParameterPatch {
      * @param userName the userName value to set.
      * @return the InfluxDBParameterPatch object itself.
      */
-    public InfluxDBParameterPatch setUserName(String userName) {
+    public InfluxDbParameterPatch setUserName(String userName) {
         if (userName == null) {
             this.userName = Option.empty();
         } else {
@@ -140,7 +140,7 @@ public final class InfluxDBParameterPatch {
      * @param password the password value to set.
      * @return the InfluxDBParameterPatch object itself.
      */
-    public InfluxDBParameterPatch setPassword(String password) {
+    public InfluxDbParameterPatch setPassword(String password) {
         if (password == null) {
             this.password = Option.empty();
         } else {
@@ -167,7 +167,7 @@ public final class InfluxDBParameterPatch {
      * @param query the query value to set.
      * @return the InfluxDBParameterPatch object itself.
      */
-    public InfluxDBParameterPatch setQuery(String query) {
+    public InfluxDbParameterPatch setQuery(String query) {
         if (query == null) {
             this.query = Option.empty();
         } else {

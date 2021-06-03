@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /** The SQLSourceParameterPatch model. */
 @Fluent
-public final class SQLSourceParameterPatch {
+public final class SqlSourceParameterPatch {
     /*
      * The connection string of this database
      */
@@ -41,7 +41,7 @@ public final class SQLSourceParameterPatch {
      * @param connectionString the connectionString value to set.
      * @return the SQLSourceParameterPatch object itself.
      */
-    public SQLSourceParameterPatch setConnectionString(String connectionString) {
+    public SqlSourceParameterPatch setConnectionString(String connectionString) {
         if (connectionString == null) {
             this.connectionString = Option.empty();
         } else {
@@ -68,7 +68,7 @@ public final class SQLSourceParameterPatch {
      * @param query the query value to set.
      * @return the SQLSourceParameterPatch object itself.
      */
-    public SQLSourceParameterPatch setQuery(String query) {
+    public SqlSourceParameterPatch setQuery(String query) {
         if (query == null) {
             this.query = Option.empty();
         } else {

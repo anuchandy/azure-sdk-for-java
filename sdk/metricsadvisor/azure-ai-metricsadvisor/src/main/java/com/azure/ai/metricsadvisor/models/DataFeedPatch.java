@@ -30,11 +30,11 @@ import java.util.List;
     @JsonSubTypes.Type(name = "AzureEventHubs", value = AzureEventHubsDataFeedPatch.class),
     @JsonSubTypes.Type(name = "AzureLogAnalytics", value = AzureLogAnalyticsDataFeedPatch.class),
     @JsonSubTypes.Type(name = "AzureTable", value = AzureTableDataFeedPatch.class),
-    @JsonSubTypes.Type(name = "InfluxDB", value = InfluxDBDataFeedPatch.class),
+    @JsonSubTypes.Type(name = "InfluxDB", value = InfluxDbDataFeedPatch.class),
     @JsonSubTypes.Type(name = "MySql", value = MySqlDataFeedPatch.class),
     @JsonSubTypes.Type(name = "PostgreSql", value = PostgreSqlDataFeedPatch.class),
-    @JsonSubTypes.Type(name = "SqlServer", value = SQLServerDataFeedPatch.class),
-    @JsonSubTypes.Type(name = "MongoDB", value = MongoDBDataFeedPatch.class)
+    @JsonSubTypes.Type(name = "SqlServer", value = SqlServerDataFeedPatch.class),
+    @JsonSubTypes.Type(name = "MongoDB", value = MongoDbDataFeedPatch.class)
 })
 @Fluent
 public class DataFeedPatch {

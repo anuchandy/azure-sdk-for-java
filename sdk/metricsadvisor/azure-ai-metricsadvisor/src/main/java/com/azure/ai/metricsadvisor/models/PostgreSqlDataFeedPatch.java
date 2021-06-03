@@ -19,14 +19,14 @@ public final class PostgreSqlDataFeedPatch extends DataFeedPatch {
      * The dataSourceParameter property.
      */
     @JsonProperty(value = "dataSourceParameter")
-    private Option<SQLSourceParameterPatch> dataSourceParameter;
+    private Option<SqlSourceParameterPatch> dataSourceParameter;
 
     /**
      * Get the dataSourceParameter property: The dataSourceParameter property.
      *
      * @return the dataSourceParameter value.
      */
-    SQLSourceParameterPatch getDataSourceParameter() {
+    SqlSourceParameterPatch getDataSourceParameter() {
         if (this.dataSourceParameter != null) {
             this.dataSourceParameter.getValue();
         }
@@ -39,7 +39,7 @@ public final class PostgreSqlDataFeedPatch extends DataFeedPatch {
      * @param dataSourceParameter the dataSourceParameter value to set.
      * @return the PostgreSqlDataFeedPatch object itself.
      */
-    public PostgreSqlDataFeedPatch setDataSourceParameter(SQLSourceParameterPatch dataSourceParameter) {
+    public PostgreSqlDataFeedPatch setDataSourceParameter(SqlSourceParameterPatch dataSourceParameter) {
         if (dataSourceParameter == null) {
             this.dataSourceParameter = Option.empty();
         } else {

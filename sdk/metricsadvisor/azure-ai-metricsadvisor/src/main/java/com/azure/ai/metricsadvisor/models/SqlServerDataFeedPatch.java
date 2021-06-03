@@ -10,23 +10,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** The MongoDBDataFeedPatch model. */
+/** The SQLServerDataFeedPatch model. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceType")
-@JsonTypeName("MongoDB")
+@JsonTypeName("SqlServer")
 @Fluent
-public final class MongoDBDataFeedPatch extends DataFeedPatch {
+public final class SqlServerDataFeedPatch extends DataFeedPatch {
     /*
      * The dataSourceParameter property.
      */
     @JsonProperty(value = "dataSourceParameter")
-    private Option<MongoDBParameterPatch> dataSourceParameter;
+    private Option<SqlSourceParameterPatch> dataSourceParameter;
 
     /**
      * Get the dataSourceParameter property: The dataSourceParameter property.
      *
      * @return the dataSourceParameter value.
      */
-    MongoDBParameterPatch getDataSourceParameter() {
+    SqlSourceParameterPatch getDataSourceParameter() {
         if (this.dataSourceParameter != null) {
             this.dataSourceParameter.getValue();
         }
@@ -37,9 +37,9 @@ public final class MongoDBDataFeedPatch extends DataFeedPatch {
      * Set the dataSourceParameter property: The dataSourceParameter property.
      *
      * @param dataSourceParameter the dataSourceParameter value to set.
-     * @return the MongoDBDataFeedPatch object itself.
+     * @return the SQLServerDataFeedPatch object itself.
      */
-    public MongoDBDataFeedPatch setDataSourceParameter(MongoDBParameterPatch dataSourceParameter) {
+    public SqlServerDataFeedPatch setDataSourceParameter(SqlSourceParameterPatch dataSourceParameter) {
         if (dataSourceParameter == null) {
             this.dataSourceParameter = Option.empty();
         } else {

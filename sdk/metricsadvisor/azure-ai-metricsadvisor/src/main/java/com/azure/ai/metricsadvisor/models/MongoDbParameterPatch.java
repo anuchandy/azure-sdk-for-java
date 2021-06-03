@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /** The MongoDBParameterPatch model. */
 @Fluent
-public final class MongoDBParameterPatch {
+public final class MongoDbParameterPatch {
     /*
      * The connection string of this MongoDB
      */
@@ -47,7 +47,7 @@ public final class MongoDBParameterPatch {
      * @param connectionString the connectionString value to set.
      * @return the MongoDBParameterPatch object itself.
      */
-    public MongoDBParameterPatch setConnectionString(String connectionString) {
+    public MongoDbParameterPatch setConnectionString(String connectionString) {
         if (connectionString == null) {
             this.connectionString = Option.empty();
         } else {
@@ -74,7 +74,7 @@ public final class MongoDBParameterPatch {
      * @param database the database value to set.
      * @return the MongoDBParameterPatch object itself.
      */
-    public MongoDBParameterPatch setDatabase(String database) {
+    public MongoDbParameterPatch setDatabase(String database) {
         if (database == null) {
             this.database = Option.empty();
         } else {
@@ -101,7 +101,7 @@ public final class MongoDBParameterPatch {
      * @param command the command value to set.
      * @return the MongoDBParameterPatch object itself.
      */
-    public MongoDBParameterPatch setCommand(String command) {
+    public MongoDbParameterPatch setCommand(String command) {
         if (command == null) {
             this.command = Option.empty();
         } else {

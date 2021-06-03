@@ -10,23 +10,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** The InfluxDBDataFeedPatch model. */
+/** The MongoDBDataFeedPatch model. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "dataSourceType")
-@JsonTypeName("InfluxDB")
+@JsonTypeName("MongoDB")
 @Fluent
-public final class InfluxDBDataFeedPatch extends DataFeedPatch {
+public final class MongoDbDataFeedPatch extends DataFeedPatch {
     /*
      * The dataSourceParameter property.
      */
     @JsonProperty(value = "dataSourceParameter")
-    private Option<InfluxDBParameterPatch> dataSourceParameter;
+    private Option<MongoDbParameterPatch> dataSourceParameter;
 
     /**
      * Get the dataSourceParameter property: The dataSourceParameter property.
      *
      * @return the dataSourceParameter value.
      */
-    InfluxDBParameterPatch getDataSourceParameter() {
+    MongoDbParameterPatch getDataSourceParameter() {
         if (this.dataSourceParameter != null) {
             this.dataSourceParameter.getValue();
         }
@@ -37,9 +37,9 @@ public final class InfluxDBDataFeedPatch extends DataFeedPatch {
      * Set the dataSourceParameter property: The dataSourceParameter property.
      *
      * @param dataSourceParameter the dataSourceParameter value to set.
-     * @return the InfluxDBDataFeedPatch object itself.
+     * @return the MongoDBDataFeedPatch object itself.
      */
-    public InfluxDBDataFeedPatch setDataSourceParameter(InfluxDBParameterPatch dataSourceParameter) {
+    public MongoDbDataFeedPatch setDataSourceParameter(MongoDbParameterPatch dataSourceParameter) {
         if (dataSourceParameter == null) {
             this.dataSourceParameter = Option.empty();
         } else {
