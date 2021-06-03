@@ -19,14 +19,14 @@ public final class WebNotificationHookPatch extends NotificationHookPatch {
      * The hookParameter property.
      */
     @JsonProperty(value = "hookParameter")
-    private Option<WebhookHookParameterPatch> hookParameter;
+    private Option<WebNotificationHookParameterPatch> hookParameter;
 
     /**
      * Get the hookParameter property: The hookParameter property.
      *
      * @return the hookParameter value.
      */
-    WebhookHookParameterPatch getHookParameter() {
+    WebNotificationHookParameterPatch getHookParameter() {
         if (this.hookParameter != null) {
             this.hookParameter.getValue();
         }
@@ -39,7 +39,7 @@ public final class WebNotificationHookPatch extends NotificationHookPatch {
      * @param hookParameter the hookParameter value to set.
      * @return the WebhookHookInfoPatch object itself.
      */
-    public WebNotificationHookPatch setHookParameter(WebhookHookParameterPatch hookParameter) {
+    public WebNotificationHookPatch setHookParameter(WebNotificationHookParameterPatch hookParameter) {
         if (hookParameter == null) {
             this.hookParameter = Option.empty();
         } else {

@@ -12,7 +12,7 @@ import java.util.Map;
 
 /** The WebhookHookParameterPatch model. */
 @Fluent
-public final class WebhookHookParameterPatch {
+public final class WebNotificationHookParameterPatch {
     /*
      * API address, will be called when alert is triggered, only support POST
      * method via SSL
@@ -68,7 +68,7 @@ public final class WebhookHookParameterPatch {
      * @param endpoint the endpoint value to set.
      * @return the WebhookHookParameterPatch object itself.
      */
-    public WebhookHookParameterPatch setEndpoint(String endpoint) {
+    public WebNotificationHookParameterPatch setEndpoint(String endpoint) {
         if (endpoint == null) {
             this.endpoint = Option.empty();
         } else {
@@ -95,7 +95,7 @@ public final class WebhookHookParameterPatch {
      * @param username the username value to set.
      * @return the WebhookHookParameterPatch object itself.
      */
-    public WebhookHookParameterPatch setUsername(String username) {
+    public WebNotificationHookParameterPatch setUsername(String username) {
         if (username == null) {
             this.username = Option.empty();
         } else {
@@ -122,7 +122,7 @@ public final class WebhookHookParameterPatch {
      * @param password the password value to set.
      * @return the WebhookHookParameterPatch object itself.
      */
-    public WebhookHookParameterPatch setPassword(String password) {
+    public WebNotificationHookParameterPatch setPassword(String password) {
         if (password == null) {
             this.password = Option.empty();
         } else {
@@ -149,7 +149,7 @@ public final class WebhookHookParameterPatch {
      * @param headers the headers value to set.
      * @return the WebhookHookParameterPatch object itself.
      */
-    public WebhookHookParameterPatch setHeaders(Map<String, String> headers) {
+    public WebNotificationHookParameterPatch setHeaders(Map<String, String> headers) {
         if (headers == null) {
             this.headers = Option.empty();
         } else {
@@ -176,7 +176,7 @@ public final class WebhookHookParameterPatch {
      * @param certificateKey the certificateKey value to set.
      * @return the WebhookHookParameterPatch object itself.
      */
-    public WebhookHookParameterPatch setCertificateKey(String certificateKey) {
+    public WebNotificationHookParameterPatch setCertificateKey(String certificateKey) {
         if (certificateKey == null) {
             this.certificateKey = Option.empty();
         } else {
@@ -203,7 +203,7 @@ public final class WebhookHookParameterPatch {
      * @param certificatePassword the certificatePassword value to set.
      * @return the WebhookHookParameterPatch object itself.
      */
-    public WebhookHookParameterPatch setCertificatePassword(String certificatePassword) {
+    public WebNotificationHookParameterPatch setCertificatePassword(String certificatePassword) {
         if (certificatePassword == null) {
             this.certificatePassword = Option.empty();
         } else {

@@ -47,7 +47,7 @@ public class NotificationHookPatch {
     /*
      * hook administrators
      */
-    @JsonProperty(value = "admins", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonProperty(value = "admins")
     private Option<List<String>> admins;
 
     /**
@@ -136,10 +136,25 @@ public class NotificationHookPatch {
      *
      * @return the admins value.
      */
-    public List<String> getAdmins() {
+    List<String> getAdminEmails() {
         if (this.admins != null) {
             this.admins.getValue();
         }
         return null;
+    }
+
+    /**
+     * Set the admins property.
+     *
+     * @param adminEmails the admin email list.
+     * @return the NotificationHookPatch object itself.
+     */
+    public NotificationHookPatch setAdminEmails(List<String> adminEmails) {
+        if (adminEmails == null) {
+            this.admins = Option.empty();
+        } else {
+            this.admins = Option.of(adminEmails);
+        }
+        return this;
     }
 }

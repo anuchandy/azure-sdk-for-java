@@ -12,7 +12,7 @@ import java.util.List;
 
 /** The EmailHookParameterPatch model. */
 @Fluent
-public final class EmailHookParameterPatch {
+public final class EmailNotificationHookParameterPatch {
     /*
      * Email TO: list.
      */
@@ -24,7 +24,7 @@ public final class EmailHookParameterPatch {
      *
      * @return the toList value.
      */
-    public List<String> getToList() {
+    List<String> getEmailsToAlert() {
         if (this.toList != null) {
             this.toList.getValue();
         }
@@ -37,7 +37,7 @@ public final class EmailHookParameterPatch {
      * @param toList the toList value to set.
      * @return the EmailHookParameterPatch object itself.
      */
-    public EmailHookParameterPatch setToList(List<String> toList) {
+    public EmailNotificationHookParameterPatch setEmailsToAlert(List<String> toList) {
         if (toList == null) {
             this.toList = Option.empty();
         } else {
