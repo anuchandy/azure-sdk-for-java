@@ -18,14 +18,14 @@ import java.util.List;
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.PROPERTY,
         property = "hookType",
-        defaultImpl = HookInfoPatch.class)
+        defaultImpl = NotificationHookPatch.class)
 @JsonTypeName("HookInfoPatch")
 @JsonSubTypes({
-    @JsonSubTypes.Type(name = "Email", value = EmailHookInfoPatch.class),
-    @JsonSubTypes.Type(name = "Webhook", value = WebhookHookInfoPatch.class)
+    @JsonSubTypes.Type(name = "Email", value = EmailNotificationHookPatch.class),
+    @JsonSubTypes.Type(name = "Webhook", value = WebNotificationHookPatch.class)
 })
 @Fluent
-public class HookInfoPatch {
+public class NotificationHookPatch {
     /*
      * hook unique name
      */
@@ -55,7 +55,7 @@ public class HookInfoPatch {
      *
      * @return the hookName value.
      */
-    public String getHookName() {
+    String getName() {
         if (this.hookName != null) {
             this.hookName.getValue();
         }
@@ -68,7 +68,7 @@ public class HookInfoPatch {
      * @param hookName the hookName value to set.
      * @return the HookInfoPatch object itself.
      */
-    public HookInfoPatch setHookName(String hookName) {
+    public NotificationHookPatch setName(String hookName) {
         if (hookName == null) {
             this.hookName = Option.empty();
         } else {
@@ -95,7 +95,7 @@ public class HookInfoPatch {
      * @param description the description value to set.
      * @return the HookInfoPatch object itself.
      */
-    public HookInfoPatch setDescription(String description) {
+    public NotificationHookPatch setDescription(String description) {
         if (description == null) {
             this.description = Option.empty();
         } else {
@@ -122,7 +122,7 @@ public class HookInfoPatch {
      * @param externalLink the externalLink value to set.
      * @return the HookInfoPatch object itself.
      */
-    public HookInfoPatch setExternalLink(String externalLink) {
+    public NotificationHookPatch setExternalLink(String externalLink) {
         if (externalLink == null) {
             this.externalLink = Option.empty();
         } else {

@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "hookType")
 @JsonTypeName("Email")
 @Fluent
-public final class EmailHookInfoPatch extends HookInfoPatch {
+public final class EmailNotificationHookPatch extends NotificationHookPatch {
     /*
      * The hookParameter property.
      */
@@ -39,7 +39,7 @@ public final class EmailHookInfoPatch extends HookInfoPatch {
      * @param hookParameter the hookParameter value to set.
      * @return the EmailHookInfoPatch object itself.
      */
-    public EmailHookInfoPatch setHookParameter(EmailHookParameterPatch hookParameter) {
+    public EmailNotificationHookPatch setHookParameter(EmailHookParameterPatch hookParameter) {
         if (hookParameter == null) {
             this.hookParameter = Option.empty();
         } else {

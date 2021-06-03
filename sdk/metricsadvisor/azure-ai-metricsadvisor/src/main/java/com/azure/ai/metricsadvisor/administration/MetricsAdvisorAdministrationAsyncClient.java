@@ -38,7 +38,7 @@ import com.azure.ai.metricsadvisor.models.DataFeedRollupSettings;
 import com.azure.ai.metricsadvisor.models.DataFeedSchema;
 import com.azure.ai.metricsadvisor.models.DatasourceCredentialEntityPatch;
 import com.azure.ai.metricsadvisor.models.DatasourceCredentialEntity;
-import com.azure.ai.metricsadvisor.models.HookInfoPatch;
+import com.azure.ai.metricsadvisor.models.NotificationHookPatch;
 import com.azure.ai.metricsadvisor.models.ListAnomalyAlertConfigsOptions;
 import com.azure.ai.metricsadvisor.models.ListCredentialEntityOptions;
 import com.azure.ai.metricsadvisor.models.ListMetricAnomalyDetectionConfigsOptions;
@@ -2077,7 +2077,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
     public Mono<Response<NotificationHook>> updateHookWithResponse(String hookId,
-                                                                   HookInfoPatch hookInfoPatch) {
+                                                                   NotificationHookPatch hookInfoPatch) {
         try {
             return withContext(context -> updateHookWithResponse(hookId, hookInfoPatch, context));
         } catch (RuntimeException e) {
@@ -2086,7 +2086,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
     }
 
     Mono<Response<NotificationHook>> updateHookWithResponse(String hookId,
-                                                            HookInfoPatch hookInfoPatch,
+                                                            NotificationHookPatch hookInfoPatch,
                                                             Context context) {
         return servicePatch.updateHookWithResponseAsync(UUID.fromString(hookId),
             hookInfoPatch,

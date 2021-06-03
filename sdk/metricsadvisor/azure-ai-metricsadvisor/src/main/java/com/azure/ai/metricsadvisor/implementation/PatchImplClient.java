@@ -13,7 +13,7 @@ import com.azure.ai.metricsadvisor.models.DataFeedPatch;
 import com.azure.ai.metricsadvisor.implementation.models.DataSourceCredential;
 import com.azure.ai.metricsadvisor.models.DatasourceCredentialEntityPatch;
 import com.azure.ai.metricsadvisor.implementation.models.HookInfo;
-import com.azure.ai.metricsadvisor.models.HookInfoPatch;
+import com.azure.ai.metricsadvisor.models.NotificationHookPatch;
 import com.azure.ai.metricsadvisor.models.MetricsAdvisorErrorCodeException;
 import com.azure.core.annotation.BodyParam;
 import com.azure.core.annotation.ExpectedResponses;
@@ -174,7 +174,7 @@ public final class PatchImplClient {
         Mono<Response<HookInfo>> updateHook(
                 @HostParam("endpoint") String endpoint,
                 @PathParam("hookId") UUID hookId,
-                @BodyParam("application/merge-patch+json") HookInfoPatch body,
+                @BodyParam("application/merge-patch+json") NotificationHookPatch body,
                 @HeaderParam("Accept") String accept,
                 Context context);
     }
@@ -660,7 +660,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<Response<HookInfo>> updateHookWithResponseAsync(UUID hookId, HookInfoPatch body) {
+    public Mono<Response<HookInfo>> updateHookWithResponseAsync(UUID hookId, NotificationHookPatch body) {
         final String accept = "application/json";
         return FluxUtil.withContext(context -> service.updateHook(this.getEndpoint(), hookId, body, accept, context));
     }
@@ -677,7 +677,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<Response<HookInfo>> updateHookWithResponseAsync(UUID hookId, HookInfoPatch body, Context context) {
+    public Mono<Response<HookInfo>> updateHookWithResponseAsync(UUID hookId, NotificationHookPatch body, Context context) {
         final String accept = "application/json";
         return service.updateHook(this.getEndpoint(), hookId, body, accept, context);
     }
@@ -693,7 +693,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<HookInfo> updateHookAsync(UUID hookId, HookInfoPatch body) {
+    public Mono<HookInfo> updateHookAsync(UUID hookId, NotificationHookPatch body) {
         return updateHookWithResponseAsync(hookId, body)
                 .flatMap(
                         (Response<HookInfo> res) -> {
@@ -717,7 +717,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<HookInfo> updateHookAsync(UUID hookId, HookInfoPatch body, Context context) {
+    public Mono<HookInfo> updateHookAsync(UUID hookId, NotificationHookPatch body, Context context) {
         return updateHookWithResponseAsync(hookId, body, context)
                 .flatMap(
                         (Response<HookInfo> res) -> {
@@ -740,7 +740,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public HookInfo updateHook(UUID hookId, HookInfoPatch body) {
+    public HookInfo updateHook(UUID hookId, NotificationHookPatch body) {
         return updateHookAsync(hookId, body).block();
     }
 
@@ -756,7 +756,7 @@ public final class PatchImplClient {
      * @return the response.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Response<HookInfo> updateHookWithResponse(UUID hookId, HookInfoPatch body, Context context) {
+    public Response<HookInfo> updateHookWithResponse(UUID hookId, NotificationHookPatch body, Context context) {
         return updateHookWithResponseAsync(hookId, body, context).block();
     }
 }

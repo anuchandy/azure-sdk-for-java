@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "hookType")
 @JsonTypeName("Webhook")
 @Fluent
-public final class WebhookHookInfoPatch extends HookInfoPatch {
+public final class WebNotificationHookPatch extends NotificationHookPatch {
     /*
      * The hookParameter property.
      */
@@ -39,7 +39,7 @@ public final class WebhookHookInfoPatch extends HookInfoPatch {
      * @param hookParameter the hookParameter value to set.
      * @return the WebhookHookInfoPatch object itself.
      */
-    public WebhookHookInfoPatch setHookParameter(WebhookHookParameterPatch hookParameter) {
+    public WebNotificationHookPatch setHookParameter(WebhookHookParameterPatch hookParameter) {
         if (hookParameter == null) {
             this.hookParameter = Option.empty();
         } else {
