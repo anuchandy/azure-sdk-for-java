@@ -29,7 +29,7 @@ import com.fasterxml.jackson.databind.Module;
 /**
  * A Jackson module that registers capability of serializing {@link Option} objects with the Jackson core.
  */
-final class OptionModule extends Module {
+public final class OptionModule extends Module {
     @Override
     public void setupModule(SetupContext context) {
         context.addSerializers(new OptionSerializerProvider());

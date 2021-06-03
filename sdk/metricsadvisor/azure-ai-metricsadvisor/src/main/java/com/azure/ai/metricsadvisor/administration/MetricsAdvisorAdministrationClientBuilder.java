@@ -5,6 +5,8 @@ package com.azure.ai.metricsadvisor.administration;
 
 import com.azure.ai.metricsadvisor.implementation.AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2Impl;
 import com.azure.ai.metricsadvisor.implementation.AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2ImplBuilder;
+import com.azure.ai.metricsadvisor.implementation.PatchImplClient;
+import com.azure.ai.metricsadvisor.implementation.PatchImplClientBuilder;
 import com.azure.ai.metricsadvisor.models.MetricsAdvisorKeyCredential;
 import com.azure.ai.metricsadvisor.models.MetricsAdvisorServiceVersion;
 import com.azure.core.annotation.ServiceClientBuilder;
@@ -181,7 +183,14 @@ public final class MetricsAdvisorAdministrationClientBuilder {
                 .pipeline(pipeline)
                 .buildClient();
 
-        return new MetricsAdvisorAdministrationAsyncClient(advisorRestAPIOpenAPIV2, serviceVersion);
+        final PatchImplClient patchImplClient = new PatchImplClientBuilder()
+            .endpoint(endpoint)
+            .pipeline(pipeline)
+            .buildClient();
+
+        return new MetricsAdvisorAdministrationAsyncClient(advisorRestAPIOpenAPIV2,
+            patchImplClient,
+            serviceVersion);
     }
 
     private HttpPipeline getDefaultHttpPipeline(Configuration buildConfiguration) {

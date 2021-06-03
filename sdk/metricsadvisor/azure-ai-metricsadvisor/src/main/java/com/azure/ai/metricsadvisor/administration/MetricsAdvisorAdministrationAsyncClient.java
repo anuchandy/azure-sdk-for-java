@@ -4,16 +4,14 @@
 package com.azure.ai.metricsadvisor.administration;
 
 import com.azure.ai.metricsadvisor.implementation.AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2Impl;
+import com.azure.ai.metricsadvisor.implementation.PatchImplClient;
 import com.azure.ai.metricsadvisor.implementation.models.DataSourceCredential;
-import com.azure.ai.metricsadvisor.implementation.models.DataSourceCredentialPatch;
 import com.azure.ai.metricsadvisor.implementation.models.RollUpMethod;
 import com.azure.ai.metricsadvisor.implementation.util.DataSourceCredentialEntityTransforms;
 import com.azure.ai.metricsadvisor.implementation.util.DataFeedTransforms;
 import com.azure.ai.metricsadvisor.implementation.util.DetectionConfigurationTransforms;
-import com.azure.ai.metricsadvisor.implementation.models.AnomalyDetectionConfigurationPatch;
 import com.azure.ai.metricsadvisor.implementation.util.HookTransforms;
 import com.azure.ai.metricsadvisor.implementation.models.AnomalyAlertingConfiguration;
-import com.azure.ai.metricsadvisor.implementation.models.AnomalyAlertingConfigurationPatch;
 import com.azure.ai.metricsadvisor.implementation.models.DataSourceType;
 import com.azure.ai.metricsadvisor.implementation.models.EntityStatus;
 import com.azure.ai.metricsadvisor.implementation.models.FillMissingPointType;
@@ -25,7 +23,9 @@ import com.azure.ai.metricsadvisor.implementation.models.ViewMode;
 import com.azure.ai.metricsadvisor.implementation.util.Utility;
 import com.azure.ai.metricsadvisor.implementation.util.AlertConfigurationTransforms;
 import com.azure.ai.metricsadvisor.models.AnomalyAlertConfiguration;
+import com.azure.ai.metricsadvisor.models.AnomalyDetectionConfigurationPatch;
 import com.azure.ai.metricsadvisor.models.DataFeed;
+import com.azure.ai.metricsadvisor.models.DataFeedDetailPatch;
 import com.azure.ai.metricsadvisor.models.DataFeedGranularity;
 import com.azure.ai.metricsadvisor.models.DataFeedIngestionProgress;
 import com.azure.ai.metricsadvisor.models.DataFeedIngestionSettings;
@@ -35,7 +35,9 @@ import com.azure.ai.metricsadvisor.models.DataFeedMissingDataPointFillType;
 import com.azure.ai.metricsadvisor.models.DataFeedOptions;
 import com.azure.ai.metricsadvisor.models.DataFeedRollupSettings;
 import com.azure.ai.metricsadvisor.models.DataFeedSchema;
+import com.azure.ai.metricsadvisor.models.DataSourceCredentialPatch;
 import com.azure.ai.metricsadvisor.models.DatasourceCredentialEntity;
+import com.azure.ai.metricsadvisor.models.HookInfoPatch;
 import com.azure.ai.metricsadvisor.models.ListAnomalyAlertConfigsOptions;
 import com.azure.ai.metricsadvisor.models.ListCredentialEntityOptions;
 import com.azure.ai.metricsadvisor.models.ListMetricAnomalyDetectionConfigsOptions;
@@ -85,6 +87,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
     private static final String METRICS_ADVISOR_TRACING_NAMESPACE_VALUE = "Microsoft.CognitiveServices";
     private final ClientLogger logger = new ClientLogger(MetricsAdvisorAdministrationAsyncClient.class);
     private final AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2Impl service;
+    private final PatchImplClient servicePatch;
 
     /**
      * Create a {@link MetricsAdvisorAdministrationAsyncClient} that sends requests to the Metrics Advisor
@@ -94,9 +97,12 @@ public final class MetricsAdvisorAdministrationAsyncClient {
      * @param service The proxy service used to perform REST calls.
      * @param serviceVersion The versions of Azure Metrics Advisor supported by this client library.
      */
-    MetricsAdvisorAdministrationAsyncClient(AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2Impl service,
+    MetricsAdvisorAdministrationAsyncClient(
+        AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2Impl service,
+        PatchImplClient servicePatch,
         MetricsAdvisorServiceVersion serviceVersion) {
         this.service = service;
+        this.servicePatch = servicePatch;
     }
 
     /**
@@ -911,8 +917,9 @@ public final class MetricsAdvisorAdministrationAsyncClient {
         Objects.requireNonNull(detectionConfiguration, "detectionConfiguration is required");
         Objects.requireNonNull(detectionConfiguration.getId(), "detectionConfiguration.id is required");
 
-        final AnomalyDetectionConfigurationPatch innerDetectionConfigurationPatch
-            = DetectionConfigurationTransforms.toInnerForUpdate(logger, detectionConfiguration);
+        com.azure.ai.metricsadvisor.implementation.models.AnomalyDetectionConfigurationPatch
+            innerDetectionConfigurationPatch = DetectionConfigurationTransforms.toInnerForUpdate(logger,
+            detectionConfiguration);
         return service.updateAnomalyDetectionConfigurationWithResponseAsync(
             UUID.fromString(detectionConfiguration.getId()),
             innerDetectionConfigurationPatch,
@@ -1536,7 +1543,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
             throw logger.logExceptionAsError(new NullPointerException(
                 "'alertConfiguration.metricAnomalyAlertConfigurations' is required and cannot be empty"));
         }
-        final AnomalyAlertingConfigurationPatch innerAlertConfiguration
+        com.azure.ai.metricsadvisor.implementation.models.AnomalyAlertingConfigurationPatch innerAlertConfiguration
             = AlertConfigurationTransforms.toInnerForUpdate(alertConfiguration);
         final Context withTracing = context.addData(AZ_TRACING_NAMESPACE_KEY, METRICS_ADVISOR_TRACING_NAMESPACE_VALUE);
 
@@ -1788,7 +1795,7 @@ public final class MetricsAdvisorAdministrationAsyncClient {
         Context context) {
         Objects.requireNonNull(datasourceCredential, "datasourceCredential is required");
 
-        final DataSourceCredentialPatch
+        final com.azure.ai.metricsadvisor.implementation.models.DataSourceCredentialPatch
             innerDataSourceCredential = DataSourceCredentialEntityTransforms.toInnerForUpdate(datasourceCredential);
         return service.updateCredentialWithResponseAsync(UUID.fromString(datasourceCredential.getId()),
             innerDataSourceCredential,
@@ -1991,5 +1998,178 @@ public final class MetricsAdvisorAdministrationAsyncClient {
                     .map(DataSourceCredentialEntityTransforms::fromInner).collect(Collectors.toList()),
                 res.getContinuationToken(),
                 null));
+    }
+
+    /**
+     * Update an existing data feed with REST response.
+     *
+     * @param dataFeedId the id of the data feed to update.
+     * @param dataFeedPatch the patch model for partial update.
+     *
+     * @return the {@link Response} of a {@link Mono} containing the updated {@link DataFeed data feed}.
+     **/
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Mono<Response<DataFeed>> updateDataFeedWithResponse(String dataFeedId,
+                                                               DataFeedDetailPatch dataFeedPatch) {
+        try {
+            return withContext(context -> updateDataFeedWithResponse(dataFeedId, dataFeedPatch, context));
+        } catch (RuntimeException ex) {
+            return monoError(logger, ex);
+        }
+    }
+
+    Mono<Response<DataFeed>> updateDataFeedWithResponse(String dataFeedId,
+                                                        DataFeedDetailPatch dataFeedPatch,
+                                                        Context context) {
+        return this.servicePatch.updateDataFeedWithResponseAsync(UUID.fromString(dataFeedId), dataFeedPatch, context)
+            .map(response -> new SimpleResponse<>(response, DataFeedTransforms.fromInner(response.getValue())));
+    }
+
+    /**
+     * Update a configuration to detect anomalies in the time series of a metric.
+     *
+     * @param configId The id of the anomaly detection configuration to update.
+     * @param configPatch The patch model for partial update.
+     * @return A {@link Response} of a {@link Mono} containing the updated {@link AnomalyDetectionConfiguration}.
+     * @throws NullPointerException thrown if the {@code detectionConfiguration} is null
+     *   or {@code detectionConfiguration.id} is null.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Mono<Response<AnomalyDetectionConfiguration>> updateMetricAnomalyDetectionConfigWithResponse(
+        String configId,
+        AnomalyDetectionConfigurationPatch configPatch) {
+        try {
+            return withContext(context -> updateMetricAnomalyDetectionConfigWithResponse(configId,
+                configPatch,
+                context));
+        } catch (RuntimeException ex) {
+            return monoError(logger, ex);
+        }
+    }
+
+    Mono<Response<AnomalyDetectionConfiguration>> updateMetricAnomalyDetectionConfigWithResponse(
+        String configId,
+        AnomalyDetectionConfigurationPatch configPatch,
+        Context context) {
+        return this.servicePatch.updateAnomalyDetectionConfigurationWithResponseAsync(UUID.fromString(configId),
+            configPatch, context)
+            .map(response -> {
+                AnomalyDetectionConfiguration configuration
+                    = DetectionConfigurationTransforms.fromInner(response.getValue());
+                return new ResponseBase<Void, AnomalyDetectionConfiguration>(response.getRequest(),
+                    response.getStatusCode(),
+                    response.getHeaders(),
+                    configuration,
+                    null);
+            });
+    }
+
+    /**
+     * Update an existing notificationHook.
+     *
+     * @param hookId The id of the hook to update.
+     * @param hookInfoPatch The patch model for partial update.
+     *
+     * @return A {@link Response} of a {@link Mono} containing the updated {@link NotificationHook}.
+     * @throws IllegalArgumentException If {@code hookId} does not conform to the UUID format
+     * specification.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Mono<Response<NotificationHook>> updateHookWithResponse(String hookId, HookInfoPatch hookInfoPatch) {
+        try {
+            return withContext(context -> updateHookWithResponse(hookId, hookInfoPatch, context));
+        } catch (RuntimeException e) {
+            return FluxUtil.monoError(logger, e);
+        }
+    }
+
+    Mono<Response<NotificationHook>> updateHookWithResponse(String hookId, HookInfoPatch hookInfoPatch, Context context) {
+        return servicePatch.updateHookWithResponseAsync(UUID.fromString(hookId),
+            hookInfoPatch,
+            context.addData(AZ_TRACING_NAMESPACE_KEY, METRICS_ADVISOR_TRACING_NAMESPACE_VALUE))
+            .doOnRequest(ignoredValue -> logger.info("Updating NotificationHook"))
+            .doOnSuccess(response -> logger.info("Updated NotificationHook {}", response))
+            .doOnError(error -> logger.warning("Failed to update notificationHook", error))
+            .map(innerResponse -> new ResponseBase<Void, NotificationHook>(innerResponse.getRequest(),
+                innerResponse.getStatusCode(),
+                innerResponse.getHeaders(),
+                HookTransforms.fromInner(logger, innerResponse.getValue()),
+                null));
+    }
+
+    /**
+     * Update anomaly alert configuration.
+     *
+     * @param configId The id of the alert configuration to update
+     * @param alertConfigPatch The patch model for partial update.
+     *
+     * @return A {@link Response} of a {@link Mono} containing the {@link AnomalyAlertConfiguration} that was updated.
+     * @throws NullPointerException thrown if {@code alertConfiguration} or
+     * {@code alertConfiguration.metricAnomalyAlertConfigurations} is null or empty.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Mono<Response<AnomalyAlertConfiguration>> updateAnomalyAlertConfigWithResponse(
+        String configId,
+        com.azure.ai.metricsadvisor.models.AnomalyAlertingConfigurationPatch alertConfigPatch) {
+        try {
+            return withContext(context -> updateAnomalyAlertConfigWithResponse(configId, alertConfigPatch, context));
+        } catch (RuntimeException ex) {
+            return monoError(logger, ex);
+        }
+    }
+
+    Mono<Response<AnomalyAlertConfiguration>> updateAnomalyAlertConfigWithResponse(
+        String configId,
+        com.azure.ai.metricsadvisor.models.AnomalyAlertingConfigurationPatch alertConfigPatch,
+        Context context) {
+        final Context withTracing = context.addData(AZ_TRACING_NAMESPACE_KEY, METRICS_ADVISOR_TRACING_NAMESPACE_VALUE);
+
+        return servicePatch.updateAnomalyAlertingConfigurationWithResponseAsync(
+            UUID.fromString(configId),
+            alertConfigPatch,
+            withTracing)
+            .doOnSubscribe(ignoredValue -> logger.info("Updating AnomalyAlertConfiguration - {}",
+                alertConfigPatch))
+            .doOnSuccess(response -> logger.info("Updated AnomalyAlertConfiguration - {}", response))
+            .doOnError(error -> logger.warning("Failed to update AnomalyAlertConfiguration - {}",
+                alertConfigPatch, error))
+            .map(response -> new ResponseBase<Void, AnomalyAlertConfiguration>(response.getRequest(),
+                response.getStatusCode(),
+                response.getHeaders(), AlertConfigurationTransforms.fromInner(response.getValue()), null));
+    }
+
+    /**
+     * Update a data source credential entity with REST response.
+     *
+     * @param credentialId The id of the credential to update.
+     * @param credentialPatch The patch model for partial update
+     * @return A {@link Mono} containing the updated {@link DatasourceCredentialEntity}.
+     * @throws NullPointerException thrown if the {@code credentialEntity} is null
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Mono<Response<DatasourceCredentialEntity>> updateDatasourceCredentialWithResponse(
+        String credentialId,
+        DataSourceCredentialPatch credentialPatch) {
+        try {
+            return withContext(context -> updateDatasourceCredentialWithResponse(credentialId,
+                credentialPatch,
+                context));
+        } catch (RuntimeException e) {
+            return FluxUtil.monoError(logger, e);
+        }
+    }
+
+    Mono<Response<DatasourceCredentialEntity>> updateDatasourceCredentialWithResponse(
+        String credentialId,
+        DataSourceCredentialPatch credentialPatch,
+        Context context) {
+        return servicePatch.updateCredentialWithResponseAsync(UUID.fromString(credentialId),
+            credentialPatch,
+            context.addData(AZ_TRACING_NAMESPACE_KEY, METRICS_ADVISOR_TRACING_NAMESPACE_VALUE))
+            .doOnSubscribe(ignoredValue -> logger.info("Updating DataSourceCredentialEntity"))
+            .doOnSuccess(response -> logger.info("Updated DataSourceCredentialEntity"))
+            .doOnError(error -> logger.warning("Failed to update DataSourceCredentialEntity", error))
+            .map(response -> new SimpleResponse<>(response,
+                DataSourceCredentialEntityTransforms.fromInner(response.getValue())));
     }
 }

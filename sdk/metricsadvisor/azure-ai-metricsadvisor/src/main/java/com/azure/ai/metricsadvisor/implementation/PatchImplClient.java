@@ -44,7 +44,7 @@ import java.util.UUID;
 /** Initializes a new instance of the PatchImplClient type. */
 public final class PatchImplClient {
     /** The proxy service used to perform REST calls. */
-    private final AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2Service service;
+    private final PatchImplService service;
 
     /**
      * Supported Cognitive Services endpoints (protocol and hostname, for example:
@@ -105,29 +105,18 @@ public final class PatchImplClient {
      * Initializes an instance of PatchImplClient client.
      *
      * @param httpPipeline The HTTP pipeline to send requests through.
-     * @param endpoint Supported Cognitive Services endpoints (protocol and hostname, for example:
-     *     https://&lt;resource-name&gt;.cognitiveservices.azure.com).
-     */
-    PatchImplClient(HttpPipeline httpPipeline, String endpoint) {
-        this(httpPipeline, JacksonAdapter.createDefaultSerializerAdapter(), endpoint);
-    }
-
-    /**
-     * Initializes an instance of PatchImplClient client.
-     *
-     * @param httpPipeline The HTTP pipeline to send requests through.
      * @param serializerAdapter The serializer to serialize an object into a string.
      * @param endpoint Supported Cognitive Services endpoints (protocol and hostname, for example:
      *     https://&lt;resource-name&gt;.cognitiveservices.azure.com).
      */
-    PatchImplClient(
+    public PatchImplClient(
             HttpPipeline httpPipeline, SerializerAdapter serializerAdapter, String endpoint) {
         this.httpPipeline = httpPipeline;
         this.serializerAdapter = serializerAdapter;
         this.endpoint = endpoint;
         this.service =
                 RestProxy.create(
-                        AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2Service.class,
+                        PatchImplService.class,
                         this.httpPipeline,
                         this.getSerializerAdapter());
     }
@@ -137,8 +126,8 @@ public final class PatchImplClient {
      * proxy service to perform REST calls.
      */
     @Host("{endpoint}/metricsadvisor/v1.0")
-    @ServiceInterface(name = "AzureCognitiveServic")
-    private interface AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2Service {
+    @ServiceInterface(name = "PatchImplService")
+    private interface PatchImplService {
         @Patch("/alert/anomaly/configurations/{configurationId}")
         @ExpectedResponses({200})
         @UnexpectedResponseExceptionType(MetricsAdvisorErrorCodeException.class)
