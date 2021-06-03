@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Tests for {@link Option} that can represent tri-sate (non-null-value, null-value, or no-value).
@@ -108,6 +110,23 @@ public class OptionSerializerTests {
                 serialized3);
     }
 
+    @Test
+    public void canSerializeCollection() throws IOException {
+        PatchCollection patchCollection = new PatchCollection();
+        List<PolymorphicPatchModel> collection = new ArrayList<>();
+        collection.add(new ExtendedPatchModel()
+            .setParameters(new ParamExtendedPatch().setConnectionString("con-str_1")));
+        collection.add(new ExtendedPatchModel()
+            .setParameters(new ParamExtendedPatch().setConnectionString(null)));
+        patchCollection.setCollection(collection);
+
+        final String serialized = getSerializer().serialize(patchCollection, SerializerEncoding.JSON);
+        Assertions
+            .assertEquals(
+                "{\"collection\":[{\"actualType\":\"ExtendedPatch\",\"parameters\":{\"connectionString\":\"con-str_1\"}},{\"actualType\":\"ExtendedPatch\",\"parameters\":{\"connectionString\":null}}]}",
+                serialized);
+    }
+
     private static class PatchModel {
         @JsonProperty("sku")
         private Option<String> sku;
@@ -162,6 +181,16 @@ public class OptionSerializerTests {
             } else {
                 this.connectionString = Option.of(connectionString);
             }
+            return this;
+        }
+    }
+
+    private static class PatchCollection {
+        @JsonProperty(value = "collection")
+        private List<PolymorphicPatchModel> collection;
+
+        public PatchCollection setCollection(List<PolymorphicPatchModel> collection) {
+            this.collection = collection;
             return this;
         }
     }
