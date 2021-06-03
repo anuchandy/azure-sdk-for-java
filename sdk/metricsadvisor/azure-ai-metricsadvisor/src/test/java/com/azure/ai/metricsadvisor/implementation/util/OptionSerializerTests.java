@@ -80,6 +80,14 @@ public class OptionSerializerTests {
     @Test
     public void canSerializePolymorphicType() throws IOException {
         ExtendedPatchModel patch = new ExtendedPatchModel();
+
+        final String serialized0 = getSerializer().serialize(patch, SerializerEncoding.JSON);
+        Assertions
+            .assertEquals(
+                "{\"actualType\":\"PolymorphicPatch\"}",
+                serialized0);
+
+
         patch.setParameters(new ParamExtendedPatch().setConnectionString("con-str"));
 
         PolymorphicPatchModel basePatch = patch;
@@ -163,10 +171,14 @@ public class OptionSerializerTests {
 
     private static class ExtendedPatchModel extends PolymorphicPatchModel {
         @JsonProperty(value = "parameters")
-        private ParamExtendedPatch parameters;
+        private Option<ParamExtendedPatch> parameters = Option.uninitialized();
 
         public ExtendedPatchModel setParameters(ParamExtendedPatch parameters) {
-            this.parameters = parameters;
+            if (parameters == null) {
+                this.parameters = Option.empty();
+            } else {
+                this.parameters = Option.of(parameters);
+            }
             return this;
         }
     }
