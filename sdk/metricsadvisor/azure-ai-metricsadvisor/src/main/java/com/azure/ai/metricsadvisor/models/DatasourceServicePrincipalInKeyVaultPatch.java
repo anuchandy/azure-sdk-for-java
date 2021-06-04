@@ -19,14 +19,14 @@ public final class DatasourceServicePrincipalInKeyVaultPatch extends DatasourceC
      * The parameters property.
      */
     @JsonProperty(value = "parameters")
-    private Option<ServicePrincipalInKeyVaultParamPatch> parameters;
+    private Option<ServicePrincipalInKeyVaultParameterPatch> parameters;
 
     /**
      * Get the parameters property: The parameters property.
      *
      * @return the parameters value.
      */
-    ServicePrincipalInKeyVaultParamPatch getParameters() {
+    ServicePrincipalInKeyVaultParameterPatch getParameters() {
         if (this.parameters != null) {
             this.parameters.getValue();
         }
@@ -39,7 +39,7 @@ public final class DatasourceServicePrincipalInKeyVaultPatch extends DatasourceC
      * @param parameters the parameters value to set.
      * @return the ServicePrincipalInKVCredentialPatch object itself.
      */
-    public DatasourceServicePrincipalInKeyVaultPatch setParameters(ServicePrincipalInKeyVaultParamPatch parameters) {
+    public DatasourceServicePrincipalInKeyVaultPatch setParameters(ServicePrincipalInKeyVaultParameterPatch parameters) {
         if (parameters == null) {
             this.parameters = Option.empty();
         } else {

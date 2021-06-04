@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /** The DataLakeGen2SharedKeyParamPatch model. */
 @Fluent
-public final class DataLakeGen2SharedKeyParamPatch {
+public final class DataLakeGen2SharedKeyParameterPatch {
     /*
      * The account key to access the Azure Data Lake Storage Gen2.
      */
@@ -35,7 +35,7 @@ public final class DataLakeGen2SharedKeyParamPatch {
      * @param accountKey the accountKey value to set.
      * @return the DataLakeGen2SharedKeyParamPatch object itself.
      */
-    public DataLakeGen2SharedKeyParamPatch setAccountKey(String accountKey) {
+    public DataLakeGen2SharedKeyParameterPatch setAccountKey(String accountKey) {
         if (accountKey == null) {
             this.accountKey = Option.empty();
         } else {

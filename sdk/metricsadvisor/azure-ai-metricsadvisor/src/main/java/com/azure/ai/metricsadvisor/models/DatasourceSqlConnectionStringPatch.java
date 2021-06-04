@@ -19,14 +19,14 @@ public final class DatasourceSqlConnectionStringPatch extends DatasourceCredenti
      * The parameters property.
      */
     @JsonProperty(value = "parameters")
-    private Option<AzureSQLConnectionStringParamPatch> parameters;
+    private Option<AzureSQLConnectionStringParameterPatch> parameters;
 
     /**
      * Get the parameters property: The parameters property.
      *
      * @return the parameters value.
      */
-    AzureSQLConnectionStringParamPatch getParameters() {
+    AzureSQLConnectionStringParameterPatch getParameters() {
         if (this.parameters != null) {
             this.parameters.getValue();
         }
@@ -39,7 +39,7 @@ public final class DatasourceSqlConnectionStringPatch extends DatasourceCredenti
      * @param parameters the parameters value to set.
      * @return the AzureSQLConnectionStringCredentialPatch object itself.
      */
-    public DatasourceSqlConnectionStringPatch setParameters(AzureSQLConnectionStringParamPatch parameters) {
+    public DatasourceSqlConnectionStringPatch setParameters(AzureSQLConnectionStringParameterPatch parameters) {
         if (parameters == null) {
             this.parameters = Option.empty();
         } else {

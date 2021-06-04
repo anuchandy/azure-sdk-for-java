@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /** The ServicePrincipalParamPatch model. */
 @Fluent
-public final class ServicePrincipalParamPatch {
+public final class ServicePrincipalParameterPatch {
     /*
      * The client id of the service principal.
      */
@@ -47,7 +47,7 @@ public final class ServicePrincipalParamPatch {
      * @param clientId the clientId value to set.
      * @return the ServicePrincipalParamPatch object itself.
      */
-    public ServicePrincipalParamPatch setClientId(String clientId) {
+    public ServicePrincipalParameterPatch setClientId(String clientId) {
         if (clientId == null) {
             this.clientId = Option.empty();
         } else {
@@ -74,7 +74,7 @@ public final class ServicePrincipalParamPatch {
      * @param clientSecret the clientSecret value to set.
      * @return the ServicePrincipalParamPatch object itself.
      */
-    public ServicePrincipalParamPatch setClientSecret(String clientSecret) {
+    public ServicePrincipalParameterPatch setClientSecret(String clientSecret) {
         if (clientSecret == null) {
             this.clientSecret = Option.empty();
         } else {
@@ -101,7 +101,7 @@ public final class ServicePrincipalParamPatch {
      * @param tenantId the tenantId value to set.
      * @return the ServicePrincipalParamPatch object itself.
      */
-    public ServicePrincipalParamPatch setTenantId(String tenantId) {
+    public ServicePrincipalParameterPatch setTenantId(String tenantId) {
         if (tenantId == null) {
             this.tenantId = Option.empty();
         } else {

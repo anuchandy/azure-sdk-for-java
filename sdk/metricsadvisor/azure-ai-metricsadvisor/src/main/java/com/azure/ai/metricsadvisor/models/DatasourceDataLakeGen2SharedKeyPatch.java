@@ -19,14 +19,14 @@ public final class DatasourceDataLakeGen2SharedKeyPatch extends DatasourceCreden
      * The parameters property.
      */
     @JsonProperty(value = "parameters")
-    private Option<DataLakeGen2SharedKeyParamPatch> parameters;
+    private Option<DataLakeGen2SharedKeyParameterPatch> parameters;
 
     /**
      * Get the parameters property: The parameters property.
      *
      * @return the parameters value.
      */
-    public DataLakeGen2SharedKeyParamPatch getParameters() {
+    public DataLakeGen2SharedKeyParameterPatch getParameters() {
         if (this.parameters != null) {
             this.parameters.getValue();
         }
@@ -39,7 +39,7 @@ public final class DatasourceDataLakeGen2SharedKeyPatch extends DatasourceCreden
      * @param parameters the parameters value to set.
      * @return the DataLakeGen2SharedKeyCredentialPatch object itself.
      */
-    public DatasourceDataLakeGen2SharedKeyPatch setParameters(DataLakeGen2SharedKeyParamPatch parameters) {
+    public DatasourceDataLakeGen2SharedKeyPatch setParameters(DataLakeGen2SharedKeyParameterPatch parameters) {
         if (parameters == null) {
             this.parameters = Option.empty();
         } else {

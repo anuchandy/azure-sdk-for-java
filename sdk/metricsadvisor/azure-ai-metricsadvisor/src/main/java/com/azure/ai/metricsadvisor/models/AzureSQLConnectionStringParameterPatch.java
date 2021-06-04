@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /** The AzureSQLConnectionStringParamPatch model. */
 @Fluent
-public final class AzureSQLConnectionStringParamPatch {
+public final class AzureSQLConnectionStringParameterPatch {
     /*
      * The connection string to access the Azure SQL.
      */
@@ -35,7 +35,7 @@ public final class AzureSQLConnectionStringParamPatch {
      * @param connectionString the connectionString value to set.
      * @return the AzureSQLConnectionStringParamPatch object itself.
      */
-    public AzureSQLConnectionStringParamPatch setConnectionString(String connectionString) {
+    public AzureSQLConnectionStringParameterPatch setConnectionString(String connectionString) {
         if (connectionString == null) {
             this.connectionString = Option.empty();
         } else {

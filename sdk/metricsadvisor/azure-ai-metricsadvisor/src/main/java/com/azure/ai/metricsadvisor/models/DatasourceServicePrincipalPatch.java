@@ -19,14 +19,14 @@ public final class DatasourceServicePrincipalPatch extends DatasourceCredentialE
      * The parameters property.
      */
     @JsonProperty(value = "parameters")
-    private Option<ServicePrincipalParamPatch> parameters;
+    private Option<ServicePrincipalParameterPatch> parameters;
 
     /**
      * Get the parameters property: The parameters property.
      *
      * @return the parameters value.
      */
-    ServicePrincipalParamPatch getParameters() {
+    ServicePrincipalParameterPatch getParameters() {
         if (this.parameters != null) {
             this.parameters.getValue();
         }
@@ -39,7 +39,7 @@ public final class DatasourceServicePrincipalPatch extends DatasourceCredentialE
      * @param parameters the parameters value to set.
      * @return the ServicePrincipalCredentialPatch object itself.
      */
-    public DatasourceServicePrincipalPatch setParameters(ServicePrincipalParamPatch parameters) {
+    public DatasourceServicePrincipalPatch setParameters(ServicePrincipalParameterPatch parameters) {
         if (parameters == null) {
             this.parameters = Option.empty();
         } else {

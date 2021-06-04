@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /** The ServicePrincipalInKVParamPatch model. */
 @Fluent
-public final class ServicePrincipalInKeyVaultParamPatch {
+public final class ServicePrincipalInKeyVaultParameterPatch {
     /*
      * The Key Vault endpoint that storing the service principal.
      */
@@ -66,7 +66,7 @@ public final class ServicePrincipalInKeyVaultParamPatch {
      * @param keyVaultEndpoint the keyVaultEndpoint value to set.
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
-    public ServicePrincipalInKeyVaultParamPatch setKeyVaultEndpoint(String keyVaultEndpoint) {
+    public ServicePrincipalInKeyVaultParameterPatch setKeyVaultEndpoint(String keyVaultEndpoint) {
         if (keyVaultEndpoint == null) {
             this.keyVaultEndpoint = Option.empty();
         } else {
@@ -93,7 +93,7 @@ public final class ServicePrincipalInKeyVaultParamPatch {
      * @param keyVaultClientId the keyVaultClientId value to set.
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
-    public ServicePrincipalInKeyVaultParamPatch setKeyVaultClientId(String keyVaultClientId) {
+    public ServicePrincipalInKeyVaultParameterPatch setKeyVaultClientId(String keyVaultClientId) {
         if (keyVaultClientId == null) {
             this.keyVaultClientId = Option.empty();
         } else {
@@ -120,7 +120,7 @@ public final class ServicePrincipalInKeyVaultParamPatch {
      * @param keyVaultClientSecret the keyVaultClientSecret value to set.
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
-    public ServicePrincipalInKeyVaultParamPatch setKeyVaultClientSecret(String keyVaultClientSecret) {
+    public ServicePrincipalInKeyVaultParameterPatch setKeyVaultClientSecret(String keyVaultClientSecret) {
         if (keyVaultClientSecret == null) {
             this.keyVaultClientSecret = Option.empty();
         } else {
@@ -149,7 +149,7 @@ public final class ServicePrincipalInKeyVaultParamPatch {
      * @param servicePrincipalIdNameInKV the servicePrincipalIdNameInKV value to set.
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
-    public ServicePrincipalInKeyVaultParamPatch setServicePrincipalIdNameInKV(String servicePrincipalIdNameInKV) {
+    public ServicePrincipalInKeyVaultParameterPatch setServicePrincipalIdNameInKV(String servicePrincipalIdNameInKV) {
         if (servicePrincipalIdNameInKV == null) {
             this.servicePrincipalIdNameInKV = Option.empty();
         } else {
@@ -178,7 +178,7 @@ public final class ServicePrincipalInKeyVaultParamPatch {
      * @param servicePrincipalSecretNameInKV the servicePrincipalSecretNameInKV value to set.
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
-    public ServicePrincipalInKeyVaultParamPatch setServicePrincipalSecretNameInKV(String servicePrincipalSecretNameInKV) {
+    public ServicePrincipalInKeyVaultParameterPatch setServicePrincipalSecretNameInKV(String servicePrincipalSecretNameInKV) {
         if (servicePrincipalSecretNameInKV == null) {
             this.servicePrincipalSecretNameInKV = Option.empty();
         } else {
@@ -205,7 +205,7 @@ public final class ServicePrincipalInKeyVaultParamPatch {
      * @param tenantId the tenantId value to set.
      * @return the ServicePrincipalInKVParamPatch object itself.
      */
-    public ServicePrincipalInKeyVaultParamPatch setTenantId(String tenantId) {
+    public ServicePrincipalInKeyVaultParameterPatch setTenantId(String tenantId) {
         if (tenantId == null) {
             this.tenantId = Option.empty();
         } else {

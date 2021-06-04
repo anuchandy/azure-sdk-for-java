@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /** The AzureCosmosDBParameterPatch model. */
 @Fluent
-public final class AzureCosmosDBParameterPatch {
+public final class AzureCosmosDbParameterPatch {
     /*
      * The connection string of this Azure CosmosDB
      */
@@ -53,7 +53,7 @@ public final class AzureCosmosDBParameterPatch {
      * @param connectionString the connectionString value to set.
      * @return the AzureCosmosDBParameterPatch object itself.
      */
-    public AzureCosmosDBParameterPatch setConnectionString(String connectionString) {
+    public AzureCosmosDbParameterPatch setConnectionString(String connectionString) {
         if (connectionString == null) {
             this.connectionString = Option.empty();
         } else {
@@ -80,7 +80,7 @@ public final class AzureCosmosDBParameterPatch {
      * @param sqlQuery the sqlQuery value to set.
      * @return the AzureCosmosDBParameterPatch object itself.
      */
-    public AzureCosmosDBParameterPatch setSqlQuery(String sqlQuery) {
+    public AzureCosmosDbParameterPatch setSqlQuery(String sqlQuery) {
         if (sqlQuery == null) {
             this.sqlQuery = Option.empty();
         } else {
@@ -107,7 +107,7 @@ public final class AzureCosmosDBParameterPatch {
      * @param database the database value to set.
      * @return the AzureCosmosDBParameterPatch object itself.
      */
-    public AzureCosmosDBParameterPatch setDatabase(String database) {
+    public AzureCosmosDbParameterPatch setDatabase(String database) {
         if (database == null) {
             this.database = Option.empty();
         } else {
@@ -134,7 +134,7 @@ public final class AzureCosmosDBParameterPatch {
      * @param collectionId the collectionId value to set.
      * @return the AzureCosmosDBParameterPatch object itself.
      */
-    public AzureCosmosDBParameterPatch setCollectionId(String collectionId) {
+    public AzureCosmosDbParameterPatch setCollectionId(String collectionId) {
         if (collectionId == null) {
             this.collectionId = Option.empty();
         } else {
