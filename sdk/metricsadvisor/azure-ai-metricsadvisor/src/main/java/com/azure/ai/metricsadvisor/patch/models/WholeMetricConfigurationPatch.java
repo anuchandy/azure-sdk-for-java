@@ -1,0 +1,105 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
+
+package com.azure.ai.metricsadvisor.patch.models;
+
+import com.azure.ai.metricsadvisor.implementation.util.Option;
+import com.azure.ai.metricsadvisor.models.DetectionConditionsOperator;
+import com.azure.core.annotation.Fluent;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+/** The WholeMetricConfigurationPatch model. */
+@Fluent
+public final class WholeMetricConfigurationPatch {
+    /*
+     * condition operator
+     *
+     * should be specified when combining multiple detection conditions
+     */
+    @JsonProperty(value = "conditionOperator")
+    private Option<DetectionConditionsOperator> conditionOperator;
+
+    /*
+     * The smartDetectionCondition property.
+     */
+    @JsonProperty(value = "smartDetectionCondition")
+    private Option<SmartDetectionConditionPatch> smartDetectionCondition;
+
+    /*
+     * The hardThresholdCondition property.
+     */
+    @JsonProperty(value = "hardThresholdCondition")
+    private Option<HardThresholdConditionPatch> hardThresholdCondition;
+
+    /*
+     * The changeThresholdCondition property.
+     */
+    @JsonProperty(value = "changeThresholdCondition")
+    private Option<ChangeThresholdConditionPatch> changeThresholdCondition;
+
+    /**
+     * Set the conditionOperator property: condition operator
+     *
+     * <p>should be specified when combining multiple detection conditions.
+     *
+     * @param conditionOperator the conditionOperator value to set.
+     * @return the WholeMetricConfigurationPatch object itself.
+     */
+    public WholeMetricConfigurationPatch setConditionOperator(
+        DetectionConditionsOperator conditionOperator) {
+        if (conditionOperator == null) {
+            this.conditionOperator = Option.empty();
+        } else {
+            this.conditionOperator = Option.of(conditionOperator);
+        }
+        return this;
+    }
+
+    /**
+     * Set the smartDetectionCondition property: The smartDetectionCondition property.
+     *
+     * @param smartDetectionCondition the smartDetectionCondition value to set.
+     * @return the WholeMetricConfigurationPatch object itself.
+     */
+    public WholeMetricConfigurationPatch setSmartDetectionCondition(
+            SmartDetectionConditionPatch smartDetectionCondition) {
+        if (smartDetectionCondition == null) {
+            this.smartDetectionCondition = Option.empty();
+        } else {
+            this.smartDetectionCondition = Option.of(smartDetectionCondition);
+        }
+        return this;
+    }
+
+    /**
+     * Set the hardThresholdCondition property: The hardThresholdCondition property.
+     *
+     * @param hardThresholdCondition the hardThresholdCondition value to set.
+     * @return the WholeMetricConfigurationPatch object itself.
+     */
+    public WholeMetricConfigurationPatch setHardThresholdCondition(HardThresholdConditionPatch hardThresholdCondition) {
+        if (hardThresholdCondition == null) {
+            this.hardThresholdCondition = Option.empty();
+        } else {
+            this.hardThresholdCondition = Option.of(hardThresholdCondition);
+        }
+        return this;
+    }
+
+    /**
+     * Set the changeThresholdCondition property: The changeThresholdCondition property.
+     *
+     * @param changeThresholdCondition the changeThresholdCondition value to set.
+     * @return the WholeMetricConfigurationPatch object itself.
+     */
+    public WholeMetricConfigurationPatch setChangeThresholdCondition(
+            ChangeThresholdConditionPatch changeThresholdCondition) {
+        if (changeThresholdCondition == null) {
+            this.changeThresholdCondition = Option.empty();
+        } else {
+            this.changeThresholdCondition = Option.of(changeThresholdCondition);
+        }
+        return this;
+    }
+}

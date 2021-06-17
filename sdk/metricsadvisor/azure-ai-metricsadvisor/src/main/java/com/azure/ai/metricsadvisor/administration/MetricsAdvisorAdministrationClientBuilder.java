@@ -5,8 +5,8 @@ package com.azure.ai.metricsadvisor.administration;
 
 import com.azure.ai.metricsadvisor.implementation.AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2Impl;
 import com.azure.ai.metricsadvisor.implementation.AzureCognitiveServiceMetricsAdvisorRestAPIOpenAPIV2ImplBuilder;
-import com.azure.ai.metricsadvisor.implementation.PatchImplClient;
-import com.azure.ai.metricsadvisor.implementation.PatchImplClientBuilder;
+import com.azure.ai.metricsadvisor.patch.implementation.PatchImplClient;
+import com.azure.ai.metricsadvisor.patch.implementation.PatchImplClientBuilder;
 import com.azure.ai.metricsadvisor.models.MetricsAdvisorKeyCredential;
 import com.azure.ai.metricsadvisor.models.MetricsAdvisorServiceVersion;
 import com.azure.core.annotation.ServiceClientBuilder;

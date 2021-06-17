@@ -1,0 +1,112 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
+
+package com.azure.ai.metricsadvisor.patch.models;
+
+import com.azure.ai.metricsadvisor.implementation.util.Option;
+import com.azure.core.annotation.Fluent;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+
+import java.util.List;
+
+/** The HookInfoPatch model. */
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "hookType",
+        defaultImpl = NotificationHookPatch.class)
+@JsonTypeName("HookInfoPatch")
+@JsonSubTypes({
+    @JsonSubTypes.Type(name = "Email", value = EmailNotificationHookPatch.class),
+    @JsonSubTypes.Type(name = "Webhook", value = WebNotificationHookPatch.class)
+})
+@Fluent
+public class NotificationHookPatch {
+    /*
+     * hook unique name
+     */
+    @JsonProperty(value = "hookName")
+    private Option<String> hookName;
+
+    /*
+     * hook description
+     */
+    @JsonProperty(value = "description")
+    private Option<String> description;
+
+    /*
+     * hook external link
+     */
+    @JsonProperty(value = "externalLink")
+    private Option<String> externalLink;
+
+    /*
+     * hook administrators
+     */
+    @JsonProperty(value = "admins")
+    private Option<List<String>> admins;
+
+    /**
+     * Set the hookName property: hook unique name.
+     *
+     * @param hookName the hookName value to set.
+     * @return the HookInfoPatch object itself.
+     */
+    public NotificationHookPatch setName(String hookName) {
+        if (hookName == null) {
+            this.hookName = Option.empty();
+        } else {
+            this.hookName = Option.of(hookName);
+        }
+        return this;
+    }
+
+    /**
+     * Set the description property: hook description.
+     *
+     * @param description the description value to set.
+     * @return the HookInfoPatch object itself.
+     */
+    public NotificationHookPatch setDescription(String description) {
+        if (description == null) {
+            this.description = Option.empty();
+        } else {
+            this.description = Option.of(description);
+        }
+        return this;
+    }
+
+    /**
+     * Set the externalLink property: hook external link.
+     *
+     * @param externalLink the externalLink value to set.
+     * @return the HookInfoPatch object itself.
+     */
+    public NotificationHookPatch setExternalLink(String externalLink) {
+        if (externalLink == null) {
+            this.externalLink = Option.empty();
+        } else {
+            this.externalLink = Option.of(externalLink);
+        }
+        return this;
+    }
+
+    /**
+     * Set the admins property.
+     *
+     * @param adminEmails the admin email list.
+     * @return the NotificationHookPatch object itself.
+     */
+    public NotificationHookPatch setAdminEmails(List<String> adminEmails) {
+        if (adminEmails == null) {
+            this.admins = Option.empty();
+        } else {
+            this.admins = Option.of(adminEmails);
+        }
+        return this;
+    }
+}
