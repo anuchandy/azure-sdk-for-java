@@ -1,4 +1,4 @@
-package com.contoso;
+package com.contoso.receiver;
 
 import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
 

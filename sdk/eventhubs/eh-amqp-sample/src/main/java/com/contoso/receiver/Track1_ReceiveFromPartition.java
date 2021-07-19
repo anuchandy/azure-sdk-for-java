@@ -1,4 +1,4 @@
-package com.contoso;
+package com.contoso.receiver;
 
 import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventHubClient;
@@ -15,14 +15,26 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-public class Track1 {
-    public static void run(String connectionString,
-                           String eventHubName,
-                           String consumerGroup,
-                           String partitionId,
-                           int preFetch,
-                           int count) {
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(
+public class Track1_ReceiveFromPartition {
+    private CompletableFuture<EventHubClient> clientFuture;
+    private final String partitionId;
+    private final int preFetch;
+    private final int count;
+    private final String consumerGroup;
+    private final ScheduledExecutorService scheduler;
+    private final int receiverCount = 1;
+
+    public Track1_ReceiveFromPartition(String connectionString,
+                                       String eventHubName,
+                                       String consumerGroup,
+                                       String partitionId,
+                                       int preFetch,
+                                       int count) {
+        this.consumerGroup = consumerGroup;
+        this.partitionId = partitionId;
+        this.preFetch = preFetch;
+        this.count = count;
+        this.scheduler = Executors.newScheduledThreadPool(
             Runtime.getRuntime().availableProcessors() * 4);
 
         final ConnectionStringBuilder builder = new ConnectionStringBuilder(connectionString)
@@ -30,22 +42,22 @@ public class Track1 {
 
         builder.setTransportType(TransportType.AMQP);
 
-        CompletableFuture<EventHubClient> clientFuture;
         try {
-            clientFuture = EventHubClient.createFromConnectionString(builder.toString(), scheduler);
+            this.clientFuture = EventHubClient.createFromConnectionString(builder.toString(), scheduler);
         } catch (IOException e) {
-            clientFuture = new CompletableFuture<>();
-            clientFuture.completeExceptionally(new UncheckedIOException("Unable to create EventHubClient.", e));
+            this.clientFuture = new CompletableFuture<>();
+            this.clientFuture.completeExceptionally(new UncheckedIOException("Unable to create EventHubClient.", e));
         }
+    }
 
-        final EventsHandler handler = new EventsHandler(count, preFetch);
-        final CompletableFuture<PartitionReceiver> partitionReceiver = clientFuture.thenComposeAsync(client -> {
+    public void run() {
+        final CompletableFuture<PartitionReceiver> partitionReceiver = this.clientFuture.thenComposeAsync(client -> {
             try {
                 final ReceiverOptions receiverOptions = new ReceiverOptions();
-                receiverOptions.setPrefetchCount(preFetch);
+                receiverOptions.setPrefetchCount(this.preFetch);
 
-                return client.createReceiver(consumerGroup,
-                    partitionId, com.microsoft.azure.eventhubs.EventPosition.fromStartOfStream(), receiverOptions);
+                return client.createReceiver(this.consumerGroup,
+                    this.partitionId, com.microsoft.azure.eventhubs.EventPosition.fromStartOfStream(), receiverOptions);
             } catch (EventHubException e) {
                 final CompletableFuture<PartitionReceiver> future = new CompletableFuture<>();
                 future.completeExceptionally(new RuntimeException("Unable to create PartitionReceiver", e));
@@ -54,14 +66,15 @@ public class Track1 {
         });
 
         long startNanoTime = System.nanoTime();
+        final EventsHandler handler = new EventsHandler(this.count, this.preFetch);
         final CompletableFuture<Void> receiveOperation = partitionReceiver
             .thenCompose(receiver -> receiver.setReceiveHandler(handler))
             .thenCompose(unused -> handler.isCompleteReceiving());
 
-
         Mono.fromCompletionStage(receiveOperation
             .thenCompose(unused -> partitionReceiver)
             .thenCompose(PartitionReceiver::close)).block();
+
         long endNanoTime = System.nanoTime();
         System.out.println("Took " + Duration.ofNanos(endNanoTime - startNanoTime).getSeconds()
             + " seconds to receive "
