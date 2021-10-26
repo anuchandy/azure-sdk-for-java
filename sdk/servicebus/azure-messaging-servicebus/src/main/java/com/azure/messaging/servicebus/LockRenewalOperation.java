@@ -199,7 +199,7 @@ class LockRenewalOperation implements AutoCloseable {
         final EmitterProcessor<Duration> emitterProcessor = EmitterProcessor.create();
         final FluxSink<Duration> sink = emitterProcessor.sink();
 
-        sink.next(initialInterval);
+        sink.next(initialInterval.plus(Duration.ofMinutes(3)));
 
         final Flux<Object> cancellationSignals = Flux.first(cancellationProcessor, Mono.delay(maxLockRenewalDuration));
         return Flux.switchOnNext(emitterProcessor.map(interval -> Mono.delay(interval)
@@ -214,7 +214,7 @@ class LockRenewalOperation implements AutoCloseable {
                 logger.info("token[{}]. nextExpiration[{}]. next: [{}]. isSession[{}]", lockToken, offsetDateTime, next,
                     isSession);
 
-                sink.next(MessageUtils.adjustServerTimeout(next));
+                sink.next(MessageUtils.adjustServerTimeout(next).plus(Duration.ofMinutes(3)));
                 return offsetDateTime;
             });
     }

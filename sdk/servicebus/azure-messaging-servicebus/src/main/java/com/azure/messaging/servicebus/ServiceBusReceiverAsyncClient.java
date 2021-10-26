@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -89,6 +90,7 @@ import static com.azure.messaging.servicebus.implementation.Messages.INVALID_OPE
  */
 @ServiceClient(builder = ServiceBusClientBuilder.class, isAsync = true)
 public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
+    private static AtomicInteger INSTANCE_COUNT = new AtomicInteger(0);
     private static final DeadLetterOptions DEFAULT_DEAD_LETTER_OPTIONS = new DeadLetterOptions();
     private static final String TRANSACTION_LINK_NAME = "coordinator";
 
@@ -136,14 +138,15 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
         this.messageSerializer = Objects.requireNonNull(messageSerializer, "'messageSerializer' cannot be null.");
         this.onClientClose = Objects.requireNonNull(onClientClose, "'onClientClose' cannot be null.");
 
-        this.managementNodeLocks = new LockContainer<>(cleanupInterval);
+        this.managementNodeLocks = new LockContainer<>(cleanupInterval, "ServiceBusReceiverAsyncClient_MNL");
         this.renewalContainer = new LockContainer<>(Duration.ofMinutes(2), renewal -> {
             logger.verbose("Closing expired renewal operation. lockToken[{}]. status[{}]. throwable[{}].",
                 renewal.getLockToken(), renewal.getStatus(), renewal.getThrowable());
             renewal.close();
-        });
+        }, "ServiceBusReceiverAsyncClient_RC");
 
         this.sessionManager = null;
+        System.out.println("SBRAC_1:" + INSTANCE_COUNT.incrementAndGet());
     }
 
     ServiceBusReceiverAsyncClient(String fullyQualifiedNamespace, String entityPath, MessagingEntityType entityType,
@@ -161,12 +164,13 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
         this.onClientClose = Objects.requireNonNull(onClientClose, "'onClientClose' cannot be null.");
         this.sessionManager = Objects.requireNonNull(sessionManager, "'sessionManager' cannot be null.");
 
-        this.managementNodeLocks = new LockContainer<>(cleanupInterval);
+        this.managementNodeLocks = new LockContainer<>(cleanupInterval, "ServiceBusReceiverAsyncClient_MNL");
         this.renewalContainer = new LockContainer<>(Duration.ofMinutes(2), renewal -> {
             logger.info("Closing expired renewal operation. sessionId[{}]. status[{}]. throwable[{}]",
                 renewal.getSessionId(), renewal.getStatus(), renewal.getThrowable());
             renewal.close();
-        });
+        }, "ServiceBusReceiverAsyncClient_RC");
+        System.out.println("SBRAC_2:" + INSTANCE_COUNT.incrementAndGet());
     }
 
     /**
@@ -1013,6 +1017,8 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
         if (isDisposed.get()) {
             return;
         }
+
+        System.out.println("SBRAC_CLOSE:" + INSTANCE_COUNT.getAndDecrement());
 
         try {
             completionLock.acquire();

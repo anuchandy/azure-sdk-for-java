@@ -257,7 +257,7 @@ public class ReactorReceiver implements AmqpReceiveLink, AsyncCloseable, AutoClo
      * @param message Message to log.
      * @param errorCondition Error condition associated with close operation.
      */
-    Mono<Void> closeAsync(String message, ErrorCondition errorCondition) {
+    protected Mono<Void> closeAsync(String message, ErrorCondition errorCondition) {
         if (isDisposed.getAndSet(true)) {
             return isClosedMono.asMono().publishOn(Schedulers.boundedElastic());
         }

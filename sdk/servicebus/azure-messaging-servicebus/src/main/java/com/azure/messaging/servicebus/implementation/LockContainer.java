@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -21,19 +22,22 @@ import java.util.stream.Collectors;
  * Container to store items that are periodically cleaned.
  */
 public class LockContainer<T> implements AutoCloseable {
+    private static AtomicInteger INSTANCE_COUNT = new AtomicInteger(0);
     private final ClientLogger logger = new ClientLogger(LockContainer.class);
     private final ConcurrentHashMap<String, OffsetDateTime> lockTokenExpirationMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, T> lockTokenItemMap = new ConcurrentHashMap<>();
     private final AtomicBoolean isDisposed = new AtomicBoolean();
     private final Disposable cleanupOperation;
     private final Consumer<T> onExpired;
+    private final int instanceId;
+    private final String owner;
 
-    public LockContainer(Duration cleanupInterval) {
+    public LockContainer(Duration cleanupInterval, String owner) {
         this(cleanupInterval, t -> {
-        });
+        }, owner);
     }
 
-    public LockContainer(Duration cleanupInterval, Consumer<T> onExpired) {
+    public LockContainer(Duration cleanupInterval, Consumer<T> onExpired, String owner) {
         Objects.requireNonNull(cleanupInterval, "'cleanupInterval' cannot be null.");
 
         this.onExpired = Objects.requireNonNull(onExpired, "'onExpired' cannot be null.");
@@ -50,6 +54,8 @@ public class LockContainer<T> implements AutoCloseable {
 
             expired.forEach(this::remove);
         });
+        this.instanceId = INSTANCE_COUNT.incrementAndGet();
+        this.owner = owner;
     }
 
     /**
@@ -84,6 +90,7 @@ public class LockContainer<T> implements AutoCloseable {
         });
 
         lockTokenItemMap.put(lockToken, item);
+        System.out.println("LC_DICT_ADD(" + this.instanceId + ", " + this.owner + ") {" + lockTokenExpirationMap.size() + ", " + lockTokenItemMap.size());
 
         return computed;
     }
@@ -112,7 +119,7 @@ public class LockContainer<T> implements AutoCloseable {
     public void remove(String lockToken) {
         lockTokenExpirationMap.remove(lockToken);
         final T remove = lockTokenItemMap.remove(lockToken);
-
+        System.out.println("LC_DICT_RME(" + this.instanceId + ", " + this.owner + ") {" + lockTokenExpirationMap.size() + ", " + lockTokenItemMap.size());
         if (remove != null) {
             onExpired.accept(remove);
         }
@@ -123,6 +130,7 @@ public class LockContainer<T> implements AutoCloseable {
         if (isDisposed.getAndSet(true)) {
             return;
         }
+        // System.out.println("LC:" + INSTANCE_COUNT.getAndDecrement());
 
         cleanupOperation.dispose();
 

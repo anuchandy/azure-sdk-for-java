@@ -321,7 +321,7 @@ class ServiceBusReceiverAsyncClientTest {
                 invocationOnMock -> new FluxAutoLockRenew(Flux.empty(),
                     new ReceiverOptions(ServiceBusReceiveMode.RECEIVE_AND_DELETE, 1, Duration.ofSeconds(30),
                         true),
-                    new LockContainer<>(Duration.ofSeconds(30)), (lock) -> Mono.empty()))) {
+                    new LockContainer<>(Duration.ofSeconds(30), ""), (lock) -> Mono.empty()))) {
 
             ServiceBusReceivedMessage receivedMessage = mock(ServiceBusReceivedMessage.class);
             when(receivedMessage.getLockedUntil()).thenReturn(OffsetDateTime.now());

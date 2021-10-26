@@ -28,7 +28,7 @@ class LockContainerTest {
     @BeforeEach
     void beforeEach() {
         MockitoAnnotations.initMocks(this);
-        container = new LockContainer<>(interval, onRemoved);
+        container = new LockContainer<>(interval, onRemoved, "");
     }
 
     @AfterEach
@@ -40,9 +40,9 @@ class LockContainerTest {
 
     @Test
     void constructor() {
-        assertThrows(NullPointerException.class, () -> new LockContainer<>(null));
-        assertThrows(NullPointerException.class, () -> new LockContainer<>(interval, null));
-        assertThrows(NullPointerException.class, () -> new LockContainer<>(null, onRemoved));
+        assertThrows(NullPointerException.class, () -> new LockContainer<>(null, ""));
+        assertThrows(NullPointerException.class, () -> new LockContainer<>(interval, null, ""));
+        assertThrows(NullPointerException.class, () -> new LockContainer<>(null, onRemoved, ""));
     }
 
     @Test

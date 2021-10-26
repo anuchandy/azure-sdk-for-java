@@ -41,13 +41,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.StringJoiner;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -153,8 +149,13 @@ public class ServiceBusReactorReceiver extends ReactorReceiver implements Servic
 
     @Override
     public Mono<Void> closeAsync() {
+        return this.closeAsync("User invoked close operation.", null);
+    }
+
+    @Override
+    protected Mono<Void> closeAsync(String message, ErrorCondition errorCondition) {
         if (isDisposed.getAndSet(true)) {
-            return super.closeAsync();
+            return super.closeAsync(message, errorCondition);
         }
 
         cleanupWorkItems();
@@ -177,16 +178,16 @@ public class ServiceBusReactorReceiver extends ReactorReceiver implements Servic
                 builder.add(workItem.getLockToken());
             }
 
-            logger.info("Waiting for pending updates to complete. Locks: {}", builder.toString());
+            logger.info("entityPath[{}], linkName[{}] Waiting for pending updates to complete. Locks: {}", getEntityPath(), getLinkName(), builder.toString());
             disposeMono = Mono.when(pending);
         } else {
             disposeMono = Mono.empty();
         }
 
-        return disposeMono.onErrorResume(error -> {
-            logger.info("There was an exception while disposing of all links.", error);
+        return disposeMono.timeout(timeout).onErrorResume(error -> {
+            logger.info("entityPath[{}], linkName[{}] There was an exception while disposing of all links.", getEntityPath(), getLinkName(), error);
             return Mono.empty();
-        }).doFinally(signal -> subscription.dispose()).then(super.closeAsync());
+        }).doFinally(signal -> subscription.dispose()).then(super.closeAsync(message, errorCondition));
     }
 
     @Override
@@ -346,7 +347,7 @@ public class ServiceBusReactorReceiver extends ReactorReceiver implements Servic
     }
 
     private void cleanupWorkItems() {
-        logger.verbose("linkName[{}]: Cleaning timed out update work tasks.", getLinkName());
+        // logger.verbose("linkName[{}]: Cleaning timed out update work tasks.", getLinkName());
         pendingUpdates.forEach((key, value) -> {
             if (value == null || !value.hasTimedout()) {
                 return;
@@ -371,7 +372,7 @@ public class ServiceBusReactorReceiver extends ReactorReceiver implements Servic
         if (error != null) {
             final Throwable loggedError = error instanceof RuntimeException
                 ? logger.logExceptionAsError((RuntimeException) error)
-                : error;
+                : logger.logThrowableAsError(error);
             sink.error(loggedError);
         } else {
             sink.success();

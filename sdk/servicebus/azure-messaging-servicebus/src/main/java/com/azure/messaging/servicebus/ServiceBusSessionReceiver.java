@@ -63,7 +63,7 @@ class ServiceBusSessionReceiver implements AsyncCloseable, AutoCloseable {
         Function<String, Mono<OffsetDateTime>> renewSessionLock, Duration maxSessionLockRenewDuration) {
 
         this.receiveLink = receiveLink;
-        this.lockContainer = new LockContainer<>(ServiceBusConstants.OPERATION_TIMEOUT);
+        this.lockContainer = new LockContainer<>(ServiceBusConstants.OPERATION_TIMEOUT, "ServiceBusSessionReceiver");
         this.retryOptions = retryOptions;
 
         receiveLink.setEmptyCreditListener(() -> 0);
@@ -79,12 +79,18 @@ class ServiceBusSessionReceiver implements AsyncCloseable, AutoCloseable {
             })
             .doOnRequest(request -> {  // request is of type long.
                 if (prefetch == 0) {  //  add "request" number of credits
+                    //System.out.println("REQ:" + request);
                     receiveLink.addCredits((int) request).subscribe();
                 } else {  // keep total credits "prefetch" if prefetch is not 0.
                     receiveLink.addCredits(Math.max(0, prefetch - receiveLink.getCredits())).subscribe();
                 }
             })
-            .takeUntilOther(cancelReceiveProcessor)
+            .doFinally(s -> {
+                int j = 0;
+            })
+            .takeUntilOther(cancelReceiveProcessor.doFinally(signalType -> {
+                int i = 0;
+            }))
             .map(message -> {
                 final ServiceBusReceivedMessage deserialized = messageSerializer.deserialize(message,
                     ServiceBusReceivedMessage.class);
@@ -116,6 +122,7 @@ class ServiceBusSessionReceiver implements AsyncCloseable, AutoCloseable {
 
                 logger.verbose("Received sessionId[{}] messageId[{}]", context.getSessionId(), message.getMessageId());
                 messageReceivedSink.next(token);
+
             });
 
         this.receivedMessages = Flux.concat(receivedMessagesFlux, cancelReceiveProcessor);
@@ -168,6 +175,10 @@ class ServiceBusSessionReceiver implements AsyncCloseable, AutoCloseable {
         return lockContainer.containsUnexpired(lockToken);
     }
 
+    void remove(String lockToken) {
+        lockContainer.remove(lockToken);
+    }
+
     String getLinkName() {
         return receiveLink.getLinkName();
     }
@@ -182,7 +193,9 @@ class ServiceBusSessionReceiver implements AsyncCloseable, AutoCloseable {
      * @return A flux of messages for the session.
      */
     Flux<ServiceBusMessageContext> receive() {
-        return receivedMessages;
+        return receivedMessages.doOnCancel(() -> {
+            int k = 0;
+        });
     }
 
     /**
@@ -208,6 +221,8 @@ class ServiceBusSessionReceiver implements AsyncCloseable, AutoCloseable {
         if (operation != null) {
             operation.close();
         }
+
+        // lockContainer.close();
 
         return receiveLink.closeAsync().doFinally(signal -> subscriptions.dispose());
     }

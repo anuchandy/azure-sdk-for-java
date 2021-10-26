@@ -210,7 +210,9 @@ class ServiceBusSessionManager implements AutoCloseable {
                 final DeliveryState deliveryState = MessageUtils.getDeliveryState(dispositionStatus, deadLetterReason,
                     deadLetterDescription, propertiesToModify, transactionContext);
 
-                return receiver.updateDisposition(lockToken, deliveryState).thenReturn(true);
+                return receiver.updateDisposition(lockToken, deliveryState).thenReturn(true).doFinally(ignored -> {
+                    receiver.remove(lockToken);
+                });
             }));
     }
 
@@ -264,28 +266,65 @@ class ServiceBusSessionManager implements AutoCloseable {
         if (this.receiveLink != null) {
             return Mono.just(this.receiveLink);
         }
-        return Mono.defer(() -> createSessionReceiveLink()
-            .flatMap(link -> link.getEndpointStates()
-                .takeUntil(e -> e == AmqpEndpointState.ACTIVE)
-                .timeout(operationTimeout)
-                .then(Mono.just(link))))
-            .retryWhen(Retry.from(retrySignals -> retrySignals.flatMap(signal -> {
-                final Throwable failure = signal.failure();
-                logger.info("entityPath[{}] attempt[{}]. Error occurred while getting unnamed session.",
-                    entityPath, signal.totalRetriesInARow(), failure);
 
-                if (isDisposed.get()) {
-                    return Mono.<Long>error(new AmqpException(false, "SessionManager is already disposed.", failure,
-                        getErrorContext()));
-                } else if (failure instanceof TimeoutException) {
-                    return Mono.delay(SLEEP_DURATION_ON_ACCEPT_SESSION_EXCEPTION);
-                } else if (failure instanceof AmqpException
-                    && ((AmqpException) failure).getErrorCondition() == AmqpErrorCondition.TIMEOUT_ERROR) {
-                    return Mono.delay(SLEEP_DURATION_ON_ACCEPT_SESSION_EXCEPTION);
-                } else {
-                    return Mono.<Long>error(failure);
-                }
-            })));
+        Mono<ServiceBusReceiveLink> activeLinkMono = Mono.defer(() -> {
+            final Mono<ServiceBusReceiveLink> linkMono = createSessionReceiveLink();
+            return linkMono.flatMap(sessionReceiveLink -> {
+                return sessionReceiveLink.getEndpointStates()
+                    .takeUntil(e -> e == AmqpEndpointState.ACTIVE)
+                    .then(Mono.just(sessionReceiveLink))
+                    .timeout(operationTimeout)
+                    .onErrorResume(error -> {
+                        final boolean b = true;
+                        if (b) {
+                            return sessionReceiveLink.closeAsync().then(Mono.error(error));
+                        } else {
+                            return Mono.error(error);
+                        }
+                    });
+            });
+        });
+
+        return activeLinkMono.retryWhen(Retry.from(retrySignals -> retrySignals.flatMap(signal -> {
+            final Throwable failure = signal.failure();
+            logger.info("entityPath[{}] attempt[{}]. Error occurred while getting unnamed session.",
+                entityPath, signal.totalRetriesInARow(), failure);
+
+            if (isDisposed.get()) {
+                return Mono.<Long>error(new AmqpException(false, "SessionManager is already disposed.", failure,
+                    getErrorContext()));
+            } else if (failure instanceof TimeoutException) {
+                return Mono.delay(SLEEP_DURATION_ON_ACCEPT_SESSION_EXCEPTION);
+            } else if (failure instanceof AmqpException
+                && ((AmqpException) failure).getErrorCondition() == AmqpErrorCondition.TIMEOUT_ERROR) {
+                return Mono.delay(SLEEP_DURATION_ON_ACCEPT_SESSION_EXCEPTION);
+            } else {
+                return Mono.<Long>error(failure);
+            }
+        })));
+
+//        return Mono.defer(() -> createSessionReceiveLink()
+//            .flatMap(link -> link.getEndpointStates()
+//                .takeUntil(e -> e == AmqpEndpointState.ACTIVE)
+//                .timeout(operationTimeout)
+//                .then(Mono.just(link))))
+//            .retryWhen(Retry.from(retrySignals -> retrySignals.flatMap(signal -> {
+//                final Throwable failure = signal.failure();
+//                logger.info("entityPath[{}] attempt[{}]. Error occurred while getting unnamed session.",
+//                    entityPath, signal.totalRetriesInARow(), failure);
+//
+//                if (isDisposed.get()) {
+//                    return Mono.<Long>error(new AmqpException(false, "SessionManager is already disposed.", failure,
+//                        getErrorContext()));
+//                } else if (failure instanceof TimeoutException) {
+//                    return Mono.delay(SLEEP_DURATION_ON_ACCEPT_SESSION_EXCEPTION);
+//                } else if (failure instanceof AmqpException
+//                    && ((AmqpException) failure).getErrorCondition() == AmqpErrorCondition.TIMEOUT_ERROR) {
+//                    return Mono.delay(SLEEP_DURATION_ON_ACCEPT_SESSION_EXCEPTION);
+//                } else {
+//                    return Mono.<Long>error(failure);
+//                }
+//            })));
     }
 
     /**
