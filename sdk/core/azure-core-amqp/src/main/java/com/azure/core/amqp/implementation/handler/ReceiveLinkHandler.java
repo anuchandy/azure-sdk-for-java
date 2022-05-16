@@ -99,6 +99,8 @@ public class ReceiveLinkHandler extends LinkHandler {
             return;
         }
 
+        EndpointsReferences.receiverOpened(entityPath, this, link);
+
         LoggingEventBuilder logBuilder =  logger.atInfo()
             .addKeyValue(ENTITY_PATH_KEY, entityPath)
             .addKeyValue(LINK_NAME_KEY, link.getName());
@@ -217,6 +219,12 @@ public class ReceiveLinkHandler extends LinkHandler {
         clearAndCompleteDeliveries("Could not complete 'deliveries' when remotely closed.");
 
         super.onLinkRemoteClose(event);
+    }
+
+    public void onLinkRemoteCloseMock(Link link) {
+        clearAndCompleteDeliveries("Could not complete 'deliveries' when remotely closed.");
+
+        super.onLinkRemoteCloseMock(link);
     }
 
     @Override

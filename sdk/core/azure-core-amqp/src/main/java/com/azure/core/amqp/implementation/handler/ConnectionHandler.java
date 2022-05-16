@@ -3,6 +3,7 @@
 
 package com.azure.core.amqp.implementation.handler;
 
+import com.azure.core.amqp.AmqpEndpointState;
 import com.azure.core.amqp.exception.AmqpErrorContext;
 import com.azure.core.amqp.implementation.ClientConstants;
 import com.azure.core.amqp.implementation.ConnectionOptions;
@@ -13,6 +14,7 @@ import com.azure.core.util.UserAgentUtil;
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
+import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.Connection;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Event;
@@ -21,6 +23,7 @@ import org.apache.qpid.proton.engine.SslPeerDetails;
 import org.apache.qpid.proton.engine.Transport;
 import org.apache.qpid.proton.engine.impl.TransportInternal;
 import org.apache.qpid.proton.reactor.Handshaker;
+import reactor.core.publisher.Flux;
 
 import javax.net.ssl.SSLContext;
 import java.security.NoSuchAlgorithmException;
@@ -107,6 +110,10 @@ public class ConnectionHandler extends Handler {
      */
     public int getMaxFrameSize() {
         return MAX_FRAME_SIZE;
+    }
+
+    public Flux<EndpointState> getEndpointStates() {
+        return super.getEndpointStates();
     }
 
     /**
@@ -271,6 +278,8 @@ public class ConnectionHandler extends Handler {
             .addKeyValue("remoteContainer", connection.getRemoteContainer())
             .log("onConnectionRemoteOpen");
 
+        EndpointsReferences.onConnection(this, connection);
+
         onNext(connection.getRemoteState());
     }
 
@@ -306,9 +315,10 @@ public class ConnectionHandler extends Handler {
     @Override
     public void onConnectionFinal(Event event) {
         final Connection connection = event.getConnection();
-        final ErrorCondition error = connection.getCondition();
-
-        logErrorCondition("onConnectionFinal", connection, error);
+        if (connection != null) {
+            final ErrorCondition error = connection.getCondition();
+            logErrorCondition("onConnectionFinal", connection, error);
+        }
         onNext(EndpointState.CLOSED);
 
         // Complete the processors because they no longer have any work to do.
@@ -340,4 +350,20 @@ public class ConnectionHandler extends Handler {
             .addKeyValue(HOSTNAME_KEY, connection.getHostname())
             .log(eventName);
     }
+
+    public void onConnectionRemoteCloseMock(Connection connection) {
+        final ErrorCondition error = connection.getRemoteCondition();
+        logErrorCondition("onConnectionRemoteCloseMock", connection, error);
+        onNext(EndpointState.CLOSED);
+    }
+
+    public void onConnectionLocalCloseMock(Connection connection) {
+        logErrorCondition("onConnectionLocalCloseMock", connection, null);
+        // This means that the CLOSE origin is Service
+        final Transport transport = connection.getTransport();
+        if (transport != null) {
+            transport.unbind(); // we proactively dispose IO even if service fails to close
+        }
+    }
+
 }

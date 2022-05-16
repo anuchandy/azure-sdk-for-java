@@ -103,6 +103,8 @@ public class SendLinkHandler extends LinkHandler {
             return;
         }
 
+        EndpointsReferences.senderOpened(entityPath, this, link);
+
         LoggingEventBuilder logBuilder = logger.atInfo()
             .addKeyValue(LINK_NAME_KEY, link.getName())
             .addKeyValue(ENTITY_PATH_KEY, entityPath);

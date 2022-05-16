@@ -16,7 +16,9 @@ import org.apache.qpid.proton.engine.Session;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 
 import static com.azure.core.amqp.implementation.AmqpLoggingUtils.addErrorCondition;
@@ -26,6 +28,7 @@ public class SessionHandler extends Handler {
     private final String sessionName;
     private final Duration openTimeout;
     private final ReactorDispatcher reactorDispatcher;
+    private final static Map<String, SessionHandler> sessionHandlerMap = new HashMap<>();
 
     public SessionHandler(String connectionId, String hostname, String sessionName, ReactorDispatcher reactorDispatcher,
                           Duration openTimeout) {
@@ -78,6 +81,7 @@ public class SessionHandler extends Handler {
             logBuilder = logger.atInfo();
         }
 
+        EndpointsReferences.sessionOpened(sessionName, this, session);
 
         logBuilder.addKeyValue(SESSION_NAME_KEY, sessionName)
             .addKeyValue("sessionIncCapacity", session.getIncomingCapacity())
@@ -124,6 +128,36 @@ public class SessionHandler extends Handler {
 
             final Exception exception = ExceptionUtil.toException(condition.getCondition().toString(),
                 String.format(Locale.US, "onSessionRemoteClose connectionId[%s], entityName[%s] condition[%s]",
+                    id, sessionName, condition), context);
+
+            onError(exception);
+        }
+    }
+
+    public void onSessionRemoteCloseMock(Session session) {
+        final ErrorCondition condition = session != null ? session.getRemoteCondition() : null;
+
+        addErrorCondition(logger.atInfo(), condition)
+            .addKeyValue(SESSION_NAME_KEY, sessionName)
+            .log("onSessionRemoteCloseMock");
+
+        if (session != null && session.getLocalState() != EndpointState.CLOSED) {
+            addErrorCondition(logger.atInfo(), condition)
+                .addKeyValue(SESSION_NAME_KEY, sessionName)
+                .log("onSessionRemoteCloseMock closing a local session.");
+
+            session.setCondition(session.getRemoteCondition());
+            session.close();
+        }
+
+        if (condition == null || condition.getCondition() == null) {
+            onNext(EndpointState.CLOSED);
+        } else {
+            final String id = getConnectionId();
+            final AmqpErrorContext context = getErrorContext();
+
+            final Exception exception = ExceptionUtil.toException(condition.getCondition().toString(),
+                String.format(Locale.US, "onSessionRemoteCloseMock connectionId[%s], entityName[%s] condition[%s]",
                     id, sessionName, condition), context);
 
             onError(exception);

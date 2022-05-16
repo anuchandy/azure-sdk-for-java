@@ -59,6 +59,10 @@ abstract class LinkHandler extends Handler {
         handleRemoteLinkClosed("onLinkRemoteClose", event);
     }
 
+    public void onLinkRemoteCloseMock(Link link) {
+        handleRemoteLinkClosedMock("onLinkRemoteCloseMock", link);
+    }
+
     @Override
     public void onLinkRemoteDetach(Event event) {
         handleRemoteLinkClosed("onLinkRemoteDetach", event);
@@ -91,6 +95,33 @@ abstract class LinkHandler extends Handler {
 
     private void handleRemoteLinkClosed(final String eventName, final Event event) {
         final Link link = event.getLink();
+        final ErrorCondition condition = link.getRemoteCondition();
+
+        addErrorCondition(logger.atInfo(), condition)
+            .addKeyValue(LINK_NAME_KEY, link.getName())
+            .log(eventName);
+
+        if (link.getLocalState() != EndpointState.CLOSED) {
+            logger.atInfo()
+                .addKeyValue(LINK_NAME_KEY, link.getName())
+                .addKeyValue("state", link.getLocalState())
+                .log("Local link state is not closed.");
+
+            link.setCondition(condition);
+            link.close();
+        }
+
+        if (condition != null && condition.getCondition() != null) {
+            final Throwable exception = ExceptionUtil.toException(condition.getCondition().toString(),
+                condition.getDescription(), getErrorContext(link));
+
+            onError(exception);
+        } else {
+            super.close();
+        }
+    }
+
+    private void handleRemoteLinkClosedMock(final String eventName, final Link link) {
         final ErrorCondition condition = link.getRemoteCondition();
 
         addErrorCondition(logger.atInfo(), condition)
