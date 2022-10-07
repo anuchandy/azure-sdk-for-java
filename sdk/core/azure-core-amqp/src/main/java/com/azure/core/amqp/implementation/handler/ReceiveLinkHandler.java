@@ -3,10 +3,13 @@
 
 package com.azure.core.amqp.implementation.handler;
 
+import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.implementation.AmqpMetricsProvider;
+import com.azure.core.amqp.implementation.ReactorDispatcher;
 import com.azure.core.util.logging.LoggingEventBuilder;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.messaging.Modified;
+import org.apache.qpid.proton.amqp.transport.DeliveryState;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.Delivery;
@@ -16,7 +19,9 @@ import org.apache.qpid.proton.engine.Extendable;
 import org.apache.qpid.proton.engine.Handler;
 import org.apache.qpid.proton.engine.Link;
 import org.apache.qpid.proton.engine.Receiver;
+import org.apache.qpid.proton.message.Message;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 import java.util.Collections;
@@ -24,6 +29,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 import static com.azure.core.amqp.implementation.AmqpLoggingUtils.addErrorCondition;
 import static com.azure.core.amqp.implementation.ClientConstants.EMIT_RESULT_KEY;
@@ -50,19 +56,29 @@ public class ReceiveLinkHandler extends LinkHandler {
     private final Sinks.Many<Delivery> deliveries = Sinks.many().multicast().onBackpressureBuffer();
     private final Set<Delivery> queuedDeliveries = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final String entityPath;
+    private final DeliveryHandler deliveryHandler;
 
     /**
-     * @deprecated use {@link ReceiveLinkHandler#ReceiveLinkHandler(String, String, String, String, AmqpMetricsProvider)} instead.
+     * @deprecated use {@link ReceiveLinkHandler#ReceiveLinkHandler(String, String, String, String, DeliverySettleMode,
+     * ReactorDispatcher, AmqpRetryOptions, boolean, AmqpMetricsProvider)} instead.
      */
     @Deprecated
-    public ReceiveLinkHandler(String connectionId, String hostname, String linkName, String entityPath) {
-        this(connectionId, hostname, linkName, entityPath, new AmqpMetricsProvider(null, hostname, entityPath));
+    public ReceiveLinkHandler(String connectionId, String hostname, String linkName, String entityPath,
+                              DeliverySettleMode settlingMode, ReactorDispatcher dispatcher,
+                              AmqpRetryOptions retryOptions, boolean includeDeliveryTagInMessage) {
+        this(connectionId, hostname, linkName, entityPath, settlingMode, dispatcher, retryOptions,
+            includeDeliveryTagInMessage, new AmqpMetricsProvider(null, hostname, entityPath));
     }
 
-    public ReceiveLinkHandler(String connectionId, String hostname, String linkName, String entityPath, AmqpMetricsProvider metricsProvider) {
+    public ReceiveLinkHandler(String connectionId, String hostname, String linkName, String entityPath,
+                              DeliverySettleMode settlingMode, ReactorDispatcher dispatcher,
+                              AmqpRetryOptions retryOptions, boolean includeDeliveryTagInMessage,
+                              AmqpMetricsProvider metricsProvider) {
         super(connectionId, hostname, entityPath, metricsProvider);
         this.linkName = Objects.requireNonNull(linkName, "'linkName' cannot be null.");
         this.entityPath = Objects.requireNonNull(entityPath, "'entityPath' cannot be null.");
+        this.deliveryHandler = new DeliveryHandler(hostname, entityPath, linkName, settlingMode, dispatcher,
+            retryOptions, includeDeliveryTagInMessage, super.logger);
     }
 
     public String getLinkName() {
@@ -71,6 +87,10 @@ public class ReceiveLinkHandler extends LinkHandler {
 
     public Flux<Delivery> getDeliveredMessages() {
         return deliveries.asFlux().doOnNext(queuedDeliveries::remove);
+    }
+
+    public Flux<Message> getMessages() {
+        return deliveryHandler.getMessages();
     }
 
     /**
@@ -84,6 +104,7 @@ public class ReceiveLinkHandler extends LinkHandler {
             return;
         }
 
+        // deliveryHandler.close("Could not emit messages.close when closing handler.");
         clearAndCompleteDeliveries("Could not emit deliveries.close when closing handler.");
 
         onNext(EndpointState.CLOSED);
@@ -131,6 +152,7 @@ public class ReceiveLinkHandler extends LinkHandler {
         if (!isRemoteActive.getAndSet(true)) {
             onNext(EndpointState.ACTIVE);
         }
+        // deliveryHandler.onDelivery(event.getDelivery());
 
         final Delivery delivery = event.getDelivery();
         final Receiver link = (Receiver) delivery.getLink();
@@ -223,6 +245,7 @@ public class ReceiveLinkHandler extends LinkHandler {
 
     @Override
     public void onLinkRemoteClose(Event event) {
+        // deliveryHandler.close("Could not complete 'messages' when remotely closed.");
         clearAndCompleteDeliveries("Could not complete 'deliveries' when remotely closed.");
 
         super.onLinkRemoteClose(event);
@@ -257,5 +280,44 @@ public class ReceiveLinkHandler extends LinkHandler {
             delivery.settle();
         });
         queuedDeliveries.clear();
+    }
+
+    @Override
+    protected void onEndpointTerminalState() {
+        deliveryHandler.onEndpointTerminalState();
+        super.onEndpointTerminalState();
+    }
+
+    /**
+     * Sets a {@link Supplier} to retrieve the credit value to be placed on the amqp receive-link
+     * when the link has no credit left.
+     *
+     * @param creditSupplier Supplier that returns the number of credits to add to the amqp receive-link.
+     */
+    void setCreditSupplier(Supplier<Integer> creditSupplier) {
+        deliveryHandler.setCreditSupplier(creditSupplier);
+    }
+
+    /**
+     * Send the {@code desiredState} in a disposition frame requesting settlement of the delivery identified
+     * by the {@code deliveryTag}.
+     *
+     * @param deliveryTag the unique delivery tag identifying the delivery.
+     * @param desiredState The state to include in the disposition frame indicating the desired-outcome
+     *                    that the application wish to occur at the broker.
+     * @return the {@link Mono} representing the settlement work.
+     * @see {@link UnsettledDeliveries#sendDisposition(String, DeliveryState)}.
+     */
+    public Mono<Void> sendDisposition(String deliveryTag, DeliveryState desiredState) {
+        return deliveryHandler.sendDisposition(deliveryTag, desiredState);
+    }
+
+    /**
+     * Perform any optional possible graceful cleanup before the closure.
+     *
+     * @return a {@link Mono} that completes upon the completion of any pre-close work.
+     */
+    public Mono<Void> preClose() {
+        return deliveryHandler.preClose();
     }
 }

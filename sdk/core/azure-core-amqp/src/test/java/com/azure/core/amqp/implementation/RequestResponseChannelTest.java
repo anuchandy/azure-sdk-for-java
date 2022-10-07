@@ -9,6 +9,7 @@ import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.AmqpShutdownSignal;
 import com.azure.core.amqp.exception.AmqpErrorContext;
 import com.azure.core.amqp.exception.AmqpException;
+import com.azure.core.amqp.implementation.handler.DeliverySettleMode;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.amqp.implementation.handler.SendLinkHandler;
 import com.azure.core.test.utils.metrics.TestMeasurement;
@@ -46,6 +47,7 @@ import java.util.concurrent.RejectedExecutionException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -113,7 +115,8 @@ class RequestResponseChannelTest {
         when(session.sender(LINK_NAME + ":sender")).thenReturn(sender);
         when(session.receiver(LINK_NAME + ":receiver")).thenReturn(receiver);
 
-        when(handlerProvider.createReceiveLinkHandler(eq(CONNECTION_ID), eq(NAMESPACE), eq(LINK_NAME), eq(ENTITY_PATH)))
+        when(handlerProvider.createReceiveLinkHandler(eq(CONNECTION_ID), eq(NAMESPACE), eq(LINK_NAME), eq(ENTITY_PATH),
+            any(DeliverySettleMode.class), anyBoolean(), any(ReactorDispatcher.class), any(AmqpRetryOptions.class)))
             .thenReturn(receiveLinkHandler);
         when(handlerProvider.createSendLinkHandler(CONNECTION_ID, NAMESPACE, LINK_NAME, ENTITY_PATH))
             .thenReturn(sendLinkHandler);

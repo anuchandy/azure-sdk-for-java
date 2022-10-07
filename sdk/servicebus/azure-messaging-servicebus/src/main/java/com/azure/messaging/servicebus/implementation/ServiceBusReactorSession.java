@@ -17,6 +17,7 @@ import com.azure.core.amqp.implementation.ReactorSession;
 import com.azure.core.amqp.implementation.RetryUtil;
 import com.azure.core.amqp.implementation.TokenManager;
 import com.azure.core.amqp.implementation.TokenManagerProvider;
+import com.azure.core.amqp.implementation.handler.DeliverySettleMode;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.amqp.implementation.handler.SessionHandler;
 import com.azure.core.util.CoreUtils;
@@ -190,14 +191,17 @@ class ServiceBusReactorSession extends ReactorSession implements ServiceBusSessi
 
         final SenderSettleMode senderSettleMode;
         final ReceiverSettleMode receiverSettleMode;
+        final DeliverySettleMode deliverySettleMode;
         switch (receiveMode) {
             case PEEK_LOCK:
                 senderSettleMode = SenderSettleMode.UNSETTLED;
                 receiverSettleMode = ReceiverSettleMode.SECOND;
+                deliverySettleMode = DeliverySettleMode.SETTLE_VIA_DISPOSITION;
                 break;
             case RECEIVE_AND_DELETE:
                 senderSettleMode = SenderSettleMode.SETTLED;
                 receiverSettleMode = ReceiverSettleMode.FIRST;
+                deliverySettleMode = DeliverySettleMode.ACCEPT_AND_SETTLE_ON_DELIVERY;
                 break;
             default:
                 return Mono.error(new RuntimeException("ReceiveMode is not supported: " + receiveMode));
@@ -206,11 +210,11 @@ class ServiceBusReactorSession extends ReactorSession implements ServiceBusSessi
         if (distributedTransactionsSupport) {
             return getOrCreateTransactionCoordinator().flatMap(transactionCoordinator -> createConsumer(linkName,
                 entityPath, timeout, retry, filter, linkProperties, null, senderSettleMode,
-                receiverSettleMode)
+                receiverSettleMode, deliverySettleMode, true)
                 .cast(ServiceBusReceiveLink.class));
         } else {
             return createConsumer(linkName, entityPath, timeout, retry, filter, linkProperties,
-                null, senderSettleMode, receiverSettleMode).cast(ServiceBusReceiveLink.class);
+                null, senderSettleMode, receiverSettleMode, deliverySettleMode, true).cast(ServiceBusReceiveLink.class);
         }
     }
 }

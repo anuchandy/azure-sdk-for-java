@@ -6,7 +6,7 @@ package com.azure.core.amqp.implementation.handler;
 /**
  * Indicate how {@link DeliveryHandler} should locally settle the deliveries received from the broker.
  */
-public enum DeliverySettlingMode {
+public enum DeliverySettleMode {
     /**
      * Locally settle the delivery as soon as it is received.
      */

@@ -13,6 +13,7 @@ import com.azure.core.amqp.exception.AmqpErrorCondition;
 import com.azure.core.amqp.exception.AmqpErrorContext;
 import com.azure.core.amqp.exception.AmqpException;
 import com.azure.core.amqp.exception.AmqpResponseCode;
+import com.azure.core.amqp.implementation.handler.DeliverySettleMode;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.test.utils.metrics.TestGauge;
 import com.azure.core.test.utils.metrics.TestMeasurement;
@@ -113,7 +114,8 @@ class ReactorReceiverTest {
 
         final String entityPath = "test-entity-path";
         receiverHandler = new ReceiveLinkHandler("test-connection-id", "test-host",
-            "test-receiver-name", entityPath, AmqpMetricsProvider.noop());
+            "test-receiver-name", entityPath, DeliverySettleMode.SETTLE_ON_DELIVERY, null,
+            new AmqpRetryOptions(), false, AmqpMetricsProvider.noop());
 
         when(tokenManager.getAuthorizationResults()).thenReturn(authorizationResults.flux());
 

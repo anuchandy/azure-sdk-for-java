@@ -14,6 +14,7 @@ import com.azure.core.amqp.AmqpTransaction;
 import com.azure.core.amqp.AmqpTransactionCoordinator;
 import com.azure.core.amqp.ClaimsBasedSecurityNode;
 import com.azure.core.amqp.exception.AmqpException;
+import com.azure.core.amqp.implementation.handler.DeliverySettleMode;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.amqp.implementation.handler.SendLinkHandler;
 import com.azure.core.amqp.implementation.handler.SessionHandler;
@@ -92,7 +93,6 @@ public class ReactorSession implements AmqpSession {
     private final MessageSerializer messageSerializer;
     private final String activeTimeoutMessage;
     private final AmqpRetryOptions retryOptions;
-
     private final ReactorHandlerProvider handlerProvider;
     private final Mono<ClaimsBasedSecurityNode> cbsNodeSupplier;
     private final Disposable.Composite connectionSubscriptions;
@@ -235,7 +235,7 @@ public class ReactorSession implements AmqpSession {
     @Override
     public Mono<AmqpLink> createConsumer(String linkName, String entityPath, Duration timeout, AmqpRetryPolicy retry) {
         return createConsumer(linkName, entityPath, timeout, retry, null, null, null,
-            SenderSettleMode.UNSETTLED, ReceiverSettleMode.SECOND)
+            SenderSettleMode.UNSETTLED, ReceiverSettleMode.SECOND, DeliverySettleMode.SETTLE_ON_DELIVERY, false)
             .or(onClosedError("Connection closed while waiting for new receive link.", entityPath, linkName))
             .cast(AmqpLink.class);
     }
@@ -342,13 +342,16 @@ public class ReactorSession implements AmqpSession {
      * @param receiverDesiredCapabilities Capabilities that the receiver link supports.
      * @param senderSettleMode Amqp {@link SenderSettleMode} mode for receiver.
      * @param receiverSettleMode Amqp {@link ReceiverSettleMode} mode for receiver.
+     * @param deliverySettleMode Indicate how each {@link org.apache.qpid.proton.engine.Delivery} holding message should be settled.
+     * @param includeDeliveryTagInMessage Indicate if the delivery tag should be included in the message.
      *
      * @return A new instance of an {@link AmqpReceiveLink} with the correct properties set.
      */
     protected Mono<AmqpReceiveLink> createConsumer(String linkName, String entityPath, Duration timeout,
         AmqpRetryPolicy retry, Map<Symbol, Object> sourceFilters, Map<Symbol, Object> receiverProperties,
         Symbol[] receiverDesiredCapabilities, SenderSettleMode senderSettleMode,
-        ReceiverSettleMode receiverSettleMode) {
+        ReceiverSettleMode receiverSettleMode, DeliverySettleMode deliverySettleMode,
+        boolean includeDeliveryTagInMessage) {
 
         if (isDisposed()) {
             LoggingEventBuilder logBuilder = logger.atError()
@@ -396,7 +399,8 @@ public class ReactorSession implements AmqpSession {
                                     .log("Creating a new receiver link.");
 
                                 return getSubscription(linkNameKey, entityPath, sourceFilters, receiverProperties,
-                                    receiverDesiredCapabilities, senderSettleMode, receiverSettleMode, tokenManager);
+                                    receiverDesiredCapabilities, senderSettleMode, receiverSettleMode,
+                                    deliverySettleMode, includeDeliveryTagInMessage, tokenManager);
                             });
 
                         sink.success(computed.getLink());
@@ -579,7 +583,7 @@ public class ReactorSession implements AmqpSession {
     private LinkSubscription<AmqpReceiveLink> getSubscription(String linkName, String entityPath,
         Map<Symbol, Object> sourceFilters, Map<Symbol, Object> receiverProperties,
         Symbol[] receiverDesiredCapabilities, SenderSettleMode senderSettleMode, ReceiverSettleMode receiverSettleMode,
-        TokenManager tokenManager) {
+        DeliverySettleMode deliverySettleMode, boolean includeDeliveryTagInMessage, TokenManager tokenManager) {
 
         final Receiver receiver = session.receiver(linkName);
         final Source source = new Source();
@@ -610,7 +614,8 @@ public class ReactorSession implements AmqpSession {
         }
 
         final ReceiveLinkHandler receiveLinkHandler = handlerProvider.createReceiveLinkHandler(
-            sessionHandler.getConnectionId(), sessionHandler.getHostname(), linkName, entityPath);
+            sessionHandler.getConnectionId(), sessionHandler.getHostname(), linkName, entityPath,
+            deliverySettleMode, includeDeliveryTagInMessage, provider.getReactorDispatcher(), retryOptions);
         BaseHandler.setHandler(receiver, receiveLinkHandler);
 
         receiver.open();

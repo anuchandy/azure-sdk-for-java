@@ -3,7 +3,7 @@
 
 package com.azure.core.amqp.implementation.handler;
 
-import com.azure.core.amqp.AmqpRetryPolicy;
+import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.implementation.ReactorDispatcher;
 import com.azure.core.util.logging.ClientLogger;
 import org.apache.qpid.proton.Proton;
@@ -22,9 +22,10 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 import java.nio.ByteBuffer;
-import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static com.azure.core.amqp.implementation.AmqpLoggingUtils.addErrorCondition;
 import static com.azure.core.amqp.implementation.ClientConstants.EMIT_RESULT_KEY;
@@ -43,13 +44,15 @@ final class DeliveryHandler {
     private static final int DELIVERY_TAG_SIZE = 16;
 
     private final AtomicBoolean isTerminated = new AtomicBoolean();
+    private final AtomicBoolean isEndpointTerminalState = new AtomicBoolean();
     private final Sinks.Many<Message> messages = Sinks.many().multicast().onBackpressureBuffer();
     private final String entityPath;
     private final String receiveLinkName;
-    private final DeliverySettlingMode settlingMode;
+    private final DeliverySettleMode settlingMode;
     private final boolean includeDeliveryTagInMessage;
     private final  ClientLogger logger;
     private final UnsettledDeliveries unsettledDeliveries;
+    private final AtomicReference<Supplier<Integer>> creditSupplier = new AtomicReference<>();
 
     /**
      * Creates DeliveryHandler.
@@ -61,8 +64,7 @@ final class DeliveryHandler {
      *                       which the deliveries are received from.
      * @param settlingMode the mode in which DeliveryHandler should operate when settling received deliveries.
      * @param dispatcher the dispatcher to invoke the ProtonJ library APIs.
-     * @param timeout the timeout for the {@link DeliveryHandler#sendDisposition(String, DeliveryState)} API.
-     * @param retryPolicy the retry configuration for any retriable operation.
+     * @param retryOptions the retry configuration for any retriable operation.
      * @param includeDeliveryTagInMessage indicate if the delivery tag should be included in the {@link Message}
      *                                   from {@link DeliveryHandler#getMessages()}'s Flux.
      * @param logger the logger.
@@ -70,10 +72,9 @@ final class DeliveryHandler {
     DeliveryHandler(String hostName,
                     String entityPath,
                     String receiveLinkName,
-                    DeliverySettlingMode settlingMode,
+                    DeliverySettleMode settlingMode,
                     ReactorDispatcher dispatcher,
-                    Duration timeout,
-                    AmqpRetryPolicy retryPolicy,
+                    AmqpRetryOptions retryOptions,
                     boolean includeDeliveryTagInMessage,
                     ClientLogger logger) {
         this.entityPath = entityPath;
@@ -82,24 +83,35 @@ final class DeliveryHandler {
         this.includeDeliveryTagInMessage = includeDeliveryTagInMessage;
         this.logger = logger;
         this.unsettledDeliveries = new UnsettledDeliveries(hostName, entityPath,
-            receiveLinkName, dispatcher,
-            timeout, retryPolicy, logger);
+            receiveLinkName, dispatcher, retryOptions, logger);
     }
 
     /**
-     * Function to notify a {@link Delivery} received from ProtonJ library.
+     * Sets a {@link Supplier} that is invoked from {@link DeliveryHandler#onDelivery(Delivery)} when there are
+     * no credits left on the amqp receive-link. If the supplier returns a non-null integer value greater than
+     * zero, then value is added to the amqp receive-link's credit.
+     *
+     * @param creditSupplier Supplier that returns the number of credits to add to the amqp receive-link.
+     */
+    void setCreditSupplier(Supplier<Integer> creditSupplier) {
+        this.creditSupplier.set(creditSupplier);
+    }
+
+    /**
+     * The ProtonJ library creates {@link Delivery} object upon receiving a transfer or disposition frame
+     * from the broker. Such delivery objects are notified to this function.
      * <p>
-     * The ProtonJ creates {@link Delivery} object upon receiving a transfer or disposition frame from
-     * the broker.
+     * The 'transfer frame' contains the message, which this function read and decode from the delivery
+     * and streams through the {@link Flux} of {@link Message} from {@link DeliveryHandler#getMessages()}.
      * <p>
-     * The transfer frame contains the message, which this function reads from the delivery and streams
-     * through the {@link Flux} of {@link Message} returned by {@link DeliveryHandler#getMessages()}.
+     * The 'disposition frame' is the broker's ack for the disposition of a delivery that the application
+     * requested, this function parses the ack for the fulfillment of such request.
+     * The application can request disposition only for deliveries that were earlier received as transfer frames.
+     * The ProtonJ library keeps earlier Delivery in-memory objects, and upon receiving the disposition frame,
+     * the corresponding delivery object is updated and redelivered to onDelivery.
+     * The {@link DeliverySettleMode#SETTLE_VIA_DISPOSITION} enables this request-ack mode.
      * <p>
-     * The disposition frame is the broker's ack for the disposition of a delivery that the application
-     * requested. The application can request disposition only for deliveries that were earlier received
-     * as transfer frames. The ProtonJ library keeps earlier Delivery in-memory objects, and upon receiving
-     * the disposition frame, the corresponding delivery object is updated and redelivered to onDelivery.
-     * The {@link DeliverySettlingMode#SETTLE_VIA_DISPOSITION} enables this request-ack mode.
+     * Finally, this function also takes care of placing credit if the amqp receive-link has no credit left.
      *
      * @param delivery the delivery.
      */
@@ -133,23 +145,31 @@ final class DeliveryHandler {
                 .addKeyValue("delivery.isPartial", delivery.isPartial())
                 .addKeyValue("delivery.isSettled", wasSettled)
                 .log("onDelivery.");
+
+            final Receiver receiver = (Receiver) link;
+            final int creditsLeft = receiver.getRemoteCredit();
+            if (creditsLeft <= 0) {
+                final Supplier<Integer> supplier = creditSupplier.get();
+                final Integer credits = supplier.get();
+                if (credits != null && credits > 0) {
+                    logger.atInfo()
+                        .addKeyValue("credits", credits)
+                        .log("Adding credits.");
+                    receiver.flow(credits);
+                } else {
+                    logger.atVerbose()
+                        .addKeyValue("credits", credits)
+                        .log("There are no credits to add.");
+                }
+            }
         }
     }
 
     /**
-     * Completes the {@link Flux} of {@link Message} returned by {@link DeliveryHandler#getMessages()}.
-     *
-     * @param errorMessage message to log if completion fails.
+     * Function to notify when the amqp receive-link endpoint state become terminal (error-ed or completed).
      */
-    void onDeliveryComplete(String errorMessage) {
-        messages.emitComplete((signalType, emitResult) -> {
-            logger.atVerbose()
-                .addKeyValue(ENTITY_PATH_KEY, entityPath)
-                .addKeyValue(LINK_NAME_KEY, receiveLinkName)
-                .addKeyValue(EMIT_RESULT_KEY, emitResult)
-                .log(errorMessage);
-            return false;
-        });
+    void onEndpointTerminalState() {
+        isEndpointTerminalState.set(true);
     }
 
     /**
@@ -165,8 +185,9 @@ final class DeliveryHandler {
     /**
      * Request settlement of delivery (with the unique {@code deliveryTag}) by sending a disposition frame
      * with a state representing the desired-outcome, which the application wishes to occur at the broker.
+     * <p>
      * Disposition frame is sent via the same amqp receive-link that delivered the delivery, which was
-     * notified through {@link UnsettledDeliveries#onDelivery(UUID, Delivery)}.
+     * notified through {@link DeliveryHandler#onDelivery(Delivery)}}.
      *
      * @param deliveryTag the unique delivery tag identifying the delivery.
      * @param desiredState The state to include in the disposition frame indicating the desired-outcome
@@ -182,24 +203,32 @@ final class DeliveryHandler {
     }
 
     /**
-     * Prepare for the closure of this {@link DeliveryHandler}.
+     * Perform any optional possible graceful cleanup before the closure of {@link DeliveryHandler}.
      *
-     * @return a {@link Mono} that completes upon the completion of close preparation phase.
+     * @return a {@link Mono} that completes upon the completion of any pre-close work.
      */
-    Mono<Void> prepareClose() {
+    Mono<Void> preClose() {
         isTerminated.set(true);
-        return unsettledDeliveries.prepareClose();
+        return unsettledDeliveries.preClose();
     }
 
     /**
-     * Completes the {@link Flux} of {@link Message} returned by {@link DeliveryHandler#getMessages()},
-     * perform any pending work and resource cleanup.
+     * Completes the {@link Flux} of {@link Message} from {@link DeliveryHandler#getMessages()},
+     * perform resource cleanup and close any pending work.
      *
      * @param errorMessage message to log if the {@link Flux} completion fails.
      */
-    void finishClose(String errorMessage) {
-        onDeliveryComplete(errorMessage);
-        unsettledDeliveries.finishClose();
+    public void close(String errorMessage) {
+        isTerminated.set(true);
+        messages.emitComplete((signalType, emitResult) -> {
+            logger.atVerbose()
+                .addKeyValue(ENTITY_PATH_KEY, entityPath)
+                .addKeyValue(LINK_NAME_KEY, receiveLinkName)
+                .addKeyValue(EMIT_RESULT_KEY, emitResult)
+                .log(errorMessage);
+            return false;
+        });
+        unsettledDeliveries.close();
     }
 
     /**
@@ -281,14 +310,14 @@ final class DeliveryHandler {
     }
 
     /**
-     * Handle the delivery when the settlement mode is {@link DeliverySettlingMode#SETTLE_ON_DELIVERY}.
+     * Handle the delivery when the settlement mode is {@link DeliverySettleMode#SETTLE_ON_DELIVERY}.
      *
      * @param delivery the delivery.
      */
     private void handleSettleOnDelivery(Delivery delivery) {
         final Message message;
         try {
-            message = decodeTransferDeliveryMessage(delivery, null);
+            message = readAndDecodeTransferDeliveryMessage(delivery, null);
             delivery.settle();
         } catch (RuntimeException decodeError) {
             handleDeliveryDecodeError(decodeError);
@@ -298,14 +327,14 @@ final class DeliveryHandler {
     }
 
     /**
-     * Handle the delivery when the settlement mode is {@link DeliverySettlingMode#ACCEPT_AND_SETTLE_ON_DELIVERY}.
+     * Handle the delivery when the settlement mode is {@link DeliverySettleMode#ACCEPT_AND_SETTLE_ON_DELIVERY}.
      *
      * @param delivery the delivery.
      */
     private void handleAcceptAndSettleOnDelivery(Delivery delivery) {
         final Message message;
         try {
-            message = decodeTransferDeliveryMessage(delivery, null);
+            message = readAndDecodeTransferDeliveryMessage(delivery, null);
             delivery.disposition(Accepted.getInstance());
             delivery.settle();
         } catch (RuntimeException decodeError) {
@@ -316,7 +345,7 @@ final class DeliveryHandler {
     }
 
     /**
-     * Handle the delivery when the settlement mode is {@link DeliverySettlingMode#SETTLE_VIA_DISPOSITION}.
+     * Handle the delivery when the settlement mode is {@link DeliverySettleMode#SETTLE_VIA_DISPOSITION}.
      *
      * @param delivery the delivery.
      */
@@ -325,7 +354,7 @@ final class DeliveryHandler {
         if (!unsettledDeliveries.containsDelivery(deliveryTag)) {
             final Message message;
             try {
-                message = decodeTransferDeliveryMessage(delivery, deliveryTag);
+                message = readAndDecodeTransferDeliveryMessage(delivery, deliveryTag);
                 delivery.getLink().advance();
             } catch (RuntimeException decodeError) {
                 handleDeliveryDecodeError(decodeError);
@@ -351,7 +380,7 @@ final class DeliveryHandler {
      * @param deliveryTag the unique delivery tag associated with the delivery.
      * @return the decoded message optionally containing the delivery tag.
      */
-    private Message decodeTransferDeliveryMessage(Delivery delivery, UUID deliveryTag) {
+    private Message readAndDecodeTransferDeliveryMessage(Delivery delivery, UUID deliveryTag) {
         final int messageSize = delivery.pending();
         final byte[] buffer = new byte[messageSize];
         final int read = ((Receiver) delivery.getLink()).recv(buffer, 0, messageSize);
@@ -374,13 +403,14 @@ final class DeliveryHandler {
      * @param decodeError the error.
      */
     private void handleDeliveryDecodeError(RuntimeException decodeError) {
-        if (decodeError instanceof IllegalStateException && isTerminated.get()) {
-            // As part of ReactorReceiver closure, it closes ReceiveLinkHandler and, in turn, DeliverySink.
-            // The ReactorReceiver will do its best to schedule that close call, and Receiver.free() from
-            // the ProtonJ Reactor thread. If the scheduling fails, that close and Receiver.free() will be
-            // called from the ReactorReceiver closure thread; in this case, it is possible to race
-            // where the Delivery ProtonJ Reactor thread trying to decode may get released by Receiver.free(),
+        if (decodeError instanceof IllegalStateException && (isEndpointTerminalState.get() || isTerminated.get())) {
+            // As part of ReactorReceiver close(), it closes ReceiveLinkHandler and frees Receiver.
+            // The ReactorReceiver will attempt to schedule ReceiveLinkHandler::close() and Receiver::free() in
+            // the ProtonJ Reactor thread. If the scheduling fails, that ReceiveLinkHandler::close() and
+            // Receiver::free() will be called from the ReactorReceiver closure thread; hence, it is possible to
+            // race where the Delivery ProtonJ Reactor thread trying to decode may get released by Receiver::free(),
             // causing IllegalStateException on decode.
+            //
             // As this happens in the closure route, the ReactorReceiver.endpointState raise close events
             // Where retries hooks exist, we will not rethrow in this case as it will be propagated to
             // the ProtonJ Reactor thread possibly hosting other healthy Receivers (and Senders).

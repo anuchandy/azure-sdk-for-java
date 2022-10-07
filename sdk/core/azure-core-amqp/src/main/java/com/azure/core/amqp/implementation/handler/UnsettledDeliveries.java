@@ -3,12 +3,15 @@
 
 package com.azure.core.amqp.implementation.handler;
 
+import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.amqp.exception.AmqpErrorCondition;
 import com.azure.core.amqp.exception.AmqpErrorContext;
 import com.azure.core.amqp.exception.AmqpException;
 import com.azure.core.amqp.implementation.ExceptionUtil;
 import com.azure.core.amqp.implementation.ReactorDispatcher;
+import com.azure.core.amqp.implementation.RetryUtil;
+import com.azure.core.http.policy.RetryOptions;
 import com.azure.core.util.logging.ClientLogger;
 import org.apache.qpid.proton.amqp.messaging.Modified;
 import org.apache.qpid.proton.amqp.messaging.Outcome;
@@ -36,6 +39,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static com.azure.core.amqp.implementation.ClientConstants.DELIVERY_STATE_KEY;
 import static com.azure.core.amqp.implementation.handler.DeliveryHandler.DELIVERY_EMPTY_TAG;
@@ -49,9 +54,9 @@ import static com.azure.core.util.FluxUtil.monoError;
  *  the broker performed upon processing the settlement request and a flag (a.k.a. remotely-settled) indicating
  *  whether the broker settled the delivery.
  */
-public final class UnsettledDeliveries {
+public final class UnsettledDeliveries  implements AutoCloseable {
     // Ideally value of this const should be 'deliveryTag' but given the only use case today is as Service Bus
-    // LockToken, using the value 'lockToken' while logging to ease log parsing.
+    // LockToken, while logging use the value 'lockToken' to ease log parsing.
     // (TODO: anuchan; consider parametrizing the value).
     private static final String DELIVERY_TAG_KEY = "lockToken";
     private final AtomicBoolean isTerminated = new AtomicBoolean();
@@ -59,8 +64,8 @@ public final class UnsettledDeliveries {
     private final String entityPath;
     private final String receiveLinkName;
     private final ReactorDispatcher dispatcher;
-    private final Duration timeout;
     private final AmqpRetryPolicy retryPolicy;
+    private final Duration timeout;
     private final ClientLogger logger;
     private final Disposable timoutTimer;
 
@@ -83,23 +88,21 @@ public final class UnsettledDeliveries {
      * @param receiveLinkName the name of the amqp receive-link 'Attach'-ed to the messaging entity from
      *                       which the deliveries are received from.
      * @param dispatcher the dispatcher to invoke the ProtonJ library API to send disposition frame.
-     * @param timeout how long to wait to receive broker's acknowledgment once a disposition frame is sent.
-     * @param retryPolicy the retry policy to resend a disposition frame that the broker 'Rejected'.
+     * @param retryOptions the retry configuration to use when resending a disposition frame that the broker 'Rejected'.
      * @param logger the logger.
      */
     UnsettledDeliveries(String hostName,
                         String entityPath,
                         String receiveLinkName,
                         ReactorDispatcher dispatcher,
-                        Duration timeout,
-                        AmqpRetryPolicy retryPolicy,
+                        AmqpRetryOptions retryOptions,
                         ClientLogger logger) {
         this.hostName = hostName;
         this.entityPath = entityPath;
         this.receiveLinkName = receiveLinkName;
         this.dispatcher = dispatcher;
-        this.timeout = timeout;
-        this.retryPolicy = retryPolicy;
+        this.retryPolicy = RetryUtil.getRetryPolicy(retryOptions);
+        this.timeout = retryOptions.getTryTimeout();
         this.logger = logger;
         this.timoutTimer = Flux.interval(timeout).subscribe(i -> completeTimedoutDispositionWorks());
     }
@@ -225,20 +228,28 @@ public final class UnsettledDeliveries {
     }
 
     /**
-     * Prepare for the closure of this {@link UnsettledDeliveries}, rejecting further attempts to add
-     * deliveries or send delivery dispositions; the preparation phase eagerly timeout any already expired
-     * disposition and waits for the completion or timeout of the remaining disposition. Finally, disposes
-     * of the timeout timer.
+     * Attempt any optional graceful (if possible) cleanup and terminate this {@link UnsettledDeliveries}. The function
+     * eagerly times out any expired disposition work and waits for the completion or timeout of the remaining
+     * disposition. Finally, disposes of the timeout timer. Future attempts to notify deliveries or send delivery
+     * dispositions will be rejected.
+     * <p>
+     * From the point of view of this function's call site, it is still possible that the receive-link and dispatcher
+     * may healthy, but not guaranteed. If healthy, send-receive of disposition frames are possible, enabling
+     * 'graceful' completion of works.
+     * <p>
+     * e.g., if the user proactively initiates the closing of client, it is likely that the receive-link may be healthy.
+     * On the other hand, if the broker initiates the closing of the link, further frame transfer may not be
+     * possible.
      *
-     * @return a {@link Mono} that completes upon the completion of close preparation phase.
+     * @return a {@link Mono} that completes upon the termination.
      */
-    Mono<Void> prepareClose() {
+    Mono<Void> preClose() {
         isTerminated.getAndSet(true);
 
-        // Complete all timed out works then
+        // Complete timed out works if any then
         completeTimedoutDispositionWorks();
 
-        // wait for the completion of all remaining works (those are not timed out).
+        // wait for the completion of all remaining (not timed out) works.
         final List<Mono<Void>> workMonoList = new ArrayList<>();
         final StringJoiner deliveryTags = new StringJoiner(", ");
         for (DispositionWork work : pendingDispositions.values()) {
@@ -269,34 +280,16 @@ public final class UnsettledDeliveries {
     }
 
     /**
-     * The finalization of this {@link UnsettledDeliveries} closing. Completes any uncompleted work and removes
-     * locally unsettled deliveries from the internal list of ProtonJ TransportSession.
+     * Closes this {@link UnsettledDeliveries}. Removes locally unsettled deliveries from the internal list of
+     * ProtonJ TransportSession and force complete any uncompleted work. Future attempts to notify deliveries
+     * or send delivery dispositions will be rejected.
      */
-    void finishClose() {
-        final List<DispositionWork> uncompletedWorks = new ArrayList<>();
-        final StringJoiner deliveryTags = new StringJoiner(", ");
-        for (DispositionWork work : pendingDispositions.values()) {
-            if (work.isCompleted()) {
-                continue;
-            }
-            uncompletedWorks.add(work);
-            deliveryTags.add(work.getDeliveryTag());
-        }
+    @Override
+    public void close() {
+        isTerminated.getAndSet(true);
 
-        if (!uncompletedWorks.isEmpty()) {
-            logger.info("Completing {} disposition works as part of receive link termination. Locks: {}",
-                uncompletedWorks.size(), deliveryTags.toString());
-
-            final AmqpException completionError = new AmqpException(false,
-                "The receiver didn't receive the disposition acknowledgment due to receive link termination.", null);
-            for (DispositionWork work : uncompletedWorks) {
-                completeDispositionWork(work, null, completionError);
-            }
-
-            // The below log can also help debug if the external code that error() calls into never return.
-            logger.verbose("Completed {} disposition works as part of receive link termination.", uncompletedWorks.size());
-        }
-
+        // Settle unsettled deliveries to remove them from receive-link's parent ProtonJ TransportSession.
+        //
         if (!deliveries.isEmpty()) {
             final Runnable localSettlement = () -> {
                 for (Delivery delivery : deliveries.values()) {
@@ -314,6 +307,39 @@ public final class UnsettledDeliveries {
                 logger.info("RejectedExecutionException when scheduling local settlement. Manually settling.", e);
                 localSettlement.run();
             }
+        }
+
+        // Disposes of subscription to the global interval timer.
+        //
+        timoutTimer.dispose();
+
+        // Force complete all uncompleted works.
+        //
+        final int[] completionCount = new int[1];
+        final StringJoiner deliveryTags = new StringJoiner(", ");
+
+        final AmqpException completionError = new AmqpException(false,
+            "The receiver didn't receive the disposition acknowledgment due to receive link closure.", null);
+
+        pendingDispositions.forEach((deliveryTag, work) -> {
+            if (work == null || work.isCompleted()) {
+                return;
+            }
+
+            if (completionCount[0] == 0) {
+                logger.info("Starting completion of disposition works as part of receive link closure.");
+            }
+
+            deliveryTags.add(work.getDeliveryTag());
+            pendingDispositions.remove(work.getDeliveryTag());
+            completeDispositionWork(work, null, completionError);
+            completionCount[0]++;
+        });
+
+        if (completionCount[0] > 0) {
+            // The log help debug if the user code chained to the work-mono never returns.
+            logger.info("Completed {} disposition works as part of receive link closure. Locks {}",
+                completionCount[0], deliveryTags.toString());
         }
     }
 
@@ -468,24 +494,36 @@ public final class UnsettledDeliveries {
             return;
         }
 
-        logger.verbose("Cleaning timed out update work tasks.");
+        final int[] completionCount = new int[1];
+        final StringJoiner deliveryTags = new StringJoiner(", ");
 
         pendingDispositions.forEach((deliveryTag, work) -> {
             if (work == null || !work.hasTimedout()) {
                 return;
             }
 
-            pendingDispositions.remove(deliveryTag);
-            final Throwable error;
-            if (work.getRejectedOutcomeError() != null) {
-                error = work.getRejectedOutcomeError();
-            } else {
-                error = new AmqpException(true, AmqpErrorCondition.TIMEOUT_ERROR,
-                    "Update disposition request timed out.", getErrorContext(deliveries.get(deliveryTag)));
+            if (completionCount[0] == 0) {
+                logger.info("Starting completion of timed out disposition works.");
             }
 
-            completeDispositionWork(work, null, error);
+            deliveryTags.add(work.getDeliveryTag());
+            pendingDispositions.remove(work.getDeliveryTag());
+            final Throwable completionError;
+            if (work.getRejectedOutcomeError() != null) {
+                completionError = work.getRejectedOutcomeError();
+            } else {
+                completionError = new AmqpException(true, AmqpErrorCondition.TIMEOUT_ERROR,
+                    "Update disposition request timed out.", getErrorContext(deliveries.get(work.getDeliveryTag())));
+            }
+            completeDispositionWork(work, null, completionError);
+            completionCount[0]++;
         });
+
+        if (completionCount[0] > 0) {
+            // The log help debug if the user code chained to the work-mono never returns.
+            logger.info("Completed {} timed-out disposition works. Locks {}",
+                completionCount[0], deliveryTags.toString());
+        }
     }
 
     /**

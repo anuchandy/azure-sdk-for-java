@@ -9,6 +9,7 @@ import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.exception.AmqpErrorContext;
 import com.azure.core.amqp.exception.AmqpException;
 import com.azure.core.amqp.exception.AmqpResponseCode;
+import com.azure.core.amqp.implementation.handler.DeliverySettleMode;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.amqp.implementation.handler.SendLinkHandler;
 import com.azure.core.util.AsyncCloseable;
@@ -172,7 +173,8 @@ public class RequestResponseChannel implements AsyncCloseable {
         this.receiveLink.setReceiverSettleMode(receiverSettleMode);
 
         this.receiveLinkHandler = handlerProvider.createReceiveLinkHandler(connectionId, fullyQualifiedNamespace,
-            linkName, entityPath);
+            linkName, entityPath, DeliverySettleMode.ACCEPT_AND_SETTLE_ON_DELIVERY, false,
+            provider.getReactorDispatcher(), retryOptions);
         BaseHandler.setHandler(receiveLink, receiveLinkHandler);
 
         this.metricsProvider = metricsProvider;

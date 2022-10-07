@@ -139,6 +139,7 @@ public class ServiceBusReactorReceiver extends ReactorReceiver implements Servic
 
     @Override
     public Mono<Void> updateDisposition(String lockToken, DeliveryState deliveryState) {
+        // return handler.sendDisposition(lockToken, deliveryState);
         if (isDisposed.get()) {
             return monoError(logger, new IllegalStateException("Cannot perform operations on a disposed receiver."));
         }
@@ -173,6 +174,7 @@ public class ServiceBusReactorReceiver extends ReactorReceiver implements Servic
         if (isDisposed.getAndSet(true)) {
             return super.getIsClosedMono();
         }
+        // return handler.preClose().then(super.closeAsync(message, errorCondition));
 
         cleanupWorkItems();
 

@@ -13,6 +13,7 @@ import com.azure.core.amqp.exception.AmqpErrorCondition;
 import com.azure.core.amqp.exception.AmqpException;
 import com.azure.core.amqp.exception.AmqpResponseCode;
 import com.azure.core.amqp.implementation.handler.ConnectionHandler;
+import com.azure.core.amqp.implementation.handler.DeliverySettleMode;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.amqp.implementation.handler.SendLinkHandler;
 import com.azure.core.amqp.implementation.handler.SessionHandler;
@@ -68,6 +69,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -784,12 +786,15 @@ class ReactorConnectionTest {
             .thenReturn(linkHandler);
 
         final ReceiveLinkHandler receiveLinkHandler = new ReceiveLinkHandler(CONNECTION_ID, FULLY_QUALIFIED_NAMESPACE,
-            linkName, entityPath, AmqpMetricsProvider.noop());
+            linkName, entityPath, DeliverySettleMode.SETTLE_ON_DELIVERY, null,
+            new AmqpRetryOptions(), false, AmqpMetricsProvider.noop());
         when(reactorHandlerProvider.createReceiveLinkHandler(eq(CONNECTION_ID), eq(FULLY_QUALIFIED_NAMESPACE),
-            argThat(path -> path.contains("mgmt") && path.contains(entityPath)), argThat(path -> path.contains("management"))))
+            argThat(path -> path.contains("mgmt") && path.contains(entityPath)), argThat(path -> path.contains("management")),
+                any(DeliverySettleMode.class), anyBoolean(), any(ReactorDispatcher.class), any(AmqpRetryOptions.class)))
             .thenReturn(receiveLinkHandler);
         when(reactorHandlerProvider.createReceiveLinkHandler(eq(CONNECTION_ID), eq(FULLY_QUALIFIED_NAMESPACE),
-            argThat(path -> path.contains("cbs") && path.contains(entityPath)), argThat(path -> path.contains("cbs"))))
+            argThat(path -> path.contains("cbs") && path.contains(entityPath)), argThat(path -> path.contains("cbs")),
+            any(DeliverySettleMode.class), anyBoolean(), any(ReactorDispatcher.class), any(AmqpRetryOptions.class)))
             .thenReturn(receiveLinkHandler);
 
         // Act and Assert
