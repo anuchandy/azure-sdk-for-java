@@ -44,14 +44,14 @@ import static com.azure.core.amqp.implementation.handler.ReceiverDeliveryHandler
 import static com.azure.core.util.FluxUtil.monoError;
 
 /**
- *  Manages the received deliveries which are not settled on the broker. The application can later request settlement
- *  of each delivery by sending a disposition frame with a state representing the desired-outcome,
- *  which the application wishes to occur at the broker. The broker acknowledges this with a disposition frame
- *  with a state (a.k.a. remote-state) representing the actual outcome (a.k.a. remote-outcome) of any work
- *  the broker performed upon processing the settlement request and a flag (a.k.a. remotely-settled) indicating
- *  whether the broker settled the delivery.
+ * Manages the received deliveries which are not settled on the broker. The application can later request settlement
+ * of each delivery by sending a disposition frame with a state representing the desired-outcome,
+ * which the application wishes to occur at the broker. The broker acknowledges this with a disposition frame
+ * with a state (a.k.a. remote-state) representing the actual outcome (a.k.a. remote-outcome) of any work
+ * the broker performed upon processing the settlement request and a flag (a.k.a. remotely-settled) indicating
+ * whether the broker settled the delivery.
  */
-public final class UnsettledDeliveries  implements AutoCloseable {
+public final class UnsettledDeliveries implements AutoCloseable {
     // Ideally value of this const should be 'deliveryTag' but given the only use case today is as Service Bus
     // LockToken, while logging use the value 'lockToken' to ease log parsing.
     // (TODO: anuchan; consider parametrizing the value).
@@ -78,15 +78,15 @@ public final class UnsettledDeliveries  implements AutoCloseable {
     /**
      * Creates UnsettledDeliveries.
      *
-     * @param hostName the name of the host hosting the messaging entity identified by {@code entityPath}.
-     * @param entityPath the relative path identifying the messaging entity from which the deliveries are
-     *                   received from, the application can later disposition these deliveries by sending
-     *                   disposition frames to the broker.
+     * @param hostName        the name of the host hosting the messaging entity identified by {@code entityPath}.
+     * @param entityPath      the relative path identifying the messaging entity from which the deliveries are
+     *                        received from, the application can later disposition these deliveries by sending
+     *                        disposition frames to the broker.
      * @param receiveLinkName the name of the amqp receive-link 'Attach'-ed to the messaging entity from
-     *                       which the deliveries are received from.
-     * @param dispatcher the dispatcher to invoke the ProtonJ library API to send disposition frame.
-     * @param retryOptions the retry configuration to use when resending a disposition frame that the broker 'Rejected'.
-     * @param logger the logger.
+     *                        which the deliveries are received from.
+     * @param dispatcher      the dispatcher to invoke the ProtonJ library API to send disposition frame.
+     * @param retryOptions    the retry configuration to use when resending a disposition frame that the broker 'Rejected'.
+     * @param logger          the logger.
      */
     UnsettledDeliveries(String hostName,
                         String entityPath,
@@ -110,7 +110,7 @@ public final class UnsettledDeliveries  implements AutoCloseable {
      * settlement of this delivery at the broker.
      *
      * @param deliveryTag the unique delivery tag associated with the {@code delivery}.
-     * @param delivery the delivery.
+     * @param delivery    the delivery.
      * @return {@code false} if the instance was closed upon notifying the delivery, {@code true} otherwise.
      */
     boolean onDelivery(UUID deliveryTag, Delivery delivery) {
@@ -139,9 +139,9 @@ public final class UnsettledDeliveries  implements AutoCloseable {
      * Disposition frame is sent via the same amqp receive-link that delivered the delivery, which was
      * notified through {@link UnsettledDeliveries#onDelivery(UUID, Delivery)}.
      *
-     * @param deliveryTag the unique delivery tag identifying the delivery.
+     * @param deliveryTag  the unique delivery tag identifying the delivery.
      * @param desiredState The state to include in the disposition frame indicating the desired-outcome
-     *                    that the application wish to occur at the broker.
+     *                     that the application wish to occur at the broker.
      * @return the {@link Mono} upon subscription starts the work by requesting ProtonJ library to send
      * disposition frame to settle the delivery on the broker, and this Mono terminates once the broker
      * acknowledges with disposition frame indicating outcome (a.ka. remote-outcome).
@@ -165,7 +165,7 @@ public final class UnsettledDeliveries  implements AutoCloseable {
      * property of the Delivery object is updated from the disposition frame ack.
      *
      * @param deliveryTag the unique delivery tag of the delivery that application requested disposition.
-     * @param delivery the delivery object updated from the broker's transfer frame ack.
+     * @param delivery    the delivery object updated from the broker's transfer frame ack.
      */
     void onDispositionAck(UUID deliveryTag, Delivery delivery) {
         final DeliveryState remoteState = delivery.getRemoteState();
@@ -266,10 +266,10 @@ public final class UnsettledDeliveries  implements AutoCloseable {
         if (!workMonoList.isEmpty()) {
             logger.info("Waiting for pending updates to complete. Locks: {}", deliveryTags.toString());
             workMonoListMerged = Mono.whenDelayError(workMonoList)
-                    .onErrorResume(error -> {
-                        logger.info("There was exception(s) while disposing of all disposition work.", error);
-                        return Mono.empty();
-                    });
+                .onErrorResume(error -> {
+                    logger.info("There was exception(s) while disposing of all disposition work.", error);
+                    return Mono.empty();
+                });
         } else {
             workMonoListMerged = Mono.empty();
         }
@@ -343,9 +343,9 @@ public final class UnsettledDeliveries  implements AutoCloseable {
     /**
      * See the doc for {@link UnsettledDeliveries#sendDisposition(String, DeliveryState)}.
      *
-     * @param deliveryTag the unique delivery tag identifying the delivery.
+     * @param deliveryTag  the unique delivery tag identifying the delivery.
      * @param desiredState The state to include in the disposition frame indicating the desired-outcome
-     *                    that the application wish to occur at the broker.
+     *                     that the application wish to occur at the broker.
      * @return the {@link Mono} representing disposition work.
      */
     private Mono<Void> sendDispositionImpl(String deliveryTag, DeliveryState desiredState) {
@@ -383,10 +383,10 @@ public final class UnsettledDeliveries  implements AutoCloseable {
      * Handles the 'Rejected' outcome (in a disposition ack) from the broker in-response to a disposition frame
      * application sent.
      *
-     * @param work the work that sent the disposition frame with a desired-outcome which broker 'Rejected'.
-     * @param delivery the Delivery in-memory object for which the application had sent the disposition frame;
-     *                 the ProtonJ library updates the remote-state (representing remote-outcome) and
-     *                 is-remotely-settled (boolean) property of the Delivery object from the disposition frame ack.
+     * @param work          the work that sent the disposition frame with a desired-outcome which broker 'Rejected'.
+     * @param delivery      the Delivery in-memory object for which the application had sent the disposition frame;
+     *                      the ProtonJ library updates the remote-state (representing remote-outcome) and
+     *                      is-remotely-settled (boolean) property of the Delivery object from the disposition frame ack.
      * @param remoteOutcome the 'Rejected' remote-outcome describing the rejection reason, this is derived from
      *                      the remote-state.
      */
@@ -425,14 +425,14 @@ public final class UnsettledDeliveries  implements AutoCloseable {
      * Handles the 'Released' or unknown outcome (in a disposition ack) from the broker in-response to a disposition
      * frame application sent.
      *
-     * @param work the work that sent the disposition frame with a desired-outcome.
-     * @param delivery the Delivery in-memory object for which the application had sent the disposition frame;
-     *                the ProtonJ library updates the remote-state (representing remote-outcome) and
-     *                is-remotely-settled (boolean) property of the Delivery object from the disposition frame ack.
+     * @param work          the work that sent the disposition frame with a desired-outcome.
+     * @param delivery      the Delivery in-memory object for which the application had sent the disposition frame;
+     *                      the ProtonJ library updates the remote-state (representing remote-outcome) and
+     *                      is-remotely-settled (boolean) property of the Delivery object from the disposition frame ack.
      * @param remoteOutcome the remote-outcome from the broker describing the reason for broker choosing an outcome
      *                      different from requested desired-outcome, this is derived from the remote-state.
      */
-    private void handleReleasedOrUnknownRemoteOutcome(DispositionWork work, Delivery delivery,  Outcome remoteOutcome) {
+    private void handleReleasedOrUnknownRemoteOutcome(DispositionWork work, Delivery delivery, Outcome remoteOutcome) {
         final AmqpErrorContext amqpErrorContext = getErrorContext(delivery);
         final AmqpException error;
 
@@ -456,8 +456,8 @@ public final class UnsettledDeliveries  implements AutoCloseable {
      * Completes the given {@link DispositionWork}, which results in termination of the {@link Mono}
      * returned from the {@link DispositionWork#getMono()} API.
      *
-     * @param work the work to complete.
-     * @param delivery the delivery that the work attempted the disposition.
+     * @param work            the work to complete.
+     * @param delivery        the delivery that the work attempted the disposition.
      * @param completionError a null value indicates that the work has to complete successfully,
      *                        otherwise complete the work with the error value.
      */
@@ -559,12 +559,12 @@ public final class UnsettledDeliveries  implements AutoCloseable {
         /**
          * Create a DispositionWork.
          *
-         * @param deliveryTag The delivery tag of the Delivery for which to send the disposition frame requesting
-         *                   delivery settlement on the broker.
+         * @param deliveryTag  The delivery tag of the Delivery for which to send the disposition frame requesting
+         *                     delivery settlement on the broker.
          * @param desiredState The state to include in the disposition frame indicating the desired-outcome
-         *                    the application wish to occur at the broker.
-         * @param timeout after requesting the ProtonJ library to send the disposition frame, how long to wait for
-         *                an acknowledgment disposition frame to arrive from the broker.
+         *                     the application wish to occur at the broker.
+         * @param timeout      after requesting the ProtonJ library to send the disposition frame, how long to wait for
+         *                     an acknowledgment disposition frame to arrive from the broker.
          */
         DispositionWork(String deliveryTag, DeliveryState desiredState, Duration timeout) {
             this.deliveryTag = deliveryTag;
@@ -661,7 +661,7 @@ public final class UnsettledDeliveries  implements AutoCloseable {
          * obtained from {@link DispositionWork#getMono()}.
          *
          * @param monoSink the {@link MonoSink} to notify the completion of the work, which triggers
-         * termination of the same {@link Mono} that started the work.
+         *                 termination of the same {@link Mono} that started the work.
          */
         void onStart(MonoSink<Void> monoSink) {
             this.monoSink = monoSink;
@@ -675,7 +675,7 @@ public final class UnsettledDeliveries  implements AutoCloseable {
          * retry settings.
          *
          * @param error the error that the broker returned upon Reject-ing the last work execution attempting
-         *             the disposition.
+         *              the disposition.
          */
         void onRetriableRejectedOutcome(Throwable error) {
             this.rejectedOutcomeError = error;

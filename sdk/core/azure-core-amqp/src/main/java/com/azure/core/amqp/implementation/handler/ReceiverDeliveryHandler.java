@@ -53,16 +53,16 @@ final class ReceiverDeliveryHandler {
     /**
      * Creates DeliveryHandler.
      *
-     * @param entityPath the relative path identifying the messaging entity from which the deliveries are
-     *                   received from.
-     * @param receiveLinkName the name of the amqp receive-link 'Attach'-ed to the messaging entity from
-     *                       which the deliveries are received from.
-     * @param settlingMode the mode in which DeliveryHandler should operate when settling received deliveries.
-     * @param unsettledDeliveries manages the received deliveries which are not settled on the broker that
-     *                            application can later request settlement.
+     * @param entityPath                  the relative path identifying the messaging entity from which the deliveries are
+     *                                    received from.
+     * @param receiveLinkName             the name of the amqp receive-link 'Attach'-ed to the messaging entity from
+     *                                    which the deliveries are received from.
+     * @param settlingMode                the mode in which DeliveryHandler should operate when settling received deliveries.
+     * @param unsettledDeliveries         manages the received deliveries which are not settled on the broker that
+     *                                    application can later request settlement.
      * @param includeDeliveryTagInMessage indicate if the delivery tag should be included in the {@link Message}
-     *                                   from {@link ReceiverDeliveryHandler#getMessages()}'s Flux.
-     * @param logger the logger.
+     *                                    from {@link ReceiverDeliveryHandler#getMessages()}'s Flux.
+     * @param logger                      the logger.
      */
     ReceiverDeliveryHandler(String entityPath,
                             String receiveLinkName,
@@ -346,7 +346,7 @@ final class ReceiverDeliveryHandler {
      * Read and decode the message from a delivery (delivery that the ProtonJ library created
      * from transfer-frame).
      *
-     * @param delivery the delivery
+     * @param delivery    the delivery
      * @param deliveryTag the unique delivery tag associated with the delivery.
      * @return the decoded message optionally containing the delivery tag.
      */
@@ -396,7 +396,7 @@ final class ReceiverDeliveryHandler {
     /**
      * Emit a message to stream through the {@link Flux} from {@link ReceiverDeliveryHandler#getMessages()}.
      *
-     * @param message the message.
+     * @param message  the message.
      * @param delivery the delivery from the message read and decoded.
      */
     private void emitMessage(Message message, Delivery delivery) {

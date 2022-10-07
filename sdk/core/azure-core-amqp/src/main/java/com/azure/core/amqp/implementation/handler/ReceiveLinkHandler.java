@@ -56,7 +56,8 @@ public class ReceiveLinkHandler extends LinkHandler {
     private final Sinks.Many<Delivery> deliveries = Sinks.many().multicast().onBackpressureBuffer();
     private final Set<Delivery> queuedDeliveries = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final String entityPath;
-    private final UnsettledDeliveries unsettledDeliveries;;
+    private final UnsettledDeliveries unsettledDeliveries;
+    ;
     private final ReceiverDeliveryHandler deliveryHandler;
 
     /**
@@ -133,7 +134,7 @@ public class ReceiveLinkHandler extends LinkHandler {
             return;
         }
 
-        LoggingEventBuilder logBuilder =  logger.atInfo()
+        LoggingEventBuilder logBuilder = logger.atInfo()
             .addKeyValue(ENTITY_PATH_KEY, entityPath)
             .addKeyValue(LINK_NAME_KEY, link.getName());
 
@@ -312,9 +313,9 @@ public class ReceiveLinkHandler extends LinkHandler {
      * Disposition frame is sent via the same amqp receive-link that delivered the delivery, which was
      * notified to {@link ReceiverDeliveryHandler#onDelivery(Delivery)}}.
      *
-     * @param deliveryTag the unique delivery tag identifying the delivery.
+     * @param deliveryTag  the unique delivery tag identifying the delivery.
      * @param desiredState The state to include in the disposition frame indicating the desired-outcome
-     *                    that the application wish to occur at the broker.
+     *                     that the application wish to occur at the broker.
      * @return the {@link Mono} upon subscription starts the work by requesting ProtonJ library to send
      * disposition frame to settle the delivery on the broker, and this Mono terminates once the broker
      * acknowledges with disposition frame indicating outcome (a.ka. remote-outcome).
