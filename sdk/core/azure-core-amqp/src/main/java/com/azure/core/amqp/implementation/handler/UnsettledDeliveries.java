@@ -101,7 +101,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
         this.retryPolicy = RetryUtil.getRetryPolicy(retryOptions);
         this.timeout = retryOptions.getTryTimeout();
         this.logger = logger;
-        this.timoutTimer = Flux.interval(timeout).subscribe(i -> completeTimedoutDispositionWorks());
+        this.timoutTimer = Flux.interval(timeout).subscribe(__ -> completeTimedoutDispositionWorks("timer"));
     }
 
     /**
@@ -150,7 +150,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
      */
     Mono<Void> sendDisposition(String deliveryTag, DeliveryState desiredState) {
         if (isTerminated.get()) {
-            return monoError(logger, new IllegalStateException("Cannot perform updateDisposition on a disposed receiver."));
+            return monoError(logger, new IllegalStateException("Cannot perform sendDisposition on a disposed receiver."));
         } else {
             return sendDispositionImpl(deliveryTag, desiredState);
         }
@@ -193,7 +193,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
             return;
         }
 
-        final DispositionWork work = pendingDispositions.get(deliveryTag);
+        final DispositionWork work = pendingDispositions.get(deliveryTag.toString());
         if (work == null) {
             logger.atWarning()
                 .addKeyValue(DELIVERY_TAG_KEY, deliveryTag)
@@ -208,7 +208,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
         final DeliveryStateType remoteOutcomeType = remoteState.getType();
 
         if (desiredOutcomeType == remoteOutcomeType) {
-            completeDispositionWork(work, delivery, null);
+            completeDispositionWorkWithSettle(work, delivery, null);
         } else {
             logger.atInfo()
                 .addKeyValue(DELIVERY_TAG_KEY, deliveryTag)
@@ -244,7 +244,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
         isTerminated.getAndSet(true);
 
         // Complete timed out works if any then
-        completeTimedoutDispositionWorks();
+        completeTimedoutDispositionWorks("preClose");
 
         // wait for the completion of all remaining (not timed out) works.
         final List<Mono<Void>> workMonoList = new ArrayList<>();
@@ -312,32 +312,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
 
         // Force complete all uncompleted works.
         //
-        final int[] completionCount = new int[1];
-        final StringJoiner deliveryTags = new StringJoiner(", ");
-
-        final AmqpException completionError = new AmqpException(false,
-            "The receiver didn't receive the disposition acknowledgment due to receive link closure.", null);
-
-        pendingDispositions.forEach((deliveryTag, work) -> {
-            if (work == null || work.isCompleted()) {
-                return;
-            }
-
-            if (completionCount[0] == 0) {
-                logger.info("Starting completion of disposition works as part of receive link closure.");
-            }
-
-            deliveryTags.add(work.getDeliveryTag());
-            pendingDispositions.remove(work.getDeliveryTag());
-            completeDispositionWork(work, null, completionError);
-            completionCount[0]++;
-        });
-
-        if (completionCount[0] > 0) {
-            // The log help debug if the user code chained to the work-mono never returns.
-            logger.info("Completed {} disposition works as part of receive link closure. Locks {}",
-                completionCount[0], deliveryTags.toString());
-        }
+        completeUncompletedDispositionWorksOnClose();
     }
 
     /**
@@ -409,7 +384,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
                             receiveLinkName, work.getDeliveryTag()),
                         dispatchError, getErrorContext(delivery)));
 
-                completeDispositionWork(work, delivery, amqpException);
+                completeDispositionWorkWithSettle(work, delivery, amqpException);
             }
         } else {
             logger.atInfo()
@@ -417,7 +392,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
                 .addKeyValue(DELIVERY_STATE_KEY, delivery.getRemoteState())
                 .log("Retry attempts exhausted.", error);
 
-            completeDispositionWork(work, delivery, error);
+            completeDispositionWorkWithSettle(work, delivery, error);
         }
     }
 
@@ -434,59 +409,28 @@ public final class UnsettledDeliveries implements AutoCloseable {
      */
     private void handleReleasedOrUnknownRemoteOutcome(DispositionWork work, Delivery delivery, Outcome remoteOutcome) {
         final AmqpErrorContext amqpErrorContext = getErrorContext(delivery);
-        final AmqpException error;
+        final AmqpException completionError;
 
         final DeliveryStateType remoteOutcomeType = delivery.getRemoteState().getType();
         if (remoteOutcomeType == DeliveryStateType.Released) {
-            error = new AmqpException(false, AmqpErrorCondition.OPERATION_CANCELLED,
+            completionError = new AmqpException(false, AmqpErrorCondition.OPERATION_CANCELLED,
                 "AMQP layer unexpectedly aborted or disconnected.", amqpErrorContext);
         } else {
-            error = new AmqpException(false, remoteOutcome.toString(), amqpErrorContext);
+            completionError = new AmqpException(false, remoteOutcome.toString(), amqpErrorContext);
         }
 
         logger.atInfo()
             .addKeyValue(DELIVERY_TAG_KEY, work.getDeliveryTag())
             .addKeyValue(DELIVERY_STATE_KEY, delivery.getRemoteState())
-            .log("Completing pending updateState operation with exception.", error);
+            .log("Completing pending updateState operation with exception.", completionError);
 
-        completeDispositionWork(work, delivery, error);
-    }
-
-    /**
-     * Completes the given {@link DispositionWork}, which results in termination of the {@link Mono}
-     * returned from the {@link DispositionWork#getMono()} API.
-     *
-     * @param work            the work to complete.
-     * @param delivery        the delivery that the work attempted the disposition.
-     * @param completionError a null value indicates that the work has to complete successfully,
-     *                        otherwise complete the work with the error value.
-     */
-    private void completeDispositionWork(DispositionWork work, Delivery delivery, Throwable completionError) {
-        final boolean isRemotelySettled = delivery != null && delivery.remotelySettled();
-        if (isRemotelySettled) {
-            delivery.settle();
-        }
-
-        if (completionError != null) {
-            final Throwable loggedError = completionError instanceof RuntimeException
-                ? logger.logExceptionAsError((RuntimeException) completionError)
-                : completionError;
-            work.onComplete(loggedError);
-        } else {
-            work.onComplete();
-        }
-
-        final String deliveryTag = work.getDeliveryTag();
-        if (isRemotelySettled) {
-            pendingDispositions.remove(deliveryTag);
-            deliveries.remove(deliveryTag);
-        }
+        completeDispositionWorkWithSettle(work, delivery, completionError);
     }
 
     /**
      * Iterate through all the current {@link DispositionWork} and complete the work those are timed out.
      */
-    private void completeTimedoutDispositionWorks() {
+    private void completeTimedoutDispositionWorks(String callSite) {
         if (pendingDispositions.isEmpty()) {
             return;
         }
@@ -500,11 +444,9 @@ public final class UnsettledDeliveries implements AutoCloseable {
             }
 
             if (completionCount[0] == 0) {
-                logger.info("Starting completion of timed out disposition works.");
+                logger.info("Starting completion of timed out disposition works (call site:{}).", callSite);
             }
 
-            deliveryTags.add(work.getDeliveryTag());
-            pendingDispositions.remove(work.getDeliveryTag());
             final Throwable completionError;
             if (work.getRejectedOutcomeError() != null) {
                 completionError = work.getRejectedOutcomeError();
@@ -512,15 +454,111 @@ public final class UnsettledDeliveries implements AutoCloseable {
                 completionError = new AmqpException(true, AmqpErrorCondition.TIMEOUT_ERROR,
                     "Update disposition request timed out.", getErrorContext(deliveries.get(work.getDeliveryTag())));
             }
-            completeDispositionWork(work, null, completionError);
+            deliveryTags.add(work.getDeliveryTag());
+            completeDispositionWork(work, completionError);
             completionCount[0]++;
         });
 
         if (completionCount[0] > 0) {
-            // The log help debug if the user code chained to the work-mono never returns.
-            logger.info("Completed {} timed-out disposition works. Locks {}",
+            // The log help debug if the user code chained to the work-mono (DispositionWork::getMono()) never returns.
+            logger.info("Completed {} timed-out disposition works (call site:{}). Locks {}",
+                callSite, completionCount[0], deliveryTags.toString());
+        }
+    }
+
+    /**
+     * Iterate through all the {@link DispositionWork}, and 'force' to complete the uncompleted works because
+     * this {@link UnsettledDeliveries} is closed.
+     */
+    private void completeUncompletedDispositionWorksOnClose() {
+        // Note: Possible to have one function for cleaning both timeout and incomplete works, but readability
+        // seems to be affected, hence separate functions.
+
+        if (pendingDispositions.isEmpty()) {
+            return;
+        }
+
+        final int[] completionCount = new int[1];
+        final StringJoiner deliveryTags = new StringJoiner(", ");
+
+        final AmqpException completionError = new AmqpException(false,
+            "The receiver didn't receive the disposition acknowledgment due to receive link closure.", null);
+
+        pendingDispositions.forEach((deliveryTag, work) -> {
+            if (work == null || work.isCompleted()) {
+                return;
+            }
+
+            if (completionCount[0] == 0) {
+                logger.info("Starting completion of disposition works as part of receive link closure.");
+            }
+
+            deliveryTags.add(work.getDeliveryTag());
+            completeDispositionWork(work, completionError);
+            completionCount[0]++;
+        });
+
+        if (completionCount[0] > 0) {
+            // The log help debug if the user code chained to the work-mono (DispositionWork::getMono()) never returns.
+            logger.info("Completed {} disposition works as part of receive link closure. Locks {}",
                 completionCount[0], deliveryTags.toString());
         }
+    }
+
+    /**
+     * Completes the given {@link DispositionWork}, which results in termination of the {@link Mono} returned
+     * from the {@link DispositionWork#getMono()} API. If the broker settled the {@link Delivery} associated
+     * with the work, it would also be locally settled.
+     * <p>
+     * Invocations of this function are guaranteed to be serial, as all call sites originate from
+     * {@link UnsettledDeliveries#onDispositionAck(UUID, Delivery)} running on the ProtonJ Reactor event-loop thread.
+     *
+     * @param work            the work to complete.
+     * @param delivery        the delivery that the work attempted the disposition, to be locally settled if the broker
+     *                        settled it on the remote end.
+     * @param completionError a null value indicates that the work has to complete successfully, otherwise complete
+     *                        the work with the error value.
+     */
+    private void completeDispositionWorkWithSettle(DispositionWork work, Delivery delivery, Throwable completionError) {
+        // The operation ordering same as the T1 Lib: "delivery-settling -> work-completion -> work-delivery-removal".
+
+        final boolean isRemotelySettled = delivery.remotelySettled();
+        if (isRemotelySettled) {
+            delivery.settle();
+        }
+
+        if (completionError != null) {
+            final Throwable loggedError = completionError instanceof RuntimeException
+                ? logger.logExceptionAsError((RuntimeException) completionError)
+                : completionError;
+            work.onComplete(loggedError);
+        } else {
+            work.onComplete();
+        }
+
+        if (isRemotelySettled) {
+            final String deliveryTag = work.getDeliveryTag();
+            pendingDispositions.remove(deliveryTag);
+            deliveries.remove(deliveryTag);
+        }
+    }
+
+    /**
+     * Completes the given {@link DispositionWork} with error, which results in termination of the {@link Mono}
+     * returned from the {@link DispositionWork#getMono()} API.
+     *
+     * @param work            the work to complete with error.
+     * @param completionError the non-null error value.
+     */
+    private void completeDispositionWork(DispositionWork work, Throwable completionError) {
+        // The operation ordering same as the T1 Lib: "work-removal -> work-completion".
+
+        pendingDispositions.remove(work.getDeliveryTag());
+
+        final Throwable loggedError = completionError instanceof RuntimeException
+            ? logger.logExceptionAsError((RuntimeException) completionError)
+            : completionError;
+        work.onComplete(loggedError);
     }
 
     /**

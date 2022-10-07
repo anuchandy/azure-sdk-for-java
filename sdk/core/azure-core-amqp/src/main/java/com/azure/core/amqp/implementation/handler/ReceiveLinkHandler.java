@@ -57,7 +57,6 @@ public class ReceiveLinkHandler extends LinkHandler {
     private final Set<Delivery> queuedDeliveries = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final String entityPath;
     private final UnsettledDeliveries unsettledDeliveries;
-    ;
     private final ReceiverDeliveryHandler deliveryHandler;
 
     /**

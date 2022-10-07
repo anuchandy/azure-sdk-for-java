@@ -48,7 +48,7 @@ final class ReceiverDeliveryHandler {
     private final boolean includeDeliveryTagInMessage;
     private final ClientLogger logger;
     private final UnsettledDeliveries unsettledDeliveries;
-    private final AtomicReference<Supplier<Integer>> creditSupplier = new AtomicReference<>();
+    private final AtomicReference<Supplier<Integer>> creditSupplier = new AtomicReference<>(() -> 0);
 
     /**
      * Creates DeliveryHandler.
