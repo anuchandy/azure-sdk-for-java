@@ -3,14 +3,11 @@
 
 package com.azure.core.amqp.implementation.handler;
 
-import com.azure.core.amqp.AmqpRetryOptions;
-import com.azure.core.amqp.implementation.ReactorDispatcher;
 import com.azure.core.util.logging.ClientLogger;
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.messaging.Accepted;
 import org.apache.qpid.proton.amqp.messaging.Modified;
-import org.apache.qpid.proton.amqp.transport.DeliveryState;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.Delivery;
 import org.apache.qpid.proton.engine.EndpointState;
@@ -18,7 +15,6 @@ import org.apache.qpid.proton.engine.Link;
 import org.apache.qpid.proton.engine.Receiver;
 import org.apache.qpid.proton.message.Message;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 import java.nio.ByteBuffer;
@@ -39,7 +35,7 @@ import static com.azure.core.amqp.implementation.ClientConstants.LINK_NAME_KEY;
  * This type takes care of streaming the {@link Message} objects read and decoded from the transfer frame based
  * {@link Delivery} objects and enables settlement of those deliveries.
  */
-final class DeliveryHandler {
+final class ReceiverDeliveryHandler {
     static final UUID DELIVERY_EMPTY_TAG = new UUID(0L, 0L);
     private static final int DELIVERY_TAG_SIZE = 16;
 
@@ -50,44 +46,40 @@ final class DeliveryHandler {
     private final String receiveLinkName;
     private final DeliverySettleMode settlingMode;
     private final boolean includeDeliveryTagInMessage;
-    private final  ClientLogger logger;
+    private final ClientLogger logger;
     private final UnsettledDeliveries unsettledDeliveries;
     private final AtomicReference<Supplier<Integer>> creditSupplier = new AtomicReference<>();
 
     /**
      * Creates DeliveryHandler.
      *
-     * @param hostName the name of the host hosting the messaging entity identified by {@code entityPath}.
      * @param entityPath the relative path identifying the messaging entity from which the deliveries are
      *                   received from.
      * @param receiveLinkName the name of the amqp receive-link 'Attach'-ed to the messaging entity from
      *                       which the deliveries are received from.
      * @param settlingMode the mode in which DeliveryHandler should operate when settling received deliveries.
-     * @param dispatcher the dispatcher to invoke the ProtonJ library APIs.
-     * @param retryOptions the retry configuration for any retriable operation.
+     * @param unsettledDeliveries manages the received deliveries which are not settled on the broker that
+     *                            application can later request settlement.
      * @param includeDeliveryTagInMessage indicate if the delivery tag should be included in the {@link Message}
-     *                                   from {@link DeliveryHandler#getMessages()}'s Flux.
+     *                                   from {@link ReceiverDeliveryHandler#getMessages()}'s Flux.
      * @param logger the logger.
      */
-    DeliveryHandler(String hostName,
-                    String entityPath,
-                    String receiveLinkName,
-                    DeliverySettleMode settlingMode,
-                    ReactorDispatcher dispatcher,
-                    AmqpRetryOptions retryOptions,
-                    boolean includeDeliveryTagInMessage,
-                    ClientLogger logger) {
+    ReceiverDeliveryHandler(String entityPath,
+                            String receiveLinkName,
+                            DeliverySettleMode settlingMode,
+                            UnsettledDeliveries unsettledDeliveries,
+                            boolean includeDeliveryTagInMessage,
+                            ClientLogger logger) {
         this.entityPath = entityPath;
         this.receiveLinkName = receiveLinkName;
         this.settlingMode = settlingMode;
+        this.unsettledDeliveries = unsettledDeliveries;
         this.includeDeliveryTagInMessage = includeDeliveryTagInMessage;
         this.logger = logger;
-        this.unsettledDeliveries = new UnsettledDeliveries(hostName, entityPath,
-            receiveLinkName, dispatcher, retryOptions, logger);
     }
 
     /**
-     * Sets a {@link Supplier} that is invoked from {@link DeliveryHandler#onDelivery(Delivery)} when there are
+     * Sets a {@link Supplier} that is invoked from {@link ReceiverDeliveryHandler#onDelivery(Delivery)} when there are
      * no credits left on the amqp receive-link. If the supplier returns a non-null integer value greater than
      * zero, then value is added to the amqp receive-link's credit.
      *
@@ -102,7 +94,7 @@ final class DeliveryHandler {
      * from the broker. Such delivery objects are notified to this function.
      * <p>
      * The 'transfer frame' contains the message, which this function read and decode from the delivery
-     * and streams through the {@link Flux} of {@link Message} from {@link DeliveryHandler#getMessages()}.
+     * and streams through the {@link Flux} of {@link Message} from {@link ReceiverDeliveryHandler#getMessages()}.
      * <p>
      * The 'disposition frame' is the broker's ack for the disposition of a delivery that the application
      * requested, this function parses the ack for the fulfillment of such request.
@@ -132,6 +124,8 @@ final class DeliveryHandler {
             case SETTLE_VIA_DISPOSITION:
                 handleSettleViaDisposition(delivery);
                 break;
+            default:
+                throw logger.logExceptionAsError(new RuntimeException("settlingMode is not supported: " + settlingMode));
         }
 
         final Link link = delivery.getLink();
@@ -183,37 +177,14 @@ final class DeliveryHandler {
     }
 
     /**
-     * Request settlement of delivery (with the unique {@code deliveryTag}) by sending a disposition frame
-     * with a state representing the desired-outcome, which the application wishes to occur at the broker.
-     * <p>
-     * Disposition frame is sent via the same amqp receive-link that delivered the delivery, which was
-     * notified through {@link DeliveryHandler#onDelivery(Delivery)}}.
-     *
-     * @param deliveryTag the unique delivery tag identifying the delivery.
-     * @param desiredState The state to include in the disposition frame indicating the desired-outcome
-     *                    that the application wish to occur at the broker.
-     * @return the {@link Mono} upon subscription starts the work by requesting ProtonJ library to send
-     * disposition frame to settle the delivery on the broker, and this Mono terminates once the broker
-     * acknowledges with disposition frame indicating outcome (a.ka. remote-outcome).
-     * The Mono can terminate if the configured timeout elapses or cannot initiate the request to ProtonJ
-     * library.
+     * Perform any optional possible graceful cleanup before the closure of {@link ReceiverDeliveryHandler}.
      */
-    Mono<Void> sendDisposition(String deliveryTag, DeliveryState desiredState) {
-        return unsettledDeliveries.sendDisposition(deliveryTag, desiredState);
-    }
-
-    /**
-     * Perform any optional possible graceful cleanup before the closure of {@link DeliveryHandler}.
-     *
-     * @return a {@link Mono} that completes upon the completion of any pre-close work.
-     */
-    Mono<Void> preClose() {
+    void preClose() {
         isTerminated.set(true);
-        return unsettledDeliveries.preClose();
     }
 
     /**
-     * Completes the {@link Flux} of {@link Message} from {@link DeliveryHandler#getMessages()},
+     * Completes the {@link Flux} of {@link Message} from {@link ReceiverDeliveryHandler#getMessages()},
      * perform resource cleanup and close any pending work.
      *
      * @param errorMessage message to log if the {@link Flux} completion fails.
@@ -228,7 +199,6 @@ final class DeliveryHandler {
                 .log(errorMessage);
             return false;
         });
-        unsettledDeliveries.close();
     }
 
     /**
@@ -424,7 +394,7 @@ final class DeliveryHandler {
     }
 
     /**
-     * Emit a message to stream through the {@link Flux} from {@link DeliveryHandler#getMessages()}.
+     * Emit a message to stream through the {@link Flux} from {@link ReceiverDeliveryHandler#getMessages()}.
      *
      * @param message the message.
      * @param delivery the delivery from the message read and decoded.
@@ -451,7 +421,7 @@ final class DeliveryHandler {
     }
 
     /**
-     * Terminate the {@link Flux} from {@link DeliveryHandler#getMessages()} by emitting the given error.
+     * Terminate the {@link Flux} from {@link ReceiverDeliveryHandler#getMessages()} by emitting the given error.
      *
      * @param error the error.
      */

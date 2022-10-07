@@ -56,7 +56,8 @@ public class ReceiveLinkHandler extends LinkHandler {
     private final Sinks.Many<Delivery> deliveries = Sinks.many().multicast().onBackpressureBuffer();
     private final Set<Delivery> queuedDeliveries = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final String entityPath;
-    private final DeliveryHandler deliveryHandler;
+    private final UnsettledDeliveries unsettledDeliveries;;
+    private final ReceiverDeliveryHandler deliveryHandler;
 
     /**
      * @deprecated use {@link ReceiveLinkHandler#ReceiveLinkHandler(String, String, String, String, DeliverySettleMode,
@@ -77,8 +78,10 @@ public class ReceiveLinkHandler extends LinkHandler {
         super(connectionId, hostname, entityPath, metricsProvider);
         this.linkName = Objects.requireNonNull(linkName, "'linkName' cannot be null.");
         this.entityPath = Objects.requireNonNull(entityPath, "'entityPath' cannot be null.");
-        this.deliveryHandler = new DeliveryHandler(hostname, entityPath, linkName, settlingMode, dispatcher,
-            retryOptions, includeDeliveryTagInMessage, super.logger);
+        this.unsettledDeliveries = new UnsettledDeliveries(hostname, entityPath, linkName, dispatcher, retryOptions, super.logger);
+        this.deliveryHandler = new ReceiverDeliveryHandler(entityPath, linkName,
+            settlingMode, unsettledDeliveries,
+            includeDeliveryTagInMessage, super.logger);
     }
 
     public String getLinkName() {
@@ -105,6 +108,7 @@ public class ReceiveLinkHandler extends LinkHandler {
         }
 
         // deliveryHandler.close("Could not emit messages.close when closing handler.");
+        // unsettledDeliveries.close();
         clearAndCompleteDeliveries("Could not emit deliveries.close when closing handler.");
 
         onNext(EndpointState.CLOSED);
@@ -246,6 +250,8 @@ public class ReceiveLinkHandler extends LinkHandler {
     @Override
     public void onLinkRemoteClose(Event event) {
         // deliveryHandler.close("Could not complete 'messages' when remotely closed.");
+        // unsettledDeliveries.close();
+
         clearAndCompleteDeliveries("Could not complete 'deliveries' when remotely closed.");
 
         super.onLinkRemoteClose(event);
@@ -299,17 +305,24 @@ public class ReceiveLinkHandler extends LinkHandler {
     }
 
     /**
-     * Send the {@code desiredState} in a disposition frame requesting settlement of the delivery identified
-     * by the {@code deliveryTag}.
+     * Request settlement of an unsettled delivery (with the unique {@code deliveryTag}) by sending
+     * a disposition frame with a state representing the desired-outcome, which the application wishes to
+     * occur at the broker.
+     * <p>
+     * Disposition frame is sent via the same amqp receive-link that delivered the delivery, which was
+     * notified to {@link ReceiverDeliveryHandler#onDelivery(Delivery)}}.
      *
      * @param deliveryTag the unique delivery tag identifying the delivery.
      * @param desiredState The state to include in the disposition frame indicating the desired-outcome
      *                    that the application wish to occur at the broker.
-     * @return the {@link Mono} representing the settlement work.
-     * @see {@link UnsettledDeliveries#sendDisposition(String, DeliveryState)}.
+     * @return the {@link Mono} upon subscription starts the work by requesting ProtonJ library to send
+     * disposition frame to settle the delivery on the broker, and this Mono terminates once the broker
+     * acknowledges with disposition frame indicating outcome (a.ka. remote-outcome).
+     * The Mono can terminate if the configured timeout elapses or cannot initiate the request to ProtonJ
+     * library.
      */
     public Mono<Void> sendDisposition(String deliveryTag, DeliveryState desiredState) {
-        return deliveryHandler.sendDisposition(deliveryTag, desiredState);
+        return unsettledDeliveries.sendDisposition(deliveryTag, desiredState);
     }
 
     /**
@@ -318,6 +331,7 @@ public class ReceiveLinkHandler extends LinkHandler {
      * @return a {@link Mono} that completes upon the completion of any pre-close work.
      */
     public Mono<Void> preClose() {
-        return deliveryHandler.preClose();
+        deliveryHandler.preClose();
+        return unsettledDeliveries.preClose();
     }
 }

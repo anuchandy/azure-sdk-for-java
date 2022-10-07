@@ -11,7 +11,6 @@ import com.azure.core.amqp.exception.AmqpException;
 import com.azure.core.amqp.implementation.ExceptionUtil;
 import com.azure.core.amqp.implementation.ReactorDispatcher;
 import com.azure.core.amqp.implementation.RetryUtil;
-import com.azure.core.http.policy.RetryOptions;
 import com.azure.core.util.logging.ClientLogger;
 import org.apache.qpid.proton.amqp.messaging.Modified;
 import org.apache.qpid.proton.amqp.messaging.Outcome;
@@ -39,11 +38,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
 import static com.azure.core.amqp.implementation.ClientConstants.DELIVERY_STATE_KEY;
-import static com.azure.core.amqp.implementation.handler.DeliveryHandler.DELIVERY_EMPTY_TAG;
+import static com.azure.core.amqp.implementation.handler.ReceiverDeliveryHandler.DELIVERY_EMPTY_TAG;
 import static com.azure.core.util.FluxUtil.monoError;
 
 /**
