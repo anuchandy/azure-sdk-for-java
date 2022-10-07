@@ -235,7 +235,7 @@ final class ReceiverDeliveryHandler {
 
         if (delivery.isSettled()) {
             // We ran into a case where the ProtonJ Reactor thread delivered duplicate Delivery, which was
-            // settled earlier; when handling such a Delivery, ProtonJ hit an IllegalStateException.
+            // settled earlier; when handling such a Delivery, ProtonJ hits an IllegalStateException.
             // Until it is fixed in ProtonJ, DeliveryHandler needs to skip such deliveries as a workaround.
             //
             final Link link = delivery.getLink();
