@@ -10,10 +10,8 @@ import com.azure.core.amqp.exception.AmqpErrorCondition;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.util.AsyncCloseable;
 import com.azure.core.util.logging.ClientLogger;
-import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
-import org.apache.qpid.proton.engine.Delivery;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Receiver;
 import org.apache.qpid.proton.message.Message;
@@ -96,58 +94,15 @@ public class ReactorReceiver implements AmqpReceiveLink, AsyncCloseable, AutoClo
 
         this.logger = new ClientLogger(ReactorReceiver.class, loggingContext);
 
-        // Delivered messages are not published on another scheduler because we want the settlement method that happens
-        // in decodeDelivery to take place and since proton-j is not thread safe, it could end up with hundreds of
-        // backed up deliveries waiting to be settled. (Which, consequently, ends up in a FAIL_OVERFLOW error from
-        // the handler.
-        this.messagesProcessor = this.handler.getDeliveredMessages()
-            .flatMap(delivery -> {
-                return Mono.create(sink -> {
-                    try {
-                        this.dispatcher.invoke(() -> {
-                            if (isDisposed()) {
-                                sink.error(new IllegalStateException(
-                                    "Cannot decode delivery when ReactorReceiver instance is closed."));
-                                return;
-                            }
-
-                            final Message message = decodeDelivery(delivery);
-                            if (metricsProvider.isPrefetchedSequenceNumberEnabled()) {
-                                Long seqNo = getSequenceNumber(message);
-                                if (seqNo != null) {
-                                    lastSequenceNumber.set(seqNo);
-                                }
-                            }
-
-                            final int creditsLeft = receiver.getRemoteCredit();
-
-                            if (creditsLeft > 0) {
-                                sink.success(message);
-                                return;
-                            }
-
-                            final Supplier<Integer> supplier = creditSupplier.get();
-                            final Integer credits = supplier.get();
-
-                            if (credits != null && credits > 0) {
-                                logger.atInfo()
-                                    .addKeyValue("credits", credits)
-                                    .log("Adding credits.");
-                                receiver.flow(credits);
-                            } else {
-                                logger.atVerbose()
-                                    .addKeyValue("credits", credits)
-                                    .log("There are no credits to add.");
-                            }
-
-                            metricsProvider.recordAddCredits(credits == null ? 0 : credits);
-                            sink.success(message);
-                        });
-                    } catch (IOException | RejectedExecutionException e) {
-                        sink.error(e);
+        this.messagesProcessor = this.handler.getMessages()
+            .doOnNext(message -> {
+                if (metricsProvider.isPrefetchedSequenceNumberEnabled()) {
+                    Long seqNo = getSequenceNumber(message);
+                    if (seqNo != null) {
+                        lastSequenceNumber.set(seqNo);
                     }
-                });
-            }, 1);
+                }
+            });
 
         this.retryOptions = retryOptions;
         this.endpointStates = this.handler.getEndpointStates()
@@ -252,7 +207,11 @@ public class ReactorReceiver implements AmqpReceiveLink, AsyncCloseable, AutoClo
     @Override
     public void setEmptyCreditListener(Supplier<Integer> creditSupplier) {
         Objects.requireNonNull(creditSupplier, "'creditSupplier' cannot be null.");
-        this.creditSupplier.set(creditSupplier);
+        this.handler.setCreditSupplier(() -> {
+            final Integer credits = creditSupplier.get();
+            metricsProvider.recordAddCredits(credits == null ? 0 : credits);
+            return credits;
+        });
     }
 
     @Override
@@ -288,19 +247,6 @@ public class ReactorReceiver implements AmqpReceiveLink, AsyncCloseable, AutoClo
     @Override
     public Mono<Void> closeAsync() {
         return closeAsync("User invoked close operation.", null);
-    }
-
-    protected Message decodeDelivery(Delivery delivery) {
-        final int messageSize = delivery.pending();
-        final byte[] buffer = new byte[messageSize];
-        final int read = receiver.recv(buffer, 0, messageSize);
-        receiver.advance();
-
-        final Message message = Proton.message();
-        message.decode(buffer, 0, read);
-
-        delivery.settle();
-        return message;
     }
 
     /**
@@ -371,7 +317,7 @@ public class ReactorReceiver implements AmqpReceiveLink, AsyncCloseable, AutoClo
             }
         };
 
-        return Mono.create(sink -> {
+        final Mono<Boolean> localCloseMono = Mono.create(sink -> {
             boolean localCloseScheduled = false;
             try {
                 dispatcher.invoke(localClose);
@@ -393,6 +339,8 @@ public class ReactorReceiver implements AmqpReceiveLink, AsyncCloseable, AutoClo
                 sink.success(localCloseScheduled);
             }
         });
+
+        return handler.preClose().then(localCloseMono);
     }
 
     /**

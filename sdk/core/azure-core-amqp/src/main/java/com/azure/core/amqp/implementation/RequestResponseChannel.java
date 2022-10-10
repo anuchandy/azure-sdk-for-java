@@ -14,9 +14,7 @@ import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.amqp.implementation.handler.SendLinkHandler;
 import com.azure.core.util.AsyncCloseable;
 import com.azure.core.util.logging.ClientLogger;
-import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.UnsignedLong;
-import org.apache.qpid.proton.amqp.messaging.Accepted;
 import org.apache.qpid.proton.amqp.messaging.Source;
 import org.apache.qpid.proton.amqp.messaging.Target;
 import org.apache.qpid.proton.amqp.transport.DeliveryState;
@@ -183,8 +181,7 @@ public class RequestResponseChannel implements AsyncCloseable {
         //
         //@formatter:off
         this.subscriptions = Disposables.composite(
-            receiveLinkHandler.getDeliveredMessages()
-                .map(this::decodeDelivery)
+            receiveLinkHandler.getMessages()
                 .subscribe(message -> {
                     logger.atVerbose()
                         .addKeyValue("messageId", message.getCorrelationId())
@@ -379,22 +376,6 @@ public class RequestResponseChannel implements AsyncCloseable {
      */
     public AmqpErrorContext getErrorContext() {
         return receiveLinkHandler.getErrorContext(receiveLink);
-    }
-
-    protected Message decodeDelivery(Delivery delivery) {
-        final Message response = Proton.message();
-        final int msgSize = delivery.pending();
-        final byte[] buffer = new byte[msgSize];
-
-        final int read = receiveLink.recv(buffer, 0, msgSize);
-
-        response.decode(buffer, 0, read);
-        if (this.senderSettleMode == SenderSettleMode.SETTLED) {
-            // No op. Delivery comes settled from the sender
-            delivery.disposition(Accepted.getInstance());
-            delivery.settle();
-        }
-        return response;
     }
 
     private void settleMessage(Message message) {
