@@ -19,10 +19,14 @@ import org.mockito.MockitoAnnotations;
 import reactor.test.StepVerifier;
 
 import java.time.Duration;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,7 +48,7 @@ public class ReceiveLinkHandlerTest {
     private Source source;
 
     private final ReceiveLinkHandler handler = new ReceiveLinkHandler(CONNECTION_ID, HOSTNAME, LINK_NAME, ENTITY_PATH,
-        DeliverySettleMode.SETTLE_ON_DELIVERY, null, new AmqpRetryOptions(), false, null);
+        DeliverySettleMode.SETTLE_ON_DELIVERY, null, new AmqpRetryOptions(), true, null);
 
     private AutoCloseable mocksCloseable;
 
@@ -91,7 +95,7 @@ public class ReceiveLinkHandlerTest {
     public void onRemoteClose() {
         when(receiver.getLocalState()).thenReturn(EndpointState.CLOSED);
 
-        StepVerifier.create(handler.getDeliveredMessages())
+        StepVerifier.create(handler.getMessages())
             .then(() -> handler.onLinkRemoteClose(event))
             .expectComplete()
             .verify(VERIFY_TIMEOUT);
@@ -114,7 +118,7 @@ public class ReceiveLinkHandlerTest {
         when(delivery.getLink()).thenReturn(receiver);
         when(delivery.isPartial()).thenReturn(true);
 
-        StepVerifier.create(handler.getDeliveredMessages())
+        StepVerifier.create(handler.getMessages())
             .then(() -> handler.onDelivery(event))
             .expectNoEvent(Duration.ofSeconds(1))
             .thenCancel()
@@ -131,6 +135,10 @@ public class ReceiveLinkHandlerTest {
      */
     @Test
     public void onDelivery() {
+        final byte[] guidBytes = {112, 74, (byte) 220, (byte) 181, 93, (byte) 172, (byte) 179, 67, (byte) 177,
+            50, (byte) 236, (byte) 143, (byte) 205, (byte) 172, 58, (byte) 157};
+        final UUID uuid = UUID.fromString("b5dc4a70-ac5d-43b3-b132-ec8fcdac3a9d");
+
         final Event closeEvent = mock(Event.class);
         when(closeEvent.getLink()).thenReturn(receiver);
 
@@ -139,12 +147,20 @@ public class ReceiveLinkHandlerTest {
         when(delivery.getLink()).thenReturn(receiver);
         when(delivery.isPartial()).thenReturn(false);
         when(delivery.isSettled()).thenReturn(false);
+        when(delivery.pending()).thenReturn(0);
+        when(delivery.getLink()).thenReturn(receiver);
+        when(delivery.getTag()).thenReturn(guidBytes);
 
         when(receiver.getLocalState()).thenReturn(EndpointState.ACTIVE);
 
-        StepVerifier.create(handler.getDeliveredMessages())
+        when(receiver.recv(any(), eq(0), eq(0))).thenAnswer(__ -> 0);
+
+        StepVerifier.create(handler.getMessages())
             .then(() -> handler.onDelivery(event))
-            .expectNext(delivery)
+            .assertNext(message -> {
+                assertTrue(message instanceof MessageWithDeliveryTag);
+                assertEquals(((MessageWithDeliveryTag) message).getDeliveryTag(), uuid);
+            })
             .then(() -> handler.onLinkRemoteClose(closeEvent))
             .expectComplete()
             .verify(VERIFY_TIMEOUT);
@@ -171,7 +187,7 @@ public class ReceiveLinkHandlerTest {
 
         when(receiver.getLocalState()).thenReturn(EndpointState.CLOSED);
 
-        StepVerifier.create(handler.getDeliveredMessages())
+        StepVerifier.create(handler.getMessages())
             .then(() -> handler.onDelivery(event))
             .expectNoEvent(Duration.ofSeconds(1))
             .thenCancel()
@@ -207,7 +223,7 @@ public class ReceiveLinkHandlerTest {
     @Test
     public void close() {
         // Act & Assert
-        StepVerifier.create(handler.getDeliveredMessages())
+        StepVerifier.create(handler.getMessages())
             .then(() -> handler.close())
             .expectComplete()
             .verify(VERIFY_TIMEOUT);

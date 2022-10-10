@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -71,7 +72,7 @@ class RequestResponseChannelTest {
     private static final Duration TRY_TIMEOUT = Duration.ofSeconds(23);
 
     private final AmqpRetryOptions retryOptions = new AmqpRetryOptions().setTryTimeout(TRY_TIMEOUT);
-    private final TestPublisher<Delivery> deliveryProcessor = TestPublisher.createCold();
+    private final TestPublisher<Message> messageProcessor = TestPublisher.createCold();
     private final TestPublisher<EndpointState> receiveEndpoints = TestPublisher.createCold();
     private final TestPublisher<EndpointState> sendEndpoints = TestPublisher.createCold();
     private final TestPublisher<AmqpShutdownSignal> shutdownSignals = TestPublisher.create();
@@ -122,7 +123,7 @@ class RequestResponseChannelTest {
             .thenReturn(sendLinkHandler);
 
         when(receiveLinkHandler.getEndpointStates()).thenReturn(receiveEndpoints.flux());
-        when(receiveLinkHandler.getDeliveredMessages()).thenReturn(deliveryProcessor.flux());
+        when(receiveLinkHandler.getMessages()).thenReturn(messageProcessor.flux());
         when(sendLinkHandler.getEndpointStates()).thenReturn(sendEndpoints.flux());
 
         when(amqpConnection.getShutdownSignals()).thenReturn(shutdownSignals.flux());
@@ -347,7 +348,7 @@ class RequestResponseChannelTest {
 
         // Act
         StepVerifier.create(channel.sendWithAck(message, transactionalState))
-            .then(() -> deliveryProcessor.next(delivery))
+            .then(() -> messageProcessor.next(message))
             .assertNext(received -> assertEquals(messageId, received.getCorrelationId()))
             .expectComplete()
             .verify(VERIFY_TIMEOUT);
@@ -404,7 +405,7 @@ class RequestResponseChannelTest {
 
         // Act
         StepVerifier.create(channel.sendWithAck(message))
-            .then(() -> deliveryProcessor.next(delivery))
+            .then(() -> messageProcessor.next(message))
             .assertNext(received -> assertEquals(messageId, received.getCorrelationId()))
             .expectComplete()
             .verify(VERIFY_TIMEOUT);
@@ -442,6 +443,9 @@ class RequestResponseChannelTest {
         when(serializer.getSize(message)).thenReturn(150);
         when(message.encode(any(), eq(0), anyInt())).thenReturn(encodedSize);
         when(message.getCorrelationId()).thenReturn(messageId);
+        final ApplicationProperties applicationProperties = new ApplicationProperties(new HashMap<>());
+        applicationProperties.getValue().put("statusCode", 202);
+        when(message.getApplicationProperties()).thenReturn(applicationProperties);
 
         // Creating delivery for sending.
         final Delivery deliveryToSend = mock(Delivery.class);
@@ -465,7 +469,7 @@ class RequestResponseChannelTest {
         long start = Instant.now().toEpochMilli();
         // Act
         StepVerifier.create(channel.sendWithAck(message))
-            .then(() -> deliveryProcessor.next(delivery))
+            .then(() -> messageProcessor.next(message))
             .assertNext(received -> assertEquals(messageId, received.getCorrelationId()))
             .expectComplete()
             .verify(VERIFY_TIMEOUT);

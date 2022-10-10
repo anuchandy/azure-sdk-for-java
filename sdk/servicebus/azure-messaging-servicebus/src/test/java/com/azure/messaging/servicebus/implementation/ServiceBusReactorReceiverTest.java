@@ -13,9 +13,9 @@ import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.util.logging.ClientLogger;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.messaging.Source;
-import org.apache.qpid.proton.engine.Delivery;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Receiver;
+import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -57,8 +57,8 @@ class ServiceBusReactorReceiverTest {
     private final EmitterProcessor<EndpointState> endpointStates = EmitterProcessor.create();
     private final FluxSink<EndpointState> endpointStatesSink = endpointStates.sink();
 
-    private final EmitterProcessor<Delivery> deliveryProcessor = EmitterProcessor.create();
-    private final FluxSink<Delivery> deliverySink = deliveryProcessor.sink();
+    private final EmitterProcessor<Message> messageProcessor = EmitterProcessor.create();
+    private final FluxSink<Message> deliverySink = messageProcessor.sink();
 
     @Mock
     private Receiver receiver;
@@ -106,7 +106,7 @@ class ServiceBusReactorReceiverTest {
             return null;
         }).when(reactorDispatcher).invoke(any(), any());
 
-        when(receiveLinkHandler.getDeliveredMessages()).thenReturn(deliveryProcessor);
+        when(receiveLinkHandler.getMessages()).thenReturn(messageProcessor);
         when(receiveLinkHandler.getLinkName()).thenReturn(LINK_NAME);
         when(receiveLinkHandler.getEndpointStates()).thenReturn(endpointStates);
 
