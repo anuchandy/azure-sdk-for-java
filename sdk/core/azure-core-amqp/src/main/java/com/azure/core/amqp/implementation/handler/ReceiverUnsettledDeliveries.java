@@ -51,7 +51,7 @@ import static com.azure.core.util.FluxUtil.monoError;
  * the broker performed upon processing the settlement request and a flag (a.k.a. remotely-settled) indicating
  * whether the broker settled the delivery.
  */
-public final class UnsettledDeliveries implements AutoCloseable {
+final class ReceiverUnsettledDeliveries implements AutoCloseable {
     // Ideally value of this const should be 'deliveryTag' but given the only use case today is as Service Bus
     // LockToken, while logging use the value 'lockToken' to ease log parsing.
     // (TODO: anuchan; consider parametrizing the value).
@@ -88,12 +88,12 @@ public final class UnsettledDeliveries implements AutoCloseable {
      * @param retryOptions    the retry configuration to use when resending a disposition frame that the broker 'Rejected'.
      * @param logger          the logger.
      */
-    UnsettledDeliveries(String hostName,
-                        String entityPath,
-                        String receiveLinkName,
-                        ReactorDispatcher dispatcher,
-                        AmqpRetryOptions retryOptions,
-                        ClientLogger logger) {
+    ReceiverUnsettledDeliveries(String hostName,
+                                String entityPath,
+                                String receiveLinkName,
+                                ReactorDispatcher dispatcher,
+                                AmqpRetryOptions retryOptions,
+                                ClientLogger logger) {
         this.hostName = hostName;
         this.entityPath = entityPath;
         this.receiveLinkName = receiveLinkName;
@@ -106,7 +106,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
 
     /**
      * Function to notify a received delivery that is unsettled on the broker side; the application can later use
-     * {@link UnsettledDeliveries#sendDisposition(String, DeliveryState)} to send a disposition frame requesting
+     * {@link ReceiverUnsettledDeliveries#sendDisposition(String, DeliveryState)} to send a disposition frame requesting
      * settlement of this delivery at the broker.
      *
      * @param deliveryTag the unique delivery tag associated with the {@code delivery}.
@@ -137,7 +137,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
      * Request settlement of delivery (with the unique {@code deliveryTag}) by sending a disposition frame
      * with a state representing the desired-outcome, which the application wishes to occur at the broker.
      * Disposition frame is sent via the same amqp receive-link that delivered the delivery, which was
-     * notified through {@link UnsettledDeliveries#onDelivery(UUID, Delivery)}.
+     * notified through {@link ReceiverUnsettledDeliveries#onDelivery(UUID, Delivery)}.
      *
      * @param deliveryTag  the unique delivery tag identifying the delivery.
      * @param desiredState The state to include in the disposition frame indicating the desired-outcome
@@ -158,7 +158,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
 
     /**
      * The function to notify the broker's acknowledgment in response to a disposition frame sent to the broker
-     * via {@link UnsettledDeliveries#sendDisposition(String, DeliveryState)}.
+     * via {@link ReceiverUnsettledDeliveries#sendDisposition(String, DeliveryState)}.
      * The broker acknowledgment is also a disposition frame; the ProtonJ library will map this disposition
      * frame to the same Delivery in-memory object for which the application requested disposition.
      * As part of mapping, the remote-state (representing remote-outcome) and is-remotely-settled (boolean)
@@ -225,7 +225,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
     }
 
     /**
-     * Attempt any optional graceful (if possible) cleanup and terminate this {@link UnsettledDeliveries}. The function
+     * Attempt any optional graceful (if possible) cleanup and terminate this {@link ReceiverUnsettledDeliveries}. The function
      * eagerly times out any expired disposition work and waits for the completion or timeout of the remaining
      * disposition. Finally, disposes of the timeout timer. Future attempts to notify deliveries or send delivery
      * dispositions will be rejected.
@@ -277,7 +277,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
     }
 
     /**
-     * Closes this {@link UnsettledDeliveries}. Removes locally unsettled deliveries from the internal list of
+     * Closes this {@link ReceiverUnsettledDeliveries}. Removes locally unsettled deliveries from the internal list of
      * ProtonJ TransportSession and force complete any uncompleted work. Future attempts to notify deliveries
      * or send delivery dispositions will be rejected.
      */
@@ -316,7 +316,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
     }
 
     /**
-     * See the doc for {@link UnsettledDeliveries#sendDisposition(String, DeliveryState)}.
+     * See the doc for {@link ReceiverUnsettledDeliveries#sendDisposition(String, DeliveryState)}.
      *
      * @param deliveryTag  the unique delivery tag identifying the delivery.
      * @param desiredState The state to include in the disposition frame indicating the desired-outcome
@@ -468,7 +468,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
 
     /**
      * Iterate through all the {@link DispositionWork}, and 'force' to complete the uncompleted works because
-     * this {@link UnsettledDeliveries} is closed.
+     * this {@link ReceiverUnsettledDeliveries} is closed.
      */
     private void completeUncompletedDispositionWorksOnClose() {
         // Note: Possible to have one function for cleaning both timeout and incomplete works, but readability
@@ -511,7 +511,7 @@ public final class UnsettledDeliveries implements AutoCloseable {
      * with the work, it would also be locally settled.
      * <p>
      * Invocations of this function are guaranteed to be serial, as all call sites originate from
-     * {@link UnsettledDeliveries#onDispositionAck(UUID, Delivery)} running on the ProtonJ Reactor event-loop thread.
+     * {@link ReceiverUnsettledDeliveries#onDispositionAck(UUID, Delivery)} running on the ProtonJ Reactor event-loop thread.
      *
      * @param work            the work to complete.
      * @param delivery        the delivery that the work attempted the disposition, to be locally settled if the broker

@@ -129,6 +129,4 @@ abstract class LinkHandler extends Handler {
             super.close();
         }
     }
-
-
 }
