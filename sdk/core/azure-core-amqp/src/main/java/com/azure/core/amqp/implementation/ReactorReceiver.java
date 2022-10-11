@@ -299,7 +299,8 @@ public class ReactorReceiver implements AmqpReceiveLink, AsyncCloseable, AutoClo
     }
 
     /**
-     * Beings the client side close by initiating local-close on underlying receiver.
+     * Begins the client side close by requesting receive link handler for any graceful resource
+     * cleanup, then initiating local-close on underlying receiver.
      *
      * @param errorCondition Error condition associated with close operation.
      * @return a {@link Mono} when subscribed attempt to initiate local-close, emitting {@code true}
