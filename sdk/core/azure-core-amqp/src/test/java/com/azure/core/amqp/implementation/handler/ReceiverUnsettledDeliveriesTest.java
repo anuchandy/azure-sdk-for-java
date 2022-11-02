@@ -41,6 +41,8 @@ public class ReceiverUnsettledDeliveriesTest {
     private static final String HOSTNAME = "hostname";
     private static final String ENTITY_PATH = "/orders";
     private static final String RECEIVER_LINK_NAME = "orders-link";
+    final String DISPOSITION_ERROR_ON_CLOSE = "The receiver didn't receive the disposition acknowledgment "
+        + "due to receive link closure.";
     private final ClientLogger logger = new ClientLogger(ReceiverUnsettledDeliveriesTest.class);
     private final AmqpRetryOptions retryOptions = new AmqpRetryOptions();
     private AutoCloseable mocksCloseable;
@@ -124,7 +126,7 @@ public class ReceiverUnsettledDeliveriesTest {
         final DeliveryState desiredState = Accepted.getInstance();
         final DeliveryState remoteState = desiredState;
 
-        doAnswer(runnableAnswer()).when(reactorDispatcher).invoke(any(Runnable.class));
+        doAnswer(byRunningRunnable()).when(reactorDispatcher).invoke(any(Runnable.class));
         when(delivery.getRemoteState()).thenReturn(remoteState);
         when(delivery.remotelySettled()).thenReturn(true);
 
@@ -144,7 +146,7 @@ public class ReceiverUnsettledDeliveriesTest {
         final DeliveryState desiredState = Accepted.getInstance();
         final DeliveryState remoteState = Released.getInstance();
 
-        doAnswer(runnableAnswer()).when(reactorDispatcher).invoke(any(Runnable.class));
+        doAnswer(byRunningRunnable()).when(reactorDispatcher).invoke(any(Runnable.class));
         when(delivery.getRemoteState()).thenReturn(remoteState);
         when(delivery.remotelySettled()).thenReturn(true);
 
@@ -170,7 +172,7 @@ public class ReceiverUnsettledDeliveriesTest {
         final DeliveryState desiredState = Accepted.getInstance();
         final DeliveryState remoteState = new Declared();
 
-        doAnswer(runnableAnswer()).when(reactorDispatcher).invoke(any(Runnable.class));
+        doAnswer(byRunningRunnable()).when(reactorDispatcher).invoke(any(Runnable.class));
         when(delivery.getRemoteState()).thenReturn(remoteState);
         when(delivery.remotelySettled()).thenReturn(true);
 
@@ -193,8 +195,8 @@ public class ReceiverUnsettledDeliveriesTest {
         final UUID deliveryTag = UUID.randomUUID();
         final DeliveryState desiredState = Accepted.getInstance();
         final DeliveryState remoteState = desiredState;
-        final RunnableAnswerWithCount answerWithCount = new RunnableAnswerWithCount();
-        doAnswer(answerWithCount).when(reactorDispatcher).invoke(any(Runnable.class));
+        final AnswerCountAndRunRunnable answer = new AnswerCountAndRunRunnable();
+        doAnswer(answer).when(reactorDispatcher).invoke(any(Runnable.class));
         when(delivery.getRemoteState()).thenReturn(remoteState);
         when(delivery.remotelySettled()).thenReturn(true);
 
@@ -206,7 +208,7 @@ public class ReceiverUnsettledDeliveriesTest {
             for (int i = 0; i < 3; i++) {
                 StepVerifier.create(dispositionMono).verifyComplete();
             }
-            Assertions.assertEquals(1, answerWithCount.getInvocationCount());
+            Assertions.assertEquals(1, answer.getInvocationCount());
         }
     }
 
@@ -215,8 +217,8 @@ public class ReceiverUnsettledDeliveriesTest {
         final UUID deliveryTag = UUID.randomUUID();
         final DeliveryState desiredState = Accepted.getInstance();
         final DeliveryState remoteState = new Declared();
-        final RunnableAnswerWithCount answerWithCount = new RunnableAnswerWithCount();
-        doAnswer(answerWithCount).when(reactorDispatcher).invoke(any(Runnable.class));
+        final AnswerCountAndRunRunnable answer = new AnswerCountAndRunRunnable();
+        doAnswer(answer).when(reactorDispatcher).invoke(any(Runnable.class));
         when(delivery.getRemoteState()).thenReturn(remoteState);
         when(delivery.remotelySettled()).thenReturn(true);
 
@@ -233,48 +235,106 @@ public class ReceiverUnsettledDeliveriesTest {
                         lastError[0] = error;
                         return;
                     }
-                    if (lastError[0] != error) {
-                        throw new AssertionError("Expected replay of the same error object as the last one,"
-                            + " but received a new error object.");
-                    }
+                    Assertions.assertEquals(lastError[0],
+                        error,
+                        "Expected replay of the last error object, but received a new error object.");
                 });
             }
-            Assertions.assertEquals(1, answerWithCount.getInvocationCount());
+            Assertions.assertEquals(1, answer.getInvocationCount());
         }
     }
 
     @Test
-    public void pendingSendDispositionErrorsUponClose() throws IOException {
+    public void pendingSendDispositionErrorsOnClose() throws IOException {
         final UUID deliveryTag = UUID.randomUUID();
         final DeliveryState desiredState = Accepted.getInstance();
         final DeliveryState remoteState = new Declared();
-        final String expectedErrorMessage = "The receiver didn't receive the disposition acknowledgment "
-            + "due to receive link closure.";
 
-        doAnswer(runnableAnswer()).when(reactorDispatcher).invoke(any(Runnable.class));
+        doAnswer(byRunningRunnable()).when(reactorDispatcher).invoke(any(Runnable.class));
         when(delivery.getRemoteState()).thenReturn(remoteState);
         when(delivery.remotelySettled()).thenReturn(true);
 
-        ReceiverUnsettledDeliveries deliveries = createTestUnsettledDeliveries();
-        deliveries.onDelivery(deliveryTag, delivery);
-        final Mono<Void> dispositionMono = deliveries.sendDisposition(deliveryTag.toString(), desiredState);
-        dispositionMono.subscribe();
-        deliveries.close();
-        StepVerifier.create(dispositionMono)
-            .verifyErrorSatisfies(error -> {
-                Assertions.assertTrue(error instanceof AmqpException);
-                Assertions.assertEquals(expectedErrorMessage, error.getMessage());
-            });
+        final ReceiverUnsettledDeliveries deliveries = createTestUnsettledDeliveries();
+        try {
+            deliveries.onDelivery(deliveryTag, delivery);
+            final Mono<Void> dispositionMono = deliveries.sendDisposition(deliveryTag.toString(), desiredState);
+            dispositionMono.subscribe();
+            deliveries.close();
+            StepVerifier.create(dispositionMono)
+                .verifyErrorSatisfies(error -> {
+                    Assertions.assertTrue(error instanceof AmqpException);
+                    Assertions.assertEquals(DISPOSITION_ERROR_ON_CLOSE, error.getMessage());
+                });
+        } finally {
+            deliveries.close();
+        }
+    }
+
+    @Test
+    public void preCloseAwaitForSendDispositionCompletion() throws IOException {
+        final UUID deliveryTag = UUID.randomUUID();
+        final DeliveryState desiredState = Accepted.getInstance();
+        final DeliveryState remoteState = desiredState;
+
+        doAnswer(byRunningRunnable()).when(reactorDispatcher).invoke(any(Runnable.class));
+        when(delivery.getRemoteState()).thenReturn(remoteState);
+        when(delivery.remotelySettled()).thenReturn(true);
+
+        try (ReceiverUnsettledDeliveries deliveries = createTestUnsettledDeliveries()) {
+            deliveries.onDelivery(deliveryTag, delivery);
+            final Mono<Void> dispositionMono = deliveries.sendDisposition(deliveryTag.toString(), desiredState);
+            dispositionMono.subscribe();
+
+            StepVerifier.create(deliveries.preClose())
+                .then(() -> deliveries.onDispositionAck(deliveryTag, delivery))
+                .verifyComplete();
+
+            StepVerifier.create(dispositionMono).verifyComplete();
+        }
+    }
+
+    @Test
+    public void closeDoNotWaitForSendDispositionCompletion() throws IOException {
+        final UUID deliveryTag = UUID.randomUUID();
+        final DeliveryState desiredState = Accepted.getInstance();
+        final DeliveryState remoteState = desiredState;
+
+        doAnswer(byRunningRunnable()).when(reactorDispatcher).invoke(any(Runnable.class));
+        when(delivery.getRemoteState()).thenReturn(remoteState);
+        when(delivery.remotelySettled()).thenReturn(true);
+
+        final ReceiverUnsettledDeliveries deliveries = createTestUnsettledDeliveries();
+        try {
+            deliveries.onDelivery(deliveryTag, delivery);
+            final Mono<Void> dispositionMono = deliveries.sendDisposition(deliveryTag.toString(), desiredState);
+            dispositionMono.subscribe();
+
+            StepVerifier.create(Mono.<Void>fromRunnable(() -> deliveries.close()))
+                .then(() -> deliveries.onDispositionAck(deliveryTag, delivery))
+                .verifyComplete();
+
+            StepVerifier.create(dispositionMono)
+                .verifyErrorSatisfies(error -> {
+                    Assertions.assertTrue(error instanceof AmqpException);
+                    Assertions.assertEquals(DISPOSITION_ERROR_ON_CLOSE, error.getMessage());
+                });
+        } finally {
+            deliveries.close();
+        }
     }
 
     @Test
     public void settlesUnsettledDeliveriesOnClose() throws IOException {
-        doAnswer(runnableAnswer()).when(reactorDispatcher).invoke(any(Runnable.class));
-        ReceiverUnsettledDeliveries deliveries = createTestUnsettledDeliveries();
-        deliveries.onDelivery(UUID.randomUUID(), delivery);
-        deliveries.close();
-        verify(delivery).disposition(any());
-        verify(delivery).settle();
+        doAnswer(byRunningRunnable()).when(reactorDispatcher).invoke(any(Runnable.class));
+        final ReceiverUnsettledDeliveries deliveries = createTestUnsettledDeliveries();
+        try {
+            deliveries.onDelivery(UUID.randomUUID(), delivery);
+            deliveries.close();
+            verify(delivery).disposition(any());
+            verify(delivery).settle();
+        } finally {
+            deliveries.close();
+        }
     }
 
     private ReceiverUnsettledDeliveries createTestUnsettledDeliveries() {
@@ -282,7 +342,7 @@ public class ReceiverUnsettledDeliveriesTest {
             reactorDispatcher, retryOptions, logger);
     }
 
-    private Answer<Void> runnableAnswer() {
+    private static Answer<Void> byRunningRunnable() {
         return invocation -> {
             final Runnable runnable = invocation.getArgument(0);
             runnable.run();
@@ -290,7 +350,7 @@ public class ReceiverUnsettledDeliveriesTest {
         };
     }
 
-    private static final class RunnableAnswerWithCount implements Answer<Void> {
+    private static final class AnswerCountAndRunRunnable implements Answer<Void> {
         private int invocationCount = 0;
 
         int getInvocationCount() {
