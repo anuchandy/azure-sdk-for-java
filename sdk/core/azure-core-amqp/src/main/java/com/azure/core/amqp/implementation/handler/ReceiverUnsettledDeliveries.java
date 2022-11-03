@@ -341,7 +341,12 @@ final class ReceiverUnsettledDeliveries implements AutoCloseable {
             try {
                 dispatcher.invoke(() -> {
                     delivery.disposition(desiredState);
-                    pendingDispositions.put(deliveryTag, work);
+                    if (pendingDispositions.putIfAbsent(deliveryTag, work) != null) {
+                        work.onComplete(new AmqpException(false,
+                            "A disposition requested earlier is waiting for the broker's ack; "
+                                + "a new disposition request is not allowed.",
+                            null));
+                    }
                 });
             } catch (IOException | RejectedExecutionException dispatchError) {
                 work.onComplete(new AmqpException(false, "updateDisposition failed while dispatching to Reactor.",
