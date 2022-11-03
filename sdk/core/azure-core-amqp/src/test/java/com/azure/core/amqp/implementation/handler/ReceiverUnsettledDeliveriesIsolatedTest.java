@@ -72,7 +72,7 @@ public class ReceiverUnsettledDeliveriesIsolatedTest {
 
         doAnswer(byRunningRunnable()).when(reactorDispatcher).invoke(any(Runnable.class));
 
-        try (ReceiverUnsettledDeliveries deliveries = createTestUnsettledDeliveries()) {
+        try (ReceiverUnsettledDeliveries deliveries = createUnsettledDeliveries()) {
             deliveries.onDelivery(deliveryTag, delivery);
             final Mono<Void> dispositionMono = deliveries.sendDisposition(deliveryTag.toString(), Accepted.getInstance());
             try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
@@ -87,7 +87,7 @@ public class ReceiverUnsettledDeliveriesIsolatedTest {
         }
     }
 
-    private ReceiverUnsettledDeliveries createTestUnsettledDeliveries() {
+    private ReceiverUnsettledDeliveries createUnsettledDeliveries() {
         return new ReceiverUnsettledDeliveries(HOSTNAME, ENTITY_PATH, RECEIVER_LINK_NAME,
             reactorDispatcher, retryOptions, logger);
     }
