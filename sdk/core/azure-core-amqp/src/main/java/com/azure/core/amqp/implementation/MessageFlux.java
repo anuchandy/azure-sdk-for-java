@@ -126,7 +126,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             this.prefetch = prefetch;
             this.retryPolicy = retryPolicy;
 
-            final String subscriberId = StringUtil.getRandomString("rsbr");
+            final String subscriberId = StringUtil.getRandomString("rrr");
             final Map<String, Object> loggingContext = new HashMap<>(1);
             loggingContext.put(SUBSCRIBER_ID_KEY, subscriberId);
             this.logger = new ClientLogger(RecoverableReactorReceiver.class, loggingContext);
@@ -177,7 +177,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                     .addKeyValue("oldLinkName", mediatorHolder.getLinkName())
                     .addKeyValue(LINK_NAME_KEY, receiver.getLinkName())
                     .addKeyValue(ENTITY_PATH_KEY, receiver.getEntityPath())
-                    .log("Got a receiver when RecoverableServiceBusReactiveReceiver is already terminated.");
+                    .log("Got a ReactorReceiver when the MessageFlux is already terminated.");
                 receiver.closeAsync().subscribe();
                 Operators.onDiscard(receiver, messageSubscriber.currentContext());
             }
@@ -185,7 +185,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
 
         /**
          * Invoked by the upstream to signal operator termination with an error or invoked from the drain-loop
-         * to signal operator termination due to retry exhaust error.
+         * to signal operator termination due to non-retriable or retry exhaust error.
          *
          * @param e the error signaled.
          */
@@ -196,13 +196,13 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 return;
             }
 
-            // It is possible that the upstream error and retry exhaust error signals concurrently; if so,
-            // a CompositeException object holds both errors.
+            // It is possible that the upstream error and non-retriable or retry exhaust error signals concurrently;
+            // if so, a CompositeException object holds both errors.
             if (Exceptions.addThrowable(ERROR, this, e)) {
                 done = true;
                 drain(null);
             } else {
-                // If the drain-loop processed the last error, then further errors dropped through the standard
+                // Once the drain-loop processed the last error, then further errors dropped through the standard
                 // Reactor channel. E.g., retry exhaust error happened and, as part of its processing, upstream
                 // gets canceled, but if upstream still emits an error, then it gets dropped.
                 Operators.onErrorDropped(e, messageSubscriber.currentContext());
@@ -377,7 +377,8 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                     }
 
                     // or pending signal from the upstream to terminate the operator with error or completion
-                    // or last drain-loop iteration detected retry exhaust needing operator termination with error,
+                    // or last drain-loop iteration detected non-retriable or retry exhaust error needing operator
+                    // termination,
                     if (terminateIfErroredOrUpstreamCompleted(done, true, downstream, null)) {
                         return;
                     }
@@ -428,7 +429,8 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * CONTRACT: Never invoke from the outside of serialized drain-loop.
          * <br/>
          * See if the upstream signaled the operator termination with error or completion or drain-loop detected
-         * retry exhaust needing operator termination with error; if so, react to it by terminating downstream.
+         * non-retriable or retry exhaust error needing operator termination; if so, react to it by terminating
+         * downstream.
          *
          * @param d indicate if the operator termination was signaled.
          * @param hasMediator indicate there is no active mediator and there won't be one in the future.
@@ -445,8 +447,9 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 if (e != null && e != Exceptions.TERMINATED) {
                     // A non-null 'e' indicates upstream signaled operator termination with an error, or there is
                     // non-retriable or retry exhausted error; let's terminate the local resources
-                    // (canceling upstream, freezing 'e' by marking it as TERMINATED, freezing mediator-holder)
                     // and propagate the error to terminate the downstream.
+
+                    // Freezing 'e' (by marking it as TERMINATED) to drop further error signals to 'onError'.
                     e = Exceptions.terminate(ERROR, this);
                     Operators.onDiscard(messageDropped, downstream.currentContext());
                     upstream.cancel();
@@ -479,9 +482,9 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         /**
          * CONTRACT: Never invoke from the outside of serialized drain-loop.
          * <br/>
-         * Request the next mediator if the operator is not in a termination signaled state and if the retry
-         * is not exhausted. If there is a non-retriable or retry is exhaust error, then proceed with error-ed
-         * termination of the operator.
+         * Request the next mediator if the operator is not in a termination signaled state and error is
+         * retriable and the retry is not exhausted. If there is a non-retriable or retry is exhaust error,
+         * then proceed with error-ed termination of the operator.
          *
          * @param error the error that leads to error-ed termination of the last mediator or {@code null}
          *              if terminated with completion.
@@ -508,6 +511,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 delay = Duration.ofSeconds(1);
             } else {
                 // error != null
+                // TODO (anu): it seems Event Hubs Processor retries only on receiver completion, not when error-ed. If true, we need a flag.
                 final int attempt = retryAttempts.incrementAndGet();
                 delay = retryPolicy.calculateRetryDelay(error, attempt);
                 if (delay == null) {
