@@ -171,8 +171,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 // by invoking 'onMediatorReady'.
                 mediator.onParentReady();
             } else {
-                // the MediatorHolder rejected the mediator as holder was frozen due to operator cancellation or
-                // termination.
+                // the MediatorHolder rejected the mediator as holder was frozen due to operator termination.
                 logger.atWarning()
                     .addKeyValue("oldLinkName", mediatorHolder.getLinkName())
                     .addKeyValue(LINK_NAME_KEY, receiver.getLinkName())
@@ -463,6 +462,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 if (completeAfterMediatorFlush) {
                     // The termination of the downstream with completion should happen only after the current mediator
                     // is drained and terminated.
+                    // [Note: downstream completion awaiting on flush is experimental & disabled].
                     if (!hasMediator) {
                         // No mediator indicates, had there a mediator, it will be now drained and terminated.
                         downstream.onComplete();
@@ -483,7 +483,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * CONTRACT: Never invoke from the outside of serialized drain-loop.
          * <br/>
          * Request the next mediator if the operator is not in a termination signaled state and error is
-         * retriable and the retry is not exhausted. If there is a non-retriable or retry is exhaust error,
+         * retriable and the retry is not exhausted. If there is a non-retriable or retry exhaust error,
          * then proceed with error-ed termination of the operator.
          *
          * @param error the error that leads to error-ed termination of the last mediator or {@code null}
