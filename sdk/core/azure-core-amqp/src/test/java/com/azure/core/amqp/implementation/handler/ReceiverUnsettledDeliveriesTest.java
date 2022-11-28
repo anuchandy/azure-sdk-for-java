@@ -157,6 +157,7 @@ public class ReceiverUnsettledDeliveriesTest {
             StepVerifier.create(dispositionMono)
                 .then(() -> deliveries.onDispositionAck(deliveryTag, delivery))
                 .verifyComplete();
+            verify(delivery).disposition(desiredState);
             Assertions.assertFalse(deliveries.containsDelivery(deliveryTag));
         }
     }
@@ -182,6 +183,7 @@ public class ReceiverUnsettledDeliveriesTest {
                     Assertions.assertNotNull(amqpError.getErrorCondition());
                     Assertions.assertEquals(AmqpErrorCondition.OPERATION_CANCELLED, amqpError.getErrorCondition());
                 });
+            verify(delivery).disposition(desiredState);
             Assertions.assertFalse(deliveries.containsDelivery(deliveryTag));
         }
     }
@@ -205,6 +207,7 @@ public class ReceiverUnsettledDeliveriesTest {
                     Assertions.assertInstanceOf(AmqpException.class, error);
                     Assertions.assertEquals(remoteState.toString(), error.getMessage());
                 });
+            verify(delivery).disposition(desiredState);
             Assertions.assertFalse(deliveries.containsDelivery(deliveryTag));
         }
     }
@@ -223,8 +226,6 @@ public class ReceiverUnsettledDeliveriesTest {
         when(delivery.remotelySettled()).thenReturn(true);
 
         try (ReceiverUnsettledDeliveries deliveries = createUnsettledDeliveries()) {
-            deliveries.onDelivery(deliveryTag, delivery);
-            final Mono<Void> dispositionMono = deliveries.sendDisposition(deliveryTag.toString(), desiredState);
             doAnswer(__ -> {
                 if (dispositionCallCount[0] != 0) {
                     deliveries.onDispositionAck(deliveryTag, delivery);
@@ -232,6 +233,9 @@ public class ReceiverUnsettledDeliveriesTest {
                 dispositionCallCount[0]++;
                 return null;
             }).when(delivery).disposition(any());
+
+            deliveries.onDelivery(deliveryTag, delivery);
+            final Mono<Void> dispositionMono = deliveries.sendDisposition(deliveryTag.toString(), desiredState);
             StepVerifier.create(dispositionMono)
                 .then(() -> deliveries.onDispositionAck(deliveryTag, delivery))
                 .verifyErrorSatisfies(error -> {
