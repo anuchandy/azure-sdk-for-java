@@ -214,6 +214,25 @@ public class ReactorReceiver implements AmqpReceiveLink, AsyncCloseable, AutoClo
         });
     }
 
+    public void scheduleFlow(Supplier<Long> creditSupplier) throws IllegalStateException,
+        UncheckedIOException,
+        RejectedExecutionException {
+        if (isDisposed()) {
+            throw new IllegalStateException("Cannot add credits to closed link: " + getLinkName());
+        }
+        try {
+            dispatcher.invoke(() -> {
+                final long credit = creditSupplier.get();
+                receiver.flow((int) credit);
+                metricsProvider.recordAddCredits((int) credit);
+            });
+        } catch (IOException e) {
+            throw new UncheckedIOException(String.format(
+                "connectionId[%s] linkName[%s] Unable to schedule work to add more credits.",
+                handler.getConnectionId(), getLinkName()), e);
+        }
+    }
+
     @Override
     public String getLinkName() {
         return handler.getLinkName();
