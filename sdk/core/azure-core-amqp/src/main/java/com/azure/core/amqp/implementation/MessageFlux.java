@@ -7,7 +7,6 @@ import com.azure.core.amqp.AmqpEndpointState;
 import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.util.AsyncCloseable;
 import com.azure.core.util.logging.ClientLogger;
-import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.message.Message;
 import org.reactivestreams.Subscription;
 import reactor.core.CoreSubscriber;
@@ -184,7 +183,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
 
         /**
          * Invoked by the upstream to signal operator termination with an error or invoked from the drain-loop
-         * to signal operator termination due to non-retriable or retry exhaust error.
+         * to signal operator termination due to 'non-retriable or retry exhaust' error.
          *
          * @param e the error signaled.
          */
@@ -195,7 +194,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 return;
             }
 
-            // It is possible that the upstream error and non-retriable or retry exhaust error signals concurrently;
+            // It is possible that the upstream error and 'non-retriable or retry exhaust' error signals concurrently;
             // if so, a CompositeException object holds both errors.
             if (Exceptions.addThrowable(ERROR, this, e)) {
                 done = true;
@@ -203,7 +202,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             } else {
                 // Once the drain-loop processed the last error, then further errors dropped through the standard
                 // Reactor channel. E.g., retry exhaust error happened and, as part of its processing, upstream
-                // gets canceled, but if upstream still emits an error, then it gets dropped.
+                // gets canceled, but if upstream still signals an error, then it gets dropped.
                 Operators.onErrorDropped(e, messageSubscriber.currentContext());
             }
         }
@@ -246,9 +245,9 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             }
 
             cancelled = true;
-            // By incrementing wip, signal the active drain-loop about the cancel,
+            // By incrementing wip, indicate the active drain-loop that there is cancel signal to handle,
             if (WIP.getAndIncrement(this) == 0) {
-                // but signaling identified no active drain-loop; hence immediately react to cancel.
+                // but it is identified that there is no active drain-loop; hence immediately react to cancel.
                 upstream.cancel();
                 mediatorHolder.freeze();
                 // wip increment also placed a tombstone on the drain-loop, so further drain(..) calls are nop.
@@ -256,8 +255,8 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         }
 
         /**
-         * Invoked once the new mediator initialized in the 'onNext' is ready to use as a result of its
-         * backing receiver readiness.
+         * Invoked by the new mediator when it is ready to be used. A mediator constructed in 'onNext' moves
+         * to ready state when its backing receiver is active.
          */
         void onMediatorReady() {
             retryAttempts.set(0);
@@ -273,12 +272,13 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * @param dataSignal the message to drop if the operator is terminated by cancellation.
          */
         void drain(Message dataSignal) {
-            // By incrementing wip, signal the drain-loop about readiness of the new mediator, the arrival
-            // of message or operator termination by the upstream,
+            // By incrementing wip, indicate the drain-loop that there is a signal to handle
+            // (signals are - the readiness of a new mediator, request for messages from the downstream,
+            // the arrival of a message, operator termination by the upstream),
             if (WIP.getAndIncrement(this) != 0) {
                 if (dataSignal != null && cancelled) {
-                    // but signaling identified that the tombstone is placed on the drain-loop, so drop the
-                    // data signal, if any (e.g., message), through the standard Reactor channel.
+                    // but it is identified that the tombstone is placed on the drain-loop, so drop the data
+                    // signal, if any (e.g., message), through the standard Reactor channel.
                     Operators.onDiscard(dataSignal, messageSubscriber.currentContext());
                 }
                 return;
@@ -376,8 +376,8 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                     }
 
                     // or pending signal from the upstream to terminate the operator with error or completion
-                    // or last drain-loop iteration detected non-retriable or retry exhaust error needing operator
-                    // termination,
+                    // or last drain-loop iteration detected 'non-retriable or retry exhaust' error needing
+                    // operator termination,
                     if (terminateIfErroredOrUpstreamCompleted(done, true, downstream, null)) {
                         return;
                     }
@@ -428,7 +428,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * CONTRACT: Never invoke from the outside of serialized drain-loop.
          * <br/>
          * See if the upstream signaled the operator termination with error or completion or drain-loop detected
-         * non-retriable or retry exhaust error needing operator termination; if so, react to it by terminating
+         * 'non-retriable or retry exhaust' error needing operator termination; if so, react to it by terminating
          * downstream.
          *
          * @param d indicate if the operator termination was signaled.
@@ -444,9 +444,9 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 // true for 'd' means the operator termination was signaled
                 Throwable e = error;
                 if (e != null && e != Exceptions.TERMINATED) {
-                    // A non-null 'e' indicates upstream signaled operator termination with an error, or there is
-                    // non-retriable or retry exhausted error; let's terminate the local resources
-                    // and propagate the error to terminate the downstream.
+                    // A non-null 'e' indicates upstream signaled operator termination with an error,
+                    // or there is 'non-retriable or retry exhausted' error; let's terminate the local
+                    // resources and propagate the error to terminate the downstream.
 
                     // Freezing 'e' (by marking it as TERMINATED) to drop further error signals to 'onError'.
                     e = Exceptions.terminate(ERROR, this);
@@ -456,12 +456,12 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                     downstream.onError(e);
                     return true;
                 }
-                // The absence of error indicates upstream signaled operator termination with completion; downstream
-                // completion can be delayed until the current mediator's queue is drained and terminated,
-                // or downstream completion can be done eagerly.
+                // The absence of error indicates upstream signaled operator termination with completion;
+                // downstream completion can be delayed until the current mediator's queue is drained and
+                // terminated, or downstream completion can be done eagerly.
                 if (completeAfterMediatorFlush) {
-                    // The termination of the downstream with completion should happen only after the current mediator
-                    // is drained and terminated.
+                    // The termination of the downstream with completion should happen only after the current
+                    // mediator is drained and terminated.
                     // [Note: downstream completion awaiting on flush is experimental & disabled].
                     if (!hasMediator) {
                         // No mediator indicates, had there a mediator, it will be now drained and terminated.
@@ -483,7 +483,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * CONTRACT: Never invoke from the outside of serialized drain-loop.
          * <br/>
          * Request the next mediator if the operator is not in a termination signaled state and error is
-         * retriable and the retry is not exhausted. If there is a non-retriable or retry exhaust error,
+         * retriable and the retry is not exhausted. If there is 'non-retriable or retry exhaust' error,
          * then proceed with error-ed termination of the operator.
          *
          * @param error the error that leads to error-ed termination of the last mediator or {@code null}
@@ -552,7 +552,6 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
      * The mediator that coordinates between {@link RecoverableReactorReceiver} and a {@link ReactorReceiver}.
      */
     private static final class ReactorReceiverMediator implements AsyncCloseable, CoreSubscriber<Message>, Subscription {
-        private static final Message TERMINAL_MESSAGE = Proton.message();
         private final RecoverableReactorReceiver parent;
         private final ReactorReceiver receiver;
         private final int prefetch;
@@ -738,9 +737,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             // The error is delivered through the endpoint-states Flux, so subscribe to endpoint-states
             // Flux once the message publisher Flux terminates.
             return receiver.receive()
-                .concatWith(receiver.getEndpointStates()
-                    .then(Mono.just(TERMINAL_MESSAGE))
-                    .filter(m -> m == TERMINAL_MESSAGE));
+                .concatWith(receiver.getEndpointStates().ignoreElements().cast(Message.class));
         }
 
         /**
@@ -783,7 +780,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                     pendingMessageCount += c;
                     subscription.request(c);
                     if (accumulatedCredit.addAndGet(c) >= prefetch) {
-                        // TODO: Try-Catch-Log
+                        // TODO (anu): Try-Catch-Log
                         receiver.scheduleFlow(() -> accumulatedCredit.getAndSet(0));
                     }
                 }
