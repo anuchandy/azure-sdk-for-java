@@ -1,0 +1,205 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
+package com.azure.core.amqp.implementation;
+
+import com.azure.core.amqp.AmqpEndpointState;
+import com.azure.core.amqp.AmqpRetryOptions;
+import com.azure.core.amqp.AmqpRetryPolicy;
+import com.azure.core.amqp.FixedAmqpRetryPolicy;
+import com.azure.core.amqp.exception.AmqpException;
+import org.apache.qpid.proton.message.Message;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.mockito.internal.verification.AtLeast;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
+import reactor.test.publisher.TestPublisher;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+public class MessageFluxTest {
+    @Mock
+    private AmqpRetryPolicy retryPolicy;
+
+    private AutoCloseable mocksCloseable;
+
+    @BeforeEach
+    public void setup() throws IOException {
+        mocksCloseable = MockitoAnnotations.openMocks(this);
+    }
+
+    @AfterEach
+    public void teardown() throws Exception {
+        Mockito.framework().clearInlineMock(this);
+
+        if (mocksCloseable != null) {
+            mocksCloseable.close();
+        }
+    }
+
+    @Test
+    public void shouldTerminateWhenUpstreamCompleteWithoutEmittingReceiver() {
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+
+        StepVerifier.create(messageFlux)
+            .then(() -> upstream.complete())
+            .verifyComplete();
+
+        upstream.assertCancelled();
+    }
+
+    @Test
+    public void shouldTerminateWhenUpstreamErrorsWithoutEmittingReceiver() {
+        final RuntimeException error = new RuntimeException("error-signal");
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+
+        StepVerifier.create(messageFlux)
+            .then(() -> upstream.error(error))
+            .verifyErrorMatches(e -> e == error);
+
+        upstream.assertCancelled();
+    }
+
+    @Test
+    public void shouldTerminateWhenDownstreamSignalsCancel() {
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+
+        StepVerifier.create(messageFlux)
+            .thenCancel()
+            .verify();
+
+        upstream.assertCancelled();
+    }
+
+    @Test
+    public void shouldCloseReceiverWhenUpstreamComplete() {
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.receive()).thenReturn(Flux.never());
+        when(receiver.getEndpointStates()).thenReturn(Flux.never());
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        StepVerifier.create(messageFlux)
+            .then(() -> upstream.next(receiver))
+            .then(() -> upstream.complete())
+            .verifyComplete();
+
+        verify(receiver).closeAsync();
+        upstream.assertCancelled();
+    }
+
+    @Test
+    public void shouldCloseReceiverWhenUpstreamErrors() {
+        final RuntimeException error = new RuntimeException("error-signal");
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.receive()).thenReturn(Flux.never());
+        when(receiver.getEndpointStates()).thenReturn(Flux.never());
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        StepVerifier.create(messageFlux)
+            .then(() -> upstream.next(receiver))
+            .then(() -> upstream.error(error))
+            .verifyError();
+
+        verify(receiver).closeAsync();
+        upstream.assertCancelled();
+    }
+
+    @Test
+    public void shouldCloseReceiverWhenDownstreamSignalsCancel() {
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.receive()).thenReturn(Flux.never());
+        when(receiver.getEndpointStates()).thenReturn(Flux.never());
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        StepVerifier.create(messageFlux)
+            .then(() -> upstream.next(receiver))
+            .thenCancel()
+            .verify();
+
+        verify(receiver).closeAsync();
+        upstream.assertCancelled();
+    }
+
+    @Test
+    public void shouldTerminateWhenReceiverEmitsNonRetriableError() {
+        final AmqpException error = new AmqpException(false, "non-retriable", null);
+        final AmqpRetryPolicy retryPolicy = new FixedAmqpRetryPolicy(new AmqpRetryOptions());
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.receive()).thenReturn(Flux.empty());
+        when(receiver.getEndpointStates()).thenReturn(Flux.error(error));
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        StepVerifier.create(messageFlux)
+            .then(() -> upstream.next(receiver))
+            .verifyErrorMatches(e -> e == error);
+
+        // Expecting closeAsync invocation from two call sites -
+        // 1. before the retry to obtain the next receiver.
+        // 2. when operator terminates due to non-retriable error.
+        verify(receiver, new AtLeast(2)).closeAsync();
+        upstream.assertCancelled();
+    }
+
+    @Test
+    public void shouldHonorBackpressureRequest() {
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+
+        final int[] requests = new int[] { 24, 12, 6, 3, 3 };
+        final int totalMessages = Arrays.stream(requests).sum();
+        final Message message = mock(Message.class);
+        final List<Message> messages = IntStream.rangeClosed(1, totalMessages)
+            .mapToObj(__ -> message)
+            .collect(Collectors.toList());
+        final TestPublisher<Message> receiverMessages = TestPublisher.createCold();
+        receiverMessages.emit(messages.toArray(new Message[0]));
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.receive()).thenReturn(receiverMessages.flux());
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        StepVerifier.create(messageFlux, 0)
+            .then(() -> upstream.next(receiver))
+            .thenRequest(requests[0])
+            .expectNextCount(requests[0])
+            .thenRequest(requests[1])
+            .expectNextCount(requests[1])
+            .thenRequest(requests[2])
+            .expectNextCount(requests[2])
+            .thenRequest(requests[3] + 100) // last request, demanding more than available.
+            .expectNextCount(requests[3])
+            .then(() -> upstream.complete())
+            .thenConsumeWhile(m -> true)
+            .verifyComplete();
+    }
+}
