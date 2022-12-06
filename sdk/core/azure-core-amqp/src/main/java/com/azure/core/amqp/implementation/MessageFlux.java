@@ -41,6 +41,7 @@ import static com.azure.core.amqp.implementation.ClientConstants.SUBSCRIBER_ID_K
  */
 public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
     private final int prefetch;
+    private final CreditFlowMode creditFlowMode;
     private final AmqpRetryPolicy retryPolicy;
 
     /**
@@ -49,16 +50,19 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
      * @param source the upstream source that, upon request, provide receivers connected to the messaging entity.
      * @param prefetch the number of messages that the operator should prefetch from the messaging entity (for a
      *                 less chatty network and faster message processing on the client).
+     * @param creditFlowMode the mode indicating how to compute the credit and when to send it to the broker.
      * @param retryPolicy the retry policy to use to recover from receiver termination.
      */
     protected MessageFlux(Flux<? extends ReactorReceiver> source,
                           int prefetch,
+                          CreditFlowMode creditFlowMode,
                           AmqpRetryPolicy retryPolicy) {
         super(source);
         if (prefetch < 0) {
             throw new IllegalArgumentException("prefetch >= 0 required but it was " + prefetch);
         }
         this.prefetch = prefetch;
+        this.creditFlowMode = creditFlowMode;
         this.retryPolicy = Objects.requireNonNull(retryPolicy, "'retryPolicy' cannot be null.");
     }
 
@@ -70,7 +74,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
     @Override
     @SuppressWarnings("unchecked")
     public void subscribe(CoreSubscriber<? super Message> actual) {
-        source.subscribe(new RecoverableReactorReceiver((CoreSubscriber<Message>) actual, prefetch, retryPolicy));
+        source.subscribe(new RecoverableReactorReceiver((CoreSubscriber<Message>) actual, prefetch, creditFlowMode, retryPolicy));
     }
 
     /**
@@ -88,6 +92,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         private final MediatorHolder mediatorHolder = new MediatorHolder();
         private final ClientLogger logger;
         private final int prefetch;
+        private final CreditFlowMode creditFlowMode;
         private final AmqpRetryPolicy retryPolicy;
         private final AtomicInteger retryAttempts = new AtomicInteger();
         private final CoreSubscriber<Message> messageSubscriber;
@@ -116,13 +121,16 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * @param messageSubscriber the downstream subscriber to notify the events (messages, termination).
          * @param prefetch the number of messages that the operator should prefetch from the messaging entity
          *                 (for a less chatty network and faster message processing on the client).
+         * @param creditFlowMode the mode indicating how to compute the credit and when to send it to the broker.
          * @param retryPolicy the retry policy to use to recover from receiver termination.
          */
         RecoverableReactorReceiver(CoreSubscriber<Message> messageSubscriber,
                                    int prefetch,
+                                   CreditFlowMode creditFlowMode,
                                    AmqpRetryPolicy retryPolicy) {
             this.messageSubscriber = messageSubscriber;
             this.prefetch = prefetch;
+            this.creditFlowMode = creditFlowMode;
             this.retryPolicy = retryPolicy;
 
             final String subscriberId = StringUtil.getRandomString("rrr");
@@ -161,7 +169,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             }
 
             // Create a new mediator to channel communication between the new receiver and the recoverable-receiver.
-            final ReactorReceiverMediator mediator = new ReactorReceiverMediator(this, receiver, prefetch);
+            final ReactorReceiverMediator mediator = new ReactorReceiverMediator(this, receiver, prefetch, creditFlowMode);
 
             // Request MediatorHolder to set the new mediator as the current (for the drain-loop to pick)
             if (mediatorHolder.trySet(mediator)) {
@@ -555,6 +563,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         private final RecoverableReactorReceiver parent;
         private final ReactorReceiver receiver;
         private final int prefetch;
+        private final CreditFlowMode creditFlowMode;
         private Disposable endpointStateDisposable;
         private volatile boolean ready;
         private CreditAccounting creditAccounting;
@@ -581,11 +590,13 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * @param receiver the receiver backing the mediator.
          * @param prefetch the number of messages to prefetch using the receiver (for a less chatty network
          *                 and faster message processing on the client).
+         * @param creditFlowMode the mode indicating how to compute the credit and when to send it to the broker.
          */
-        ReactorReceiverMediator(RecoverableReactorReceiver parent, ReactorReceiver receiver, int prefetch) {
+        ReactorReceiverMediator(RecoverableReactorReceiver parent, ReactorReceiver receiver, int prefetch, CreditFlowMode creditFlowMode) {
             this.parent = parent;
             this.receiver = receiver;
             this.prefetch = prefetch;
+            this.creditFlowMode = creditFlowMode;
             // Obtain a resizable single-producer & single-consumer queue (SpscLinkedArrayQueue).
             this.queue = Queues.<Message>get(Integer.MAX_VALUE).get();
         }
@@ -617,7 +628,16 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         @Override
         public void onSubscribe(Subscription s) {
             if (Operators.setOnce(S, this, s)) {
-                creditAccounting = new CreditAccounting(receiver, s, prefetch);
+                switch (creditFlowMode) {
+                    case RequestDriven:
+                        creditAccounting = new RequestDrivenCreditAccounting(receiver, s, prefetch);
+                        break;
+                    case EmissionDriven:
+                        creditAccounting = new EmissionDrivenCreditAccounting(receiver, s, prefetch);
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Unknown CreditFlowMode " + creditFlowMode);
+                }
             }
         }
 
@@ -739,53 +759,6 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             return receiver.receive()
                 .concatWith(receiver.getEndpointStates().ignoreElements().cast(Message.class));
         }
-
-        /**
-         * The type tracking the credits for the receiver backing the mediator. It decides when to request messages
-         * to the receiver's message publisher and send the credits to the broker.
-         */
-        private static final class CreditAccounting {
-            private final ReactorReceiver receiver;
-            private final Subscription subscription;
-            private final int prefetch;
-            private long pendingMessageCount;
-            private final AtomicLong accumulatedCredit = new AtomicLong(0);
-
-            /**
-             * Create new CreditAccounting to track credit associated with a receiver backing a mediator.
-             *
-             * @param receiver the receiver for sending credit to the broker.
-             * @param subscription the subscription to the receiver's message publisher to request messages when
-             *                    needed (the publisher won't translate these requests to network credit flow).
-             * @param prefetch the prefetch configured in the mediator.
-             */
-            CreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch) {
-                this.receiver = receiver;
-                this.subscription = subscription;
-                this.prefetch = prefetch;
-                this.pendingMessageCount = 0;
-            }
-
-            /**
-             * Notify the latest view of the downstream request and messages emitted by the emitter-loop during
-             * the last drain-loop iteration.
-             *
-             * @param request the latest view of the downstream request.
-             * @param emitted the number of messages emitted by the latest emitter-loop run.
-             */
-            void update(long request, long emitted) {
-                pendingMessageCount -= emitted;
-                final long c = request - pendingMessageCount + prefetch;
-                if (c > 0) {
-                    pendingMessageCount += c;
-                    subscription.request(c);
-                    if (accumulatedCredit.addAndGet(c) >= prefetch) {
-                        // TODO (anu): Try-Catch-Log
-                        receiver.scheduleFlow(() -> accumulatedCredit.getAndSet(0));
-                    }
-                }
-            }
-        }
     }
 
     /**
@@ -850,6 +823,134 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         String getEntityPath() {
             final ReactorReceiverMediator m = mediator;
             return m != null ? m.receiver.getEntityPath() : null;
+        }
+    }
+
+    /**
+     * Indicates how to compute the credit and when to send it to the broker via a flow performative.
+     */
+    enum CreditFlowMode {
+        /**
+         * When the number of total messages emitted 'n' since the last broker flow is greater than or equal
+         * to a fraction (e.g. 0.5) of the Prefetch, the message-flux will send a flow for the credit 'n'.
+         */
+        EmissionDriven,
+        /**
+         * When the accumulated downstream request 'n' since the last broker flow is greater than or equal to
+         * the Prefetch, the message-flux will send a flow for the credit 'n'.
+         */
+        RequestDriven
+    }
+
+    /**
+     * The type tracking the credits for the receiver backing the mediator. It decides when to request messages
+     * to the receiver's message publisher and send the credits to the broker.
+     */
+    private abstract static class CreditAccounting {
+        protected final ReactorReceiver receiver;
+        protected final Subscription subscription;
+        protected final int prefetch;
+
+        /**
+         * Create new CreditAccounting to track credit associated with a receiver backing a mediator.
+         *
+         * @param receiver the receiver for sending credit to the broker.
+         * @param subscription the subscription to the receiver's message publisher to request messages when
+         *                    needed (the publisher won't translate these requests to network flow performative).
+         * @param prefetch the prefetch configured.
+         */
+        protected CreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch) {
+            this.receiver = receiver;
+            this.subscription = subscription;
+            this.prefetch = prefetch;
+        }
+
+        /**
+         * Notify the latest view of the downstream request and messages emitted by the emitter-loop during
+         * the last drain-loop iteration.
+         *
+         * @param request the latest view of the downstream request.
+         * @param emitted the number of messages emitted by the latest emitter-loop run.
+         */
+        abstract void update(long request, long emitted);
+    }
+
+    /**
+     * The type tracks the downstream request accumulated since the last broker flow and sends a flow
+     * once the value is greater than or equal to the Prefetch.
+     */
+    private static final class RequestDrivenCreditAccounting extends CreditAccounting {
+        private long pendingMessageCount;
+        private final AtomicLong requestAccumulated = new AtomicLong(0);
+
+        /**
+         * Create new CreditAccounting to track the downstream request accumulated and use it to compute
+         * the credit to send.
+         *
+         * @param receiver the receiver for sending credit to the broker.
+         * @param subscription the subscription to the receiver's message publisher to request messages when
+         *                    needed (the publisher won't translate these requests to network flow performative).
+         * @param prefetch the prefetch configured.
+         */
+        RequestDrivenCreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch) {
+            super(receiver, subscription, prefetch);
+        }
+
+        @Override
+        void update(long request, long emitted) {
+            pendingMessageCount -= emitted;
+            final long c = request - pendingMessageCount + prefetch;
+            if (c > 0) {
+                pendingMessageCount += c;
+                subscription.request(c);
+                if (requestAccumulated.addAndGet(c) >= prefetch) {
+                    // TODO (anu): Try-Catch-Log
+                    receiver.scheduleFlow(() -> requestAccumulated.getAndSet(0));
+                }
+            }
+        }
+    }
+
+    /**
+     * The type tracks the number of messages emitted to downstream since the last broker flow and sends a flow
+     * once the value is greater than or equal to a fraction (e.g., 0.5) of the Prefetch.
+     */
+    private static final class EmissionDrivenCreditAccounting extends CreditAccounting {
+        private boolean placedInitialCredit;
+        private final int limit;
+        private final AtomicLong emissionAccumulated = new AtomicLong(0);
+
+        /**
+         * Create new CreditAccounting to track the messages emitted downstream and use it to compute
+         * the credit to send.
+         * @param receiver the receiver for sending credit to the broker.
+         * @param subscription the subscription to the receiver's message publisher to request messages when
+         *                    needed (the publisher won't translate these requests to network flow performative).
+         * @param prefetch the prefetch configured.
+         */
+        EmissionDrivenCreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch) {
+            super(receiver, subscription, prefetch);
+            if (prefetch == Integer.MAX_VALUE) {
+                this.limit = Integer.MAX_VALUE;
+            } else {
+                // Refill the buffer once 50% of the buffer has emitted.
+                this.limit = prefetch - (prefetch >> 1);
+            }
+        }
+
+        @Override
+        void update(long request, long emitted) {
+            if (emitted != 0L) {
+                subscription.request(emitted);
+                if (emissionAccumulated.addAndGet(emitted) >= limit) {
+                    // TODO (anu): Try-Catch-Log
+                    receiver.scheduleFlow(() -> emissionAccumulated.getAndSet(0));
+                }
+            } else if (!placedInitialCredit) {
+                placedInitialCredit = true;
+                subscription.request(prefetch);
+                receiver.scheduleFlow(() -> Long.valueOf(prefetch));
+            }
         }
     }
 }

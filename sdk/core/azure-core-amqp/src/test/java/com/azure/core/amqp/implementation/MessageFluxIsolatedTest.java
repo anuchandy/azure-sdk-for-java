@@ -8,6 +8,7 @@ import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.amqp.FixedAmqpRetryPolicy;
 import com.azure.core.amqp.exception.AmqpException;
+import com.azure.core.amqp.implementation.MessageFlux.CreditFlowMode;
 import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -70,7 +71,7 @@ public class MessageFluxIsolatedTest {
     @Execution(ExecutionMode.SAME_THREAD)
     public void shouldGetNextReceiverWhenCurrentTerminateWithRetriableError() {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -106,7 +107,7 @@ public class MessageFluxIsolatedTest {
     @Execution(ExecutionMode.SAME_THREAD)
     public void shouldGetNextReceiverWhenCurrentTerminateWithCompletion() {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -142,7 +143,7 @@ public class MessageFluxIsolatedTest {
     @Execution(ExecutionMode.SAME_THREAD)
     public void shouldNotGetNextReceiverWhenCurrentTerminateWithNonRetriableError() {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -182,7 +183,7 @@ public class MessageFluxIsolatedTest {
     public void shouldTerminateWhenRetriesOfReceiversErrorExhausts() {
         final AmqpException error = new AmqpException(true, "retriable", null);
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade receiverFacade = new ReactorReceiverFacade(upstream,
@@ -221,7 +222,7 @@ public class MessageFluxIsolatedTest {
     public void receiverShouldGetRequestOnceEndpointIsActive() {
         final int request = 5;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade receiverFacade = new ReactorReceiverFacade(upstream, receiver);
@@ -248,7 +249,7 @@ public class MessageFluxIsolatedTest {
     public void receiverShouldNotGetRequestIfEndpointIsNeverActive() {
         final int request = 5;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade receiverFacade = new ReactorReceiverFacade(upstream, receiver);
@@ -275,7 +276,7 @@ public class MessageFluxIsolatedTest {
     public void shouldTransferRequestToNextReceiver() {
         final int request = 10;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -314,7 +315,7 @@ public class MessageFluxIsolatedTest {
     public void shouldTransferPendingRequestToNextReceiver() {
         final Duration retryDelay = Duration.ofSeconds(1);
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -360,7 +361,7 @@ public class MessageFluxIsolatedTest {
     @Execution(ExecutionMode.SAME_THREAD)
     public void shouldDrainErroredReceiverBeforeGettingNextReceiver() {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.createCold();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream,
@@ -410,7 +411,7 @@ public class MessageFluxIsolatedTest {
     @Execution(ExecutionMode.SAME_THREAD)
     public void shouldDrainCompletedReceiverBeforeGettingNextReceiver() {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.createCold();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream,
@@ -459,7 +460,7 @@ public class MessageFluxIsolatedTest {
     public void initialCreditShouldBeSumOfDemandAndPrefetch() {
         final int prefetch = 100;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
@@ -493,7 +494,7 @@ public class MessageFluxIsolatedTest {
     public void shouldSendAccumulatedCreditWhenDemandAccumulatedEqualsPrefetch() {
         final int prefetch = 100;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
@@ -543,7 +544,7 @@ public class MessageFluxIsolatedTest {
     public void shouldSendAccumulatedCreditWhenDemandAccumulatedGreaterThanPrefetch() {
         final int prefetch = 100;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
@@ -593,7 +594,7 @@ public class MessageFluxIsolatedTest {
     public void shouldSendCreditOnRequestWhenPrefetchDisabled() {
         final int prefetch = 0;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());

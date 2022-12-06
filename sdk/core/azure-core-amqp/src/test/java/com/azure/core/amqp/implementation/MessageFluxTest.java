@@ -8,6 +8,7 @@ import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.amqp.FixedAmqpRetryPolicy;
 import com.azure.core.amqp.exception.AmqpException;
+import com.azure.core.amqp.implementation.MessageFlux.CreditFlowMode;
 import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,7 +55,7 @@ public class MessageFluxTest {
     @Test
     public void shouldTerminateWhenUpstreamCompleteWithoutEmittingReceiver() {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         StepVerifier.create(messageFlux)
             .then(() -> upstream.complete())
@@ -67,7 +68,7 @@ public class MessageFluxTest {
     public void shouldTerminateWhenUpstreamErrorsWithoutEmittingReceiver() {
         final RuntimeException error = new RuntimeException("error-signal");
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         StepVerifier.create(messageFlux)
             .then(() -> upstream.error(error))
@@ -79,7 +80,7 @@ public class MessageFluxTest {
     @Test
     public void shouldTerminateWhenDownstreamSignalsCancel() {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         StepVerifier.create(messageFlux)
             .thenCancel()
@@ -91,7 +92,7 @@ public class MessageFluxTest {
     @Test
     public void shouldCloseReceiverWhenUpstreamComplete() {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
@@ -111,7 +112,7 @@ public class MessageFluxTest {
     public void shouldCloseReceiverWhenUpstreamErrors() {
         final RuntimeException error = new RuntimeException("error-signal");
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
@@ -130,7 +131,7 @@ public class MessageFluxTest {
     @Test
     public void shouldCloseReceiverWhenDownstreamSignalsCancel() {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
@@ -151,7 +152,7 @@ public class MessageFluxTest {
         final AmqpException error = new AmqpException(false, "non-retriable", null);
         final AmqpRetryPolicy retryPolicy = new FixedAmqpRetryPolicy(new AmqpRetryOptions());
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.empty());
@@ -172,7 +173,7 @@ public class MessageFluxTest {
     @Test
     public void shouldHonorBackpressureRequest() {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final int[] requests = new int[] { 24, 12, 6, 3, 3 };
         final int totalMessages = Arrays.stream(requests).sum();
