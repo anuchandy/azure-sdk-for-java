@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Supplier;
 
 import static com.azure.core.amqp.implementation.ClientConstants.ENTITY_PATH_KEY;
 import static com.azure.core.amqp.implementation.ClientConstants.LINK_NAME_KEY;
@@ -847,7 +848,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
      * to the receiver's message publisher and send the credits to the broker.
      */
     private abstract static class CreditAccounting {
-        protected final ReactorReceiver receiver;
+        private final ReactorReceiver receiver;
         protected final Subscription subscription;
         protected final int prefetch;
 
@@ -866,6 +867,8 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         }
 
         /**
+         * CONTRACT: Never invoke from the outside of serialized drain-loop.
+         * <br/>
          * Notify the latest view of the downstream request and messages emitted by the emitter-loop during
          * the last drain-loop iteration.
          *
@@ -873,6 +876,16 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * @param emitted the number of messages emitted by the latest emitter-loop run.
          */
         abstract void update(long request, long emitted);
+
+        /**
+         * Request receiver to schedule sending of a flow performative to the broker.
+         *
+         * @param creditSupplier the supplier that supplies the credit to send using flow.
+         */
+        protected void scheduleFlow(Supplier<Long> creditSupplier) {
+            // TODO (anu): Try-Catch-Log
+            receiver.scheduleFlow(creditSupplier);
+        }
     }
 
     /**
@@ -904,8 +917,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 pendingMessageCount += c;
                 subscription.request(c);
                 if (requestAccumulated.addAndGet(c) >= prefetch) {
-                    // TODO (anu): Try-Catch-Log
-                    receiver.scheduleFlow(() -> requestAccumulated.getAndSet(0));
+                    scheduleFlow(() -> requestAccumulated.getAndSet(0));
                 }
             }
         }
@@ -916,6 +928,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
      * once the value is greater than or equal to a fraction (e.g., 0.5) of the Prefetch.
      */
     private static final class EmissionDrivenCreditAccounting extends CreditAccounting {
+        private static final int MAX_VALUE_OVERRIDE = 100;
         private boolean placedInitialCredit;
         private final int limit;
         private final AtomicLong emissionAccumulated = new AtomicLong(0);
@@ -929,13 +942,9 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * @param prefetch the prefetch configured.
          */
         EmissionDrivenCreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch) {
-            super(receiver, subscription, prefetch);
-            if (prefetch == Integer.MAX_VALUE) {
-                this.limit = Integer.MAX_VALUE;
-            } else {
-                // Refill the buffer once 50% of the buffer has emitted.
-                this.limit = prefetch - (prefetch >> 1);
-            }
+            super(receiver, subscription, prefetch == Integer.MAX_VALUE ? MAX_VALUE_OVERRIDE : prefetch);
+            // Refill the buffer once 50% of the buffer has emitted.
+            this.limit = this.prefetch - (this.prefetch >> 1);
         }
 
         @Override
@@ -943,13 +952,19 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             if (emitted != 0L) {
                 subscription.request(emitted);
                 if (emissionAccumulated.addAndGet(emitted) >= limit) {
-                    // TODO (anu): Try-Catch-Log
-                    receiver.scheduleFlow(() -> emissionAccumulated.getAndSet(0));
+                    scheduleFlow(() -> emissionAccumulated.getAndSet(0));
                 }
             } else if (!placedInitialCredit) {
                 placedInitialCredit = true;
-                subscription.request(prefetch);
-                receiver.scheduleFlow(() -> Long.valueOf(prefetch));
+                final long initialCredit;
+                // prefetch >= 0 is guaranteed.
+                if (prefetch > 0) {
+                    initialCredit = prefetch;
+                } else {
+                    initialCredit = (request == Integer.MAX_VALUE) ? MAX_VALUE_OVERRIDE : request;
+                }
+                subscription.request(initialCredit);
+                scheduleFlow(() -> Long.valueOf(initialCredit));
             }
         }
     }
