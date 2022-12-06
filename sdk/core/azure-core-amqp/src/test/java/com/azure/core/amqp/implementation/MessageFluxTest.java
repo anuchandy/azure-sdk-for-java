@@ -12,7 +12,8 @@ import com.azure.core.amqp.implementation.MessageFlux.CreditFlowMode;
 import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -52,10 +53,11 @@ public class MessageFluxTest {
         }
     }
 
-    @Test
-    public void shouldTerminateWhenUpstreamCompleteWithoutEmittingReceiver() {
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
+    public void shouldTerminateWhenUpstreamCompleteWithoutEmittingReceiver(CreditFlowMode creditFlowMode) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         StepVerifier.create(messageFlux)
             .then(() -> upstream.complete())
@@ -64,11 +66,12 @@ public class MessageFluxTest {
         upstream.assertCancelled();
     }
 
-    @Test
-    public void shouldTerminateWhenUpstreamErrorsWithoutEmittingReceiver() {
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
+    public void shouldTerminateWhenUpstreamErrorsWithoutEmittingReceiver(CreditFlowMode creditFlowMode) {
         final RuntimeException error = new RuntimeException("error-signal");
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         StepVerifier.create(messageFlux)
             .then(() -> upstream.error(error))
@@ -77,10 +80,11 @@ public class MessageFluxTest {
         upstream.assertCancelled();
     }
 
-    @Test
-    public void shouldTerminateWhenDownstreamSignalsCancel() {
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
+    public void shouldTerminateWhenDownstreamSignalsCancel(CreditFlowMode creditFlowMode) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         StepVerifier.create(messageFlux)
             .thenCancel()
@@ -89,10 +93,11 @@ public class MessageFluxTest {
         upstream.assertCancelled();
     }
 
-    @Test
-    public void shouldCloseReceiverWhenUpstreamComplete() {
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
+    public void shouldCloseReceiverWhenUpstreamComplete(CreditFlowMode creditFlowMode) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
@@ -108,11 +113,12 @@ public class MessageFluxTest {
         upstream.assertCancelled();
     }
 
-    @Test
-    public void shouldCloseReceiverWhenUpstreamErrors() {
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
+    public void shouldCloseReceiverWhenUpstreamErrors(CreditFlowMode creditFlowMode) {
         final RuntimeException error = new RuntimeException("error-signal");
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
@@ -128,10 +134,11 @@ public class MessageFluxTest {
         upstream.assertCancelled();
     }
 
-    @Test
-    public void shouldCloseReceiverWhenDownstreamSignalsCancel() {
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
+    public void shouldCloseReceiverWhenDownstreamSignalsCancel(CreditFlowMode creditFlowMode) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
@@ -147,12 +154,13 @@ public class MessageFluxTest {
         upstream.assertCancelled();
     }
 
-    @Test
-    public void shouldTerminateWhenReceiverEmitsNonRetriableError() {
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
+    public void shouldTerminateWhenReceiverEmitsNonRetriableError(CreditFlowMode creditFlowMode) {
         final AmqpException error = new AmqpException(false, "non-retriable", null);
         final AmqpRetryPolicy retryPolicy = new FixedAmqpRetryPolicy(new AmqpRetryOptions());
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.empty());
@@ -170,10 +178,11 @@ public class MessageFluxTest {
         upstream.assertCancelled();
     }
 
-    @Test
-    public void shouldHonorBackpressureRequest() {
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
+    public void shouldHonorBackpressureRequest(CreditFlowMode creditFlowMode) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final int[] requests = new int[] { 24, 12, 6, 3, 3 };
         final int totalMessages = Arrays.stream(requests).sum();

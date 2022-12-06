@@ -13,30 +13,23 @@ import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.internal.verification.AtLeast;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.test.StepVerifier;
 import reactor.test.publisher.TestPublisher;
-import reactor.test.scheduler.VirtualTimeScheduler;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -50,7 +43,6 @@ public class MessageFluxIsolatedTest {
     private static final Duration UPSTREAM_DELAY_BEFORE_NEXT = RETRY_DELAY.plusSeconds(1);
     private final AmqpRetryOptions retryOptions = new AmqpRetryOptions().setMaxRetries(MAX_RETRY).setDelay(RETRY_DELAY);
     private final  AmqpRetryPolicy retryPolicy = new FixedAmqpRetryPolicy(retryOptions);
-
     private AutoCloseable mocksCloseable;
 
     @BeforeEach
@@ -67,11 +59,12 @@ public class MessageFluxIsolatedTest {
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldGetNextReceiverWhenCurrentTerminateWithRetriableError() {
+    public void shouldGetNextReceiverWhenCurrentTerminateWithRetriableError(CreditFlowMode creditFlowMode) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -103,11 +96,12 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldGetNextReceiverWhenCurrentTerminateWithCompletion() {
+    public void shouldGetNextReceiverWhenCurrentTerminateWithCompletion(CreditFlowMode creditFlowMode) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -139,11 +133,12 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldNotGetNextReceiverWhenCurrentTerminateWithNonRetriableError() {
+    public void shouldNotGetNextReceiverWhenCurrentTerminateWithNonRetriableError(CreditFlowMode creditFlowMode) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -178,12 +173,13 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldTerminateWhenRetriesOfReceiversErrorExhausts() {
+    public void shouldTerminateWhenRetriesOfReceiversErrorExhausts(CreditFlowMode creditFlowMode) {
         final AmqpException error = new AmqpException(true, "retriable", null);
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade receiverFacade = new ReactorReceiverFacade(upstream,
@@ -217,12 +213,13 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
     @Execution(ExecutionMode.SAME_THREAD)
-    public void receiverShouldGetRequestOnceEndpointIsActive() {
+    public void receiverShouldGetRequestOnceEndpointIsActive(CreditFlowMode creditFlowMode) {
         final int request = 5;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade receiverFacade = new ReactorReceiverFacade(upstream, receiver);
@@ -244,12 +241,13 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
     @Execution(ExecutionMode.SAME_THREAD)
-    public void receiverShouldNotGetRequestIfEndpointIsNeverActive() {
+    public void receiverShouldNotGetRequestIfEndpointIsNeverActive(CreditFlowMode creditFlowMode) {
         final int request = 5;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade receiverFacade = new ReactorReceiverFacade(upstream, receiver);
@@ -271,12 +269,13 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldTransferRequestToNextReceiver() {
+    public void shouldTransferRequestToNextReceiver(CreditFlowMode creditFlowMode) {
         final int request = 10;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -310,12 +309,13 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldTransferPendingRequestToNextReceiver() {
+    public void shouldTransferPendingRequestToNextReceiver(CreditFlowMode creditFlowMode) {
         final Duration retryDelay = Duration.ofSeconds(1);
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -334,7 +334,7 @@ public class MessageFluxIsolatedTest {
         final List<Message> secondReceiverMessages = generateMessages(message, 6);
         final int firstReceiverMessagesCount = firstReceiverMessages.size();
         final int secondReceiverMessagesCount = secondReceiverMessages.size();
-        final int request = firstReceiverMessagesCount + secondReceiverMessagesCount + 5;
+        final int request = firstReceiverMessagesCount + secondReceiverMessagesCount + 5; // 15
 
         try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
             verifier.create(() -> messageFlux)
@@ -352,16 +352,32 @@ public class MessageFluxIsolatedTest {
                 .verifyComplete();
         }
 
-        Assertions.assertEquals(request, firstReceiverFacade.getRequestedMessages());
-        Assertions.assertEquals(request - firstReceiverMessagesCount, secondReceiverFacade.getRequestedMessages());
+        if (creditFlowMode == CreditFlowMode.RequestDriven) {
+            final int expectedRequestToFirstReceiver = request;
+            final int expectedRequestToSecondReceiver = request - firstReceiverMessagesCount;
+            Assertions.assertEquals(expectedRequestToFirstReceiver, firstReceiverFacade.getRequestedMessages());
+            Assertions.assertEquals(expectedRequestToSecondReceiver, secondReceiverFacade.getRequestedMessages());
+        } else {
+            Assertions.assertTrue(creditFlowMode == CreditFlowMode.EmissionDriven);
+            // In EmissionDriven mode with Prefetch as zero - After each emitter-loop execution emitting 'e' messages,
+            // there will be a flow for credit 'e'.
+            // In response to the initial flow with credit 15, the first receiver emits four messages that lead to
+            // the second set of flow(s) requesting total credit 4.
+            // This means expected total demand is 19 [initial flow with credit 15 and following flow(s) for credit 4].
+            final int expectedRequestToFirstReceiver = request + firstReceiverMessagesCount;
+            final int expectedRequestToSecondReceiver = (request - firstReceiverMessagesCount) + secondReceiverMessagesCount;
+            Assertions.assertEquals(expectedRequestToFirstReceiver,  firstReceiverFacade.getRequestedMessages());
+            Assertions.assertEquals(expectedRequestToSecondReceiver, secondReceiverFacade.getRequestedMessages());
+        }
         upstream.assertCancelled();
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldDrainErroredReceiverBeforeGettingNextReceiver() {
+    public void shouldDrainErroredReceiverBeforeGettingNextReceiver(CreditFlowMode creditFlowMode) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.createCold();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream,
@@ -407,11 +423,12 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(CreditFlowMode.class)
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldDrainCompletedReceiverBeforeGettingNextReceiver() {
+    public void shouldDrainCompletedReceiverBeforeGettingNextReceiver(CreditFlowMode creditFlowMode) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.createCold();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream,
@@ -456,196 +473,6 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @Test
-    public void initialCreditShouldBeSumOfDemandAndPrefetch() {
-        final int prefetch = 100;
-        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
-
-        final ReactorReceiver receiver = mock(ReactorReceiver.class);
-        when(receiver.receive()).thenReturn(Flux.never());
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
-        when(receiver.closeAsync()).thenReturn(Mono.empty());
-
-        final AtomicLong initialFlow = new AtomicLong();
-        doAnswer(invocation -> {
-            final Object[] args = invocation.getArguments();
-            @SuppressWarnings("unchecked")
-            final Supplier<Long> creditSupplier = (Supplier<Long>) args[0];
-            Assertions.assertNotNull(creditSupplier);
-            initialFlow.addAndGet(creditSupplier.get());
-            return null;
-        }).when(receiver).scheduleFlow(any());
-
-        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
-            verifier.create(() -> messageFlux)
-                .thenRequest(10)
-                .then(() -> upstream.next(receiver))
-                .then(() -> upstream.complete())
-                .verifyComplete();
-        }
-
-        Assertions.assertEquals(prefetch + 10, initialFlow.get());
-        verify(receiver).closeAsync();
-        upstream.assertCancelled();
-    }
-
-    @Test
-    public void shouldSendAccumulatedCreditWhenDemandAccumulatedEqualsPrefetch() {
-        final int prefetch = 100;
-        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
-
-        final ReactorReceiver receiver = mock(ReactorReceiver.class);
-        when(receiver.receive()).thenReturn(Flux.never());
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
-        when(receiver.closeAsync()).thenReturn(Mono.empty());
-
-        final AtomicInteger flowCalls = new AtomicInteger();
-        final AtomicLong firstFlow = new AtomicLong();
-        final AtomicLong secondFlow = new AtomicLong();
-        doAnswer(invocation -> {
-            final Object[] args = invocation.getArguments();
-            @SuppressWarnings("unchecked")
-            final Supplier<Long> creditSupplier = (Supplier<Long>) args[0];
-            Assertions.assertNotNull(creditSupplier);
-
-            final int calls = flowCalls.incrementAndGet();
-            if (calls == 1) {
-                firstFlow.set(creditSupplier.get());
-            } else if (calls == 2) {
-                secondFlow.set(creditSupplier.get());
-            }
-            return null;
-        }).when(receiver).scheduleFlow(any());
-
-        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
-            verifier.create(() -> messageFlux)
-                .then(() -> upstream.next(receiver))
-                .thenRequest(10)    // 10  -  0  + 100  = 110 [accumulatedCredit_110 >= 100]
-                .thenAwait()
-                .thenRequest(20)    // 30  - 110 + 100  = 20  [accumulatedCredit_20  <  100]
-                .thenRequest(20)    // 50  - 130 + 100  = 20  [accumulatedCredit_40  <  100]
-                .thenRequest(20)    // 70  - 150 + 100  = 20  [accumulatedCredit_60  <  100]
-                .thenRequest(20)    // 90  - 170 + 100  = 20  [accumulatedCredit_80  <  100]
-                .thenRequest(20)    // 110 - 190 + 100 =  20  [accumulatedCredit_100 >= 100]
-                .then(() -> upstream.complete())
-                .verifyComplete();
-        }
-
-        Assertions.assertEquals(2, flowCalls.get());
-        Assertions.assertEquals(prefetch + 10, firstFlow.get());
-        Assertions.assertEquals(prefetch, secondFlow.get());
-        verify(receiver).closeAsync();
-        upstream.assertCancelled();
-    }
-
-    @Test
-    public void shouldSendAccumulatedCreditWhenDemandAccumulatedGreaterThanPrefetch() {
-        final int prefetch = 100;
-        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
-
-        final ReactorReceiver receiver = mock(ReactorReceiver.class);
-        when(receiver.receive()).thenReturn(Flux.never());
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
-        when(receiver.closeAsync()).thenReturn(Mono.empty());
-
-        final AtomicInteger flowCalls = new AtomicInteger();
-        final AtomicLong firstFlow = new AtomicLong();
-        final AtomicLong secondFlow = new AtomicLong();
-        doAnswer(invocation -> {
-            final Object[] args = invocation.getArguments();
-            @SuppressWarnings("unchecked")
-            final Supplier<Long> creditSupplier = (Supplier<Long>) args[0];
-            Assertions.assertNotNull(creditSupplier);
-
-            final int calls = flowCalls.incrementAndGet();
-            if (calls == 1) {
-                firstFlow.set(creditSupplier.get());
-            } else if (calls == 2) {
-                secondFlow.set(creditSupplier.get());
-            }
-            return null;
-        }).when(receiver).scheduleFlow(any());
-
-        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
-            verifier.create(() -> messageFlux)
-                .then(() -> upstream.next(receiver))
-                .thenRequest(10)    // 10 -  0  + 100  = 110 [accumulatedCredit_110 >= 100]
-                .thenAwait()
-                .thenRequest(20)    // 30  - 110 + 100 =  20 [accumulatedCredit_20  <  100]
-                .thenRequest(20)    // 50  - 130 + 100 =  20 [accumulatedCredit_40  <  100]
-                .thenRequest(20)    // 70  - 150 + 100 =  20 [accumulatedCredit_60  <  100]
-                .thenRequest(20)    // 90  - 170 + 100 =  20 [accumulatedCredit_80  <  100]
-                .thenRequest(30)    // 120 - 190 + 100 =  30 [accumulatedCredit_110 >= 100]
-                .then(() -> upstream.complete())
-                .verifyComplete();
-        }
-
-        Assertions.assertEquals(2, flowCalls.get());
-        Assertions.assertEquals(prefetch + 10, firstFlow.get());
-        Assertions.assertEquals(prefetch + 10, secondFlow.get());
-        verify(receiver).closeAsync();
-        upstream.assertCancelled();
-    }
-
-    @Test
-    public void shouldSendCreditOnRequestWhenPrefetchDisabled() {
-        final int prefetch = 0;
-        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
-
-        final ReactorReceiver receiver = mock(ReactorReceiver.class);
-        when(receiver.receive()).thenReturn(Flux.never());
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
-        when(receiver.closeAsync()).thenReturn(Mono.empty());
-
-        final AtomicInteger flowCalls = new AtomicInteger();
-        final AtomicLong firstFlow = new AtomicLong();
-        final AtomicLong secondFlow = new AtomicLong();
-        final AtomicLong thirdFlow = new AtomicLong();
-        final AtomicLong fourthFlow = new AtomicLong();
-        doAnswer(invocation -> {
-            final Object[] args = invocation.getArguments();
-            @SuppressWarnings("unchecked")
-            final Supplier<Long> creditSupplier = (Supplier<Long>) args[0];
-            Assertions.assertNotNull(creditSupplier);
-
-            final int calls = flowCalls.incrementAndGet();
-            if (calls == 1) {
-                firstFlow.set(creditSupplier.get());
-            } else if (calls == 2) {
-                secondFlow.set(creditSupplier.get());
-            } else if (calls == 3) {
-                thirdFlow.set(creditSupplier.get());
-            } else if (calls == 4) {
-                fourthFlow.set(creditSupplier.get());
-            }
-            return null;
-        }).when(receiver).scheduleFlow(any());
-
-        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
-            verifier.create(() -> messageFlux)
-                .then(() -> upstream.next(receiver))
-                .thenRequest(10)   //  10  - 0 + 0  = 10 [accumulatedCredit_10 >= 0]
-                .thenAwait()
-                .thenRequest(20)   //  30  - 10 + 0 = 20 [accumulatedCredit_20 >= 0]
-                .thenRequest(30)   //  60  - 30 + 0 = 30 [accumulatedCredit_30 >= 0]
-                .thenRequest(40)   //  100 - 60 + 0 = 40 [accumulatedCredit_40 >= 0]
-                .then(() -> upstream.complete())
-                .verifyComplete();
-        }
-
-        Assertions.assertEquals(4, flowCalls.get());
-        Assertions.assertEquals(10, firstFlow.get());
-        Assertions.assertEquals(20, secondFlow.get());
-        Assertions.assertEquals(30, thirdFlow.get());
-        Assertions.assertEquals(40, fourthFlow.get());
-        verify(receiver).closeAsync();
-        upstream.assertCancelled();
-    }
-
     private static List<Message> generateMessages(Message message, int count) {
         return IntStream.rangeClosed(1, count)
             .mapToObj(__ -> message)
@@ -653,25 +480,4 @@ public class MessageFluxIsolatedTest {
     }
 
     // TODO (anu): MoreTests: Evaluate ReceiverLinkProcessor tests and migrate to validate equivalent scenarios (if not covered) using MessageFlux.
-
-    /**
-     * An AutoCloseable wrapper over Reactor VirtualTime Verifier.
-     */
-    private static final class VirtualTimeStepVerifier implements AutoCloseable {
-        private final VirtualTimeScheduler scheduler;
-
-        VirtualTimeStepVerifier() {
-            scheduler = VirtualTimeScheduler.create();
-        }
-
-        <T> StepVerifier.Step<T> create(Supplier<Flux<T>> scenarioSupplier) {
-            // VirtualTime Verifier with demand on subscription set to 0.
-            return StepVerifier.withVirtualTime(scenarioSupplier, () -> scheduler, 0);
-        }
-
-        @Override
-        public void close() {
-            scheduler.dispose();
-        }
-    }
 }

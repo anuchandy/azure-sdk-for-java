@@ -1,0 +1,248 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
+package com.azure.core.amqp.implementation;
+
+import com.azure.core.amqp.AmqpEndpointState;
+import com.azure.core.amqp.AmqpRetryOptions;
+import com.azure.core.amqp.AmqpRetryPolicy;
+import com.azure.core.amqp.FixedAmqpRetryPolicy;
+import com.azure.core.amqp.implementation.MessageFlux.CreditFlowMode;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.Isolated;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.publisher.TestPublisher;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@Execution(ExecutionMode.SAME_THREAD)
+@Isolated
+public class MessageFluxRequestDrivenCreditIsolatedTest {
+    private static final int MAX_RETRY = 3;
+    private static final Duration RETRY_DELAY = Duration.ofSeconds(3);
+    private final AmqpRetryOptions retryOptions = new AmqpRetryOptions().setMaxRetries(MAX_RETRY).setDelay(RETRY_DELAY);
+    private final AmqpRetryPolicy retryPolicy = new FixedAmqpRetryPolicy(retryOptions);
+    private AutoCloseable mocksCloseable;
+
+    @BeforeEach
+    public void setup() throws IOException {
+        mocksCloseable = MockitoAnnotations.openMocks(this);
+    }
+
+    @AfterEach
+    public void teardown() throws Exception {
+        Mockito.framework().clearInlineMock(this);
+
+        if (mocksCloseable != null) {
+            mocksCloseable.close();
+        }
+    }
+
+    @Test
+    public void initialCreditShouldBeSumOfDemandAndPrefetch() {
+        final int prefetch = 100;
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.receive()).thenReturn(Flux.never());
+        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        final AtomicLong initialFlow = new AtomicLong();
+        doAnswer(invocation -> {
+            final Object[] args = invocation.getArguments();
+            @SuppressWarnings("unchecked")
+            final Supplier<Long> creditSupplier = (Supplier<Long>) args[0];
+            Assertions.assertNotNull(creditSupplier);
+            initialFlow.addAndGet(creditSupplier.get());
+            return null;
+        }).when(receiver).scheduleFlow(any());
+
+        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
+            verifier.create(() -> messageFlux)
+                .thenRequest(10)
+                .then(() -> upstream.next(receiver))
+                .then(() -> upstream.complete())
+                .verifyComplete();
+        }
+
+        Assertions.assertEquals(prefetch + 10, initialFlow.get());
+        verify(receiver).closeAsync();
+        upstream.assertCancelled();
+    }
+
+    @Test
+    public void shouldSendAccumulatedRequestWhenDemandAccumulatedEqualsPrefetch() {
+        final int prefetch = 100;
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.receive()).thenReturn(Flux.never());
+        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        final AtomicInteger flowCalls = new AtomicInteger();
+        final AtomicLong firstFlow = new AtomicLong();
+        final AtomicLong secondFlow = new AtomicLong();
+        doAnswer(invocation -> {
+            final Object[] args = invocation.getArguments();
+            @SuppressWarnings("unchecked")
+            final Supplier<Long> creditSupplier = (Supplier<Long>) args[0];
+            Assertions.assertNotNull(creditSupplier);
+
+            final int calls = flowCalls.incrementAndGet();
+            if (calls == 1) {
+                firstFlow.set(creditSupplier.get());
+            } else if (calls == 2) {
+                secondFlow.set(creditSupplier.get());
+            }
+            return null;
+        }).when(receiver).scheduleFlow(any());
+
+        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
+            verifier.create(() -> messageFlux)
+                .then(() -> upstream.next(receiver))
+                .thenRequest(10)    // 10  -  0  + 100  = 110 [accumulatedCredit_110 >= 100]
+                .thenAwait()
+                .thenRequest(20)    // 30  - 110 + 100  = 20  [accumulatedCredit_20  <  100]
+                .thenRequest(20)    // 50  - 130 + 100  = 20  [accumulatedCredit_40  <  100]
+                .thenRequest(20)    // 70  - 150 + 100  = 20  [accumulatedCredit_60  <  100]
+                .thenRequest(20)    // 90  - 170 + 100  = 20  [accumulatedCredit_80  <  100]
+                .thenRequest(20)    // 110 - 190 + 100 =  20  [accumulatedCredit_100 >= 100]
+                .then(() -> upstream.complete())
+                .verifyComplete();
+        }
+
+        Assertions.assertEquals(2, flowCalls.get());
+        Assertions.assertEquals(prefetch + 10, firstFlow.get());
+        Assertions.assertEquals(prefetch, secondFlow.get());
+        verify(receiver).closeAsync();
+        upstream.assertCancelled();
+    }
+
+    @Test
+    public void shouldSendAccumulatedRequestedWhenDemandAccumulatedGreaterThanPrefetch() {
+        final int prefetch = 100;
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.receive()).thenReturn(Flux.never());
+        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        final AtomicInteger flowCalls = new AtomicInteger();
+        final AtomicLong firstFlow = new AtomicLong();
+        final AtomicLong secondFlow = new AtomicLong();
+        doAnswer(invocation -> {
+            final Object[] args = invocation.getArguments();
+            @SuppressWarnings("unchecked")
+            final Supplier<Long> creditSupplier = (Supplier<Long>) args[0];
+            Assertions.assertNotNull(creditSupplier);
+
+            final int calls = flowCalls.incrementAndGet();
+            if (calls == 1) {
+                firstFlow.set(creditSupplier.get());
+            } else if (calls == 2) {
+                secondFlow.set(creditSupplier.get());
+            }
+            return null;
+        }).when(receiver).scheduleFlow(any());
+
+        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
+            verifier.create(() -> messageFlux)
+                .then(() -> upstream.next(receiver))
+                .thenRequest(10)    // 10 -  0  + 100  = 110 [accumulatedCredit_110 >= 100]
+                .thenAwait()
+                .thenRequest(20)    // 30  - 110 + 100 =  20 [accumulatedCredit_20  <  100]
+                .thenRequest(20)    // 50  - 130 + 100 =  20 [accumulatedCredit_40  <  100]
+                .thenRequest(20)    // 70  - 150 + 100 =  20 [accumulatedCredit_60  <  100]
+                .thenRequest(20)    // 90  - 170 + 100 =  20 [accumulatedCredit_80  <  100]
+                .thenRequest(30)    // 120 - 190 + 100 =  30 [accumulatedCredit_110 >= 100]
+                .then(() -> upstream.complete())
+                .verifyComplete();
+        }
+
+        Assertions.assertEquals(2, flowCalls.get());
+        Assertions.assertEquals(prefetch + 10, firstFlow.get());
+        Assertions.assertEquals(prefetch + 10, secondFlow.get());
+        verify(receiver).closeAsync();
+        upstream.assertCancelled();
+    }
+
+    @Test
+    public void shouldSendCreditOnRequestWhenPrefetchDisabled() {
+        final int prefetch = 0;
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.receive()).thenReturn(Flux.never());
+        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        final AtomicInteger flowCalls = new AtomicInteger();
+        final AtomicLong firstFlow = new AtomicLong();
+        final AtomicLong secondFlow = new AtomicLong();
+        final AtomicLong thirdFlow = new AtomicLong();
+        final AtomicLong fourthFlow = new AtomicLong();
+        doAnswer(invocation -> {
+            final Object[] args = invocation.getArguments();
+            @SuppressWarnings("unchecked")
+            final Supplier<Long> creditSupplier = (Supplier<Long>) args[0];
+            Assertions.assertNotNull(creditSupplier);
+
+            final int calls = flowCalls.incrementAndGet();
+            if (calls == 1) {
+                firstFlow.set(creditSupplier.get());
+            } else if (calls == 2) {
+                secondFlow.set(creditSupplier.get());
+            } else if (calls == 3) {
+                thirdFlow.set(creditSupplier.get());
+            } else if (calls == 4) {
+                fourthFlow.set(creditSupplier.get());
+            }
+            return null;
+        }).when(receiver).scheduleFlow(any());
+
+        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
+            verifier.create(() -> messageFlux)
+                .then(() -> upstream.next(receiver))
+                .thenRequest(10)   //  10  - 0 + 0  = 10 [accumulatedCredit_10 >= 0]
+                .thenAwait()
+                .thenRequest(20)   //  30  - 10 + 0 = 20 [accumulatedCredit_20 >= 0]
+                .thenRequest(30)   //  60  - 30 + 0 = 30 [accumulatedCredit_30 >= 0]
+                .thenRequest(40)   //  100 - 60 + 0 = 40 [accumulatedCredit_40 >= 0]
+                .then(() -> upstream.complete())
+                .verifyComplete();
+        }
+
+        Assertions.assertEquals(4, flowCalls.get());
+        Assertions.assertEquals(10, firstFlow.get());
+        Assertions.assertEquals(20, secondFlow.get());
+        Assertions.assertEquals(30, thirdFlow.get());
+        Assertions.assertEquals(40, fourthFlow.get());
+        verify(receiver).closeAsync();
+        upstream.assertCancelled();
+    }
+}
