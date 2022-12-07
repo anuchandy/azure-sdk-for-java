@@ -1,0 +1,103 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
+package com.azure.core.amqp.implementation;
+
+import com.azure.core.amqp.AmqpEndpointState;
+import com.azure.core.amqp.AmqpRetryOptions;
+import com.azure.core.amqp.AmqpRetryPolicy;
+import com.azure.core.amqp.FixedAmqpRetryPolicy;
+import com.azure.core.amqp.implementation.MessageFlux.CreditFlowMode;
+import org.apache.qpid.proton.message.Message;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.Isolated;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.publisher.TestPublisher;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@Execution(ExecutionMode.SAME_THREAD)
+@Isolated
+public class MessageFluxEmissionDrivenCreditFlowIsolatedTest {
+    private static final int MAX_RETRY = 3;
+    private static final Duration RETRY_DELAY = Duration.ofSeconds(3);
+    private final AmqpRetryOptions retryOptions = new AmqpRetryOptions().setMaxRetries(MAX_RETRY).setDelay(RETRY_DELAY);
+    private final AmqpRetryPolicy retryPolicy = new FixedAmqpRetryPolicy(retryOptions);
+    private AutoCloseable mocksCloseable;
+
+    @BeforeEach
+    public void setup() throws IOException {
+        mocksCloseable = MockitoAnnotations.openMocks(this);
+    }
+
+    @AfterEach
+    public void teardown() throws Exception {
+        Mockito.framework().clearInlineMock(this);
+
+        if (mocksCloseable != null) {
+            mocksCloseable.close();
+        }
+    }
+
+    @Test
+    @Execution(ExecutionMode.SAME_THREAD)
+    public void initialFlowShouldBePrefetch() {
+        final int prefetch = 100;
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.EmissionDriven, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.receive()).thenReturn(Flux.never());
+        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        final AtomicLong initialFlow = new AtomicLong();
+        doAnswer(invocation -> {
+            final Object[] args = invocation.getArguments();
+            @SuppressWarnings("unchecked")
+            final Supplier<Long> creditSupplier = (Supplier<Long>) args[0];
+            Assertions.assertNotNull(creditSupplier);
+            initialFlow.addAndGet(creditSupplier.get());
+            return null;
+        }).when(receiver).scheduleFlow(any());
+
+        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
+            verifier.create(() -> messageFlux)
+                .thenRequest(10)
+                .then(() -> upstream.next(receiver))
+                .then(() -> upstream.complete())
+                .verifyComplete();
+        }
+
+        Assertions.assertEquals(prefetch, initialFlow.get());
+        verify(receiver).closeAsync();
+        upstream.assertCancelled();
+    }
+
+    private static List<Message> generateMessages(Message message, int count) {
+        return IntStream.rangeClosed(1, count)
+            .mapToObj(__ -> message)
+            .collect(Collectors.toList());
+    }
+
+}

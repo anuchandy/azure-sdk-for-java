@@ -13,11 +13,12 @@ import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.internal.verification.AtLeast;
@@ -60,11 +61,14 @@ public class MessageFluxIsolatedTest {
     }
 
     @ParameterizedTest
-    @EnumSource(CreditFlowMode.class)
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldGetNextReceiverWhenCurrentTerminateWithRetriableError(CreditFlowMode creditFlowMode) {
+    public void shouldGetNextReceiverWhenCurrentTerminateWithRetriableError(CreditFlowMode creditFlowMode, int prefetch) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -97,11 +101,14 @@ public class MessageFluxIsolatedTest {
     }
 
     @ParameterizedTest
-    @EnumSource(CreditFlowMode.class)
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldGetNextReceiverWhenCurrentTerminateWithCompletion(CreditFlowMode creditFlowMode) {
+    public void shouldGetNextReceiverWhenCurrentTerminateWithCompletion(CreditFlowMode creditFlowMode, int prefetch) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -134,11 +141,14 @@ public class MessageFluxIsolatedTest {
     }
 
     @ParameterizedTest
-    @EnumSource(CreditFlowMode.class)
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldNotGetNextReceiverWhenCurrentTerminateWithNonRetriableError(CreditFlowMode creditFlowMode) {
+    public void shouldNotGetNextReceiverWhenCurrentTerminateWithNonRetriableError(CreditFlowMode creditFlowMode, int prefetch) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -174,12 +184,15 @@ public class MessageFluxIsolatedTest {
     }
 
     @ParameterizedTest
-    @EnumSource(CreditFlowMode.class)
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldTerminateWhenRetriesOfReceiversErrorExhausts(CreditFlowMode creditFlowMode) {
+    public void shouldTerminateWhenRetriesOfReceiversErrorExhausts(CreditFlowMode creditFlowMode, int prefetch) {
         final AmqpException error = new AmqpException(true, "retriable", null);
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade receiverFacade = new ReactorReceiverFacade(upstream,
@@ -214,12 +227,15 @@ public class MessageFluxIsolatedTest {
     }
 
     @ParameterizedTest
-    @EnumSource(CreditFlowMode.class)
+    @CsvSource({
+        "EmissionDriven,5",
+        "RequestDriven,0"
+    })
     @Execution(ExecutionMode.SAME_THREAD)
-    public void receiverShouldGetRequestOnceEndpointIsActive(CreditFlowMode creditFlowMode) {
+    public void receiverShouldGetRequestOnceEndpointIsActive(CreditFlowMode creditFlowMode, int prefetch) {
         final int request = 5;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade receiverFacade = new ReactorReceiverFacade(upstream, receiver);
@@ -242,12 +258,15 @@ public class MessageFluxIsolatedTest {
     }
 
     @ParameterizedTest
-    @EnumSource(CreditFlowMode.class)
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
     @Execution(ExecutionMode.SAME_THREAD)
-    public void receiverShouldNotGetRequestIfEndpointIsNeverActive(CreditFlowMode creditFlowMode) {
+    public void receiverShouldNotGetRequestIfEndpointIsNeverActive(CreditFlowMode creditFlowMode, int prefetch) {
         final int request = 5;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade receiverFacade = new ReactorReceiverFacade(upstream, receiver);
@@ -269,13 +288,12 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @ParameterizedTest
-    @EnumSource(CreditFlowMode.class)
+    @Test
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldTransferRequestToNextReceiver(CreditFlowMode creditFlowMode) {
+    public void shouldTransferRequestToNextReceiver() {
         final int request = 10;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -309,13 +327,13 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
-    @ParameterizedTest
-    @EnumSource(CreditFlowMode.class)
+    // TODO (anu): See if test should be split into two, one per *DrivenCreditFlow test.
+    @Test
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldTransferPendingRequestToNextReceiver(CreditFlowMode creditFlowMode) {
+    public void shouldTransferPendingRequestToNextReceiver() {
         final Duration retryDelay = Duration.ofSeconds(1);
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, CreditFlowMode.RequestDriven, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
@@ -352,32 +370,22 @@ public class MessageFluxIsolatedTest {
                 .verifyComplete();
         }
 
-        if (creditFlowMode == CreditFlowMode.RequestDriven) {
-            final int expectedRequestToFirstReceiver = request;
-            final int expectedRequestToSecondReceiver = request - firstReceiverMessagesCount;
-            Assertions.assertEquals(expectedRequestToFirstReceiver, firstReceiverFacade.getRequestedMessages());
-            Assertions.assertEquals(expectedRequestToSecondReceiver, secondReceiverFacade.getRequestedMessages());
-        } else {
-            Assertions.assertTrue(creditFlowMode == CreditFlowMode.EmissionDriven);
-            // In EmissionDriven mode with Prefetch as zero - After each emitter-loop execution emitting 'e' messages,
-            // there will be a flow for credit 'e'.
-            // In response to the initial flow with credit 15, the first receiver emits four messages that lead to
-            // the second set of flow(s) requesting total credit 4.
-            // This means expected total demand is 19 [initial flow with credit 15 and following flow(s) for credit 4].
-            final int expectedRequestToFirstReceiver = request + firstReceiverMessagesCount;
-            final int expectedRequestToSecondReceiver = (request - firstReceiverMessagesCount) + secondReceiverMessagesCount;
-            Assertions.assertEquals(expectedRequestToFirstReceiver,  firstReceiverFacade.getRequestedMessages());
-            Assertions.assertEquals(expectedRequestToSecondReceiver, secondReceiverFacade.getRequestedMessages());
-        }
+        final int expectedRequestToFirstReceiver = request;
+        final int expectedRequestToSecondReceiver = request - firstReceiverMessagesCount;
+        Assertions.assertEquals(expectedRequestToFirstReceiver, firstReceiverFacade.getRequestedMessages());
+        Assertions.assertEquals(expectedRequestToSecondReceiver, secondReceiverFacade.getRequestedMessages());
         upstream.assertCancelled();
     }
 
     @ParameterizedTest
-    @EnumSource(CreditFlowMode.class)
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldDrainErroredReceiverBeforeGettingNextReceiver(CreditFlowMode creditFlowMode) {
+    public void shouldDrainErroredReceiverBeforeGettingNextReceiver(CreditFlowMode creditFlowMode, int prefetch) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.createCold();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream,
@@ -424,11 +432,14 @@ public class MessageFluxIsolatedTest {
     }
 
     @ParameterizedTest
-    @EnumSource(CreditFlowMode.class)
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
     @Execution(ExecutionMode.SAME_THREAD)
-    public void shouldDrainCompletedReceiverBeforeGettingNextReceiver(CreditFlowMode creditFlowMode) {
+    public void shouldDrainCompletedReceiverBeforeGettingNextReceiver(CreditFlowMode creditFlowMode, int prefetch) {
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.createCold();
-        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), 0, creditFlowMode, retryPolicy);
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
 
         final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
         final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream,

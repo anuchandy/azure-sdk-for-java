@@ -35,7 +35,7 @@ import static org.mockito.Mockito.when;
 
 @Execution(ExecutionMode.SAME_THREAD)
 @Isolated
-public class MessageFluxRequestDrivenCreditIsolatedTest {
+public class MessageFluxRequestDrivenCreditFlowIsolatedTest {
     private static final int MAX_RETRY = 3;
     private static final Duration RETRY_DELAY = Duration.ofSeconds(3);
     private final AmqpRetryOptions retryOptions = new AmqpRetryOptions().setMaxRetries(MAX_RETRY).setDelay(RETRY_DELAY);
@@ -57,6 +57,7 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
     }
 
     @Test
+    @Execution(ExecutionMode.SAME_THREAD)
     public void initialFlowShouldBeSumOfRequestAndPrefetch() {
         final int prefetch = 100;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
@@ -91,6 +92,7 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
     }
 
     @Test
+    @Execution(ExecutionMode.SAME_THREAD)
     public void shouldSendFlowWhenRequestAccumulatedEqualsPrefetch() {
         final int prefetch = 100;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
@@ -122,13 +124,13 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
         try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
             verifier.create(() -> messageFlux)
                 .then(() -> upstream.next(receiver))
-                .thenRequest(10)    // 10  -  0  + 100  = 110 [accumulatedCredit_110 >= 100]
+                .thenRequest(10)    // 10  -  0  + 100  = 110 [accumulatedRequest_110 >= 100]
                 .thenAwait()
-                .thenRequest(20)    // 30  - 110 + 100  = 20  [accumulatedCredit_20  <  100]
-                .thenRequest(20)    // 50  - 130 + 100  = 20  [accumulatedCredit_40  <  100]
-                .thenRequest(20)    // 70  - 150 + 100  = 20  [accumulatedCredit_60  <  100]
-                .thenRequest(20)    // 90  - 170 + 100  = 20  [accumulatedCredit_80  <  100]
-                .thenRequest(20)    // 110 - 190 + 100 =  20  [accumulatedCredit_100 >= 100]
+                .thenRequest(20)    // 30  - 110 + 100  = 20  [accumulatedRequest_20  <  100]
+                .thenRequest(20)    // 50  - 130 + 100  = 20  [accumulatedRequest_40  <  100]
+                .thenRequest(20)    // 70  - 150 + 100  = 20  [accumulatedRequest_60  <  100]
+                .thenRequest(20)    // 90  - 170 + 100  = 20  [accumulatedRequest_80  <  100]
+                .thenRequest(20)    // 110 - 190 + 100 =  20  [accumulatedRequest_100 >= 100]
                 .then(() -> upstream.complete())
                 .verifyComplete();
         }
@@ -141,6 +143,7 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
     }
 
     @Test
+    @Execution(ExecutionMode.SAME_THREAD)
     public void shouldSendFlowWhenRequestAccumulatedGreaterThanPrefetch() {
         final int prefetch = 100;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
@@ -172,13 +175,13 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
         try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
             verifier.create(() -> messageFlux)
                 .then(() -> upstream.next(receiver))
-                .thenRequest(10)    // 10 -  0  + 100  = 110 [accumulatedCredit_110 >= 100]
+                .thenRequest(10)    // 10 -  0  + 100  = 110 [accumulatedRequest_110 >= 100]
                 .thenAwait()
-                .thenRequest(20)    // 30  - 110 + 100 =  20 [accumulatedCredit_20  <  100]
-                .thenRequest(20)    // 50  - 130 + 100 =  20 [accumulatedCredit_40  <  100]
-                .thenRequest(20)    // 70  - 150 + 100 =  20 [accumulatedCredit_60  <  100]
-                .thenRequest(20)    // 90  - 170 + 100 =  20 [accumulatedCredit_80  <  100]
-                .thenRequest(30)    // 120 - 190 + 100 =  30 [accumulatedCredit_110 >= 100]
+                .thenRequest(20)    // 30  - 110 + 100 =  20 [accumulatedRequest_20  <  100]
+                .thenRequest(20)    // 50  - 130 + 100 =  20 [accumulatedRequest_40  <  100]
+                .thenRequest(20)    // 70  - 150 + 100 =  20 [accumulatedRequest_60  <  100]
+                .thenRequest(20)    // 90  - 170 + 100 =  20 [accumulatedRequest_80  <  100]
+                .thenRequest(30)    // 120 - 190 + 100 =  30 [accumulatedRequest_110 >= 100]
                 .then(() -> upstream.complete())
                 .verifyComplete();
         }
@@ -191,7 +194,8 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
     }
 
     @Test
-    public void shouldSendFlowOnRequestWhenPrefetchDisabled() {
+    @Execution(ExecutionMode.SAME_THREAD)
+    public void shouldSendFlowOnRequestWhenNoPrefetch() {
         final int prefetch = 0;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
         final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
@@ -228,11 +232,11 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
         try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
             verifier.create(() -> messageFlux)
                 .then(() -> upstream.next(receiver))
-                .thenRequest(10)   //  10  - 0 + 0  = 10 [accumulatedCredit_10 >= 0]
+                .thenRequest(10)   //  10  - 0 + 0  = 10 [accumulatedRequest_10 >= 0]
                 .thenAwait()
-                .thenRequest(20)   //  30  - 10 + 0 = 20 [accumulatedCredit_20 >= 0]
-                .thenRequest(30)   //  60  - 30 + 0 = 30 [accumulatedCredit_30 >= 0]
-                .thenRequest(40)   //  100 - 60 + 0 = 40 [accumulatedCredit_40 >= 0]
+                .thenRequest(20)   //  30  - 10 + 0 = 20 [accumulatedRequest_20 >= 0]
+                .thenRequest(30)   //  60  - 30 + 0 = 30 [accumulatedRequest_30 >= 0]
+                .thenRequest(40)   //  100 - 60 + 0 = 40 [accumulatedRequest_40 >= 0]
                 .then(() -> upstream.complete())
                 .verifyComplete();
         }
