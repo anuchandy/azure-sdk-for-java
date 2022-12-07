@@ -893,6 +893,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
      * once the value is greater than or equal to the Prefetch.
      */
     private static final class RequestDrivenCreditAccounting extends CreditAccounting {
+        private static final int MAX_VALUE_BOUND = 100;
         private long pendingMessageCount;
         private final AtomicLong requestAccumulated = new AtomicLong(0);
 
@@ -906,7 +907,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * @param prefetch the prefetch configured.
          */
         RequestDrivenCreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch) {
-            super(receiver, subscription, prefetch);
+            super(receiver, subscription, validateAndBound(prefetch));
         }
 
         @Override
@@ -921,6 +922,13 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 }
             }
         }
+
+        private static int validateAndBound(int prefetch) {
+            if (prefetch < 0) {
+                throw new IllegalArgumentException("prefetch >= 0 required but it was " + prefetch);
+            }
+            return prefetch == Integer.MAX_VALUE ? MAX_VALUE_BOUND : prefetch;
+        }
     }
 
     /**
@@ -928,7 +936,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
      * once the value is greater than or equal to a fraction (e.g., 0.5) of the Prefetch.
      */
     private static final class EmissionDrivenCreditAccounting extends CreditAccounting {
-        private static final int MAX_VALUE_OVERRIDE = 100;
+        private static final int MAX_VALUE_BOUND = 100;
         private boolean placedInitialCredit;
         private final int limit;
         private final AtomicLong emissionAccumulated = new AtomicLong(0);
@@ -942,7 +950,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * @param prefetch the prefetch configured.
          */
         EmissionDrivenCreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch) {
-            super(receiver, subscription, prefetch == Integer.MAX_VALUE ? MAX_VALUE_OVERRIDE : prefetch);
+            super(receiver, subscription, validateAndBound(prefetch));
             // Refill the buffer once 50% of the buffer has emitted.
             this.limit = this.prefetch - (this.prefetch >> 1);
         }
@@ -956,16 +964,16 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 }
             } else if (!placedInitialCredit) {
                 placedInitialCredit = true;
-                final long initialCredit;
-                // prefetch >= 0 is guaranteed.
-                if (prefetch > 0) {
-                    initialCredit = prefetch;
-                } else {
-                    initialCredit = (request == Integer.MAX_VALUE) ? MAX_VALUE_OVERRIDE : request;
-                }
-                subscription.request(initialCredit);
-                scheduleFlow(() -> Long.valueOf(initialCredit));
+                subscription.request(prefetch);
+                scheduleFlow(() -> Long.valueOf(prefetch));
             }
+        }
+
+        private static int validateAndBound(int prefetch) {
+            if (prefetch <= 0) {
+                throw new IllegalArgumentException("prefetch >= 1 required but it was " + prefetch);
+            }
+            return prefetch == Integer.MAX_VALUE ? MAX_VALUE_BOUND : prefetch;
         }
     }
 }

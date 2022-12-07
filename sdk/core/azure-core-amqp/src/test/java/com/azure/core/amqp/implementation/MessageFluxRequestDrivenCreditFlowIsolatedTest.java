@@ -57,7 +57,7 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
     }
 
     @Test
-    public void initialCreditShouldBeSumOfDemandAndPrefetch() {
+    public void initialFlowShouldBeSumOfRequestAndPrefetch() {
         final int prefetch = 100;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
         final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
@@ -91,7 +91,7 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
     }
 
     @Test
-    public void shouldSendAccumulatedRequestWhenDemandAccumulatedEqualsPrefetch() {
+    public void shouldSendFlowWhenRequestAccumulatedEqualsPrefetch() {
         final int prefetch = 100;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
         final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
@@ -141,7 +141,7 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
     }
 
     @Test
-    public void shouldSendAccumulatedRequestedWhenDemandAccumulatedGreaterThanPrefetch() {
+    public void shouldSendFlowWhenRequestAccumulatedGreaterThanPrefetch() {
         final int prefetch = 100;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
         final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
@@ -191,7 +191,7 @@ public class MessageFluxRequestDrivenCreditIsolatedTest {
     }
 
     @Test
-    public void shouldSendCreditOnRequestWhenPrefetchDisabled() {
+    public void shouldSendFlowOnRequestWhenPrefetchDisabled() {
         final int prefetch = 0;
         final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
         final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
