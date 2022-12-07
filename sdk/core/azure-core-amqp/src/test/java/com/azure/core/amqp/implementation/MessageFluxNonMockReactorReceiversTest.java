@@ -9,7 +9,6 @@ import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.amqp.FixedAmqpRetryPolicy;
 import com.azure.core.amqp.implementation.handler.DeliverySettleMode;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
-import com.azure.core.amqp.implementation.MessageFlux.CreditFlowMode;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.messaging.Source;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
