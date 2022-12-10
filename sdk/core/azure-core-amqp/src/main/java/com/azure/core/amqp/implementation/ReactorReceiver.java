@@ -11,6 +11,7 @@ import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.util.AsyncCloseable;
 import com.azure.core.util.logging.ClientLogger;
 import org.apache.qpid.proton.amqp.Symbol;
+import org.apache.qpid.proton.amqp.transport.DeliveryState;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Receiver;
@@ -174,6 +175,11 @@ public class ReactorReceiver implements AmqpReceiveLink, AsyncCloseable, AutoClo
     @Override
     public Flux<Message> receive() {
         return messagesProcessor;
+    }
+
+    @Override
+    public Mono<Void> updateDisposition(String lockToken, DeliveryState deliveryState) {
+        return handler.sendDisposition(lockToken, deliveryState);
     }
 
     @Override

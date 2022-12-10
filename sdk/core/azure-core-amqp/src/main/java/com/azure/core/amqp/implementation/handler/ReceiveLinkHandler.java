@@ -193,7 +193,7 @@ public class ReceiveLinkHandler extends LinkHandler {
     }
 
     /**
-     * Request settlement of an unsettled delivery (with the unique {@code deliveryTag}) by sending
+     * Request settlement of an unsettled delivery (identified by the unique {@code deliveryTag}) by sending
      * a disposition frame with a state representing the desired-outcome, which the application wishes to
      * occur at the broker.
      * <p>

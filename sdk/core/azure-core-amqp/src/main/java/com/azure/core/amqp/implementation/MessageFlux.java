@@ -7,6 +7,7 @@ import com.azure.core.amqp.AmqpEndpointState;
 import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.util.AsyncCloseable;
 import com.azure.core.util.logging.ClientLogger;
+import org.apache.qpid.proton.amqp.transport.DeliveryState;
 import org.apache.qpid.proton.message.Message;
 import org.reactivestreams.Subscription;
 import reactor.core.CoreSubscriber;
@@ -29,10 +30,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.BiFunction;
 
+import static com.azure.core.amqp.implementation.ClientConstants.DELIVERY_STATE_KEY;
 import static com.azure.core.amqp.implementation.ClientConstants.ENTITY_PATH_KEY;
 import static com.azure.core.amqp.implementation.ClientConstants.LINK_NAME_KEY;
+import static com.azure.core.amqp.implementation.ClientConstants.DELIVERY_TAG_KEY;
 import static com.azure.core.amqp.implementation.ClientConstants.SUBSCRIBER_ID_KEY;
+import static com.azure.core.util.FluxUtil.monoError;
 
 /**
  * The Flux operator to stream messages reliably from a messaging entity (e.g., Event Hub, Service Bus Queue)
@@ -42,6 +47,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
     private final int prefetch;
     private final CreditFlowMode creditFlowMode;
     private final AmqpRetryPolicy retryPolicy;
+    private volatile BiFunction<String, DeliveryState, Mono<Void>> updateDispositionFunc;
 
     /**
      * Create a message-flux to stream messages from a messaging entity to downstream subscriber.
@@ -52,7 +58,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
      * @param creditFlowMode the mode indicating how to compute the credit and when to send it to the broker.
      * @param retryPolicy the retry policy to use to recover from receiver termination.
      */
-    protected MessageFlux(Flux<? extends ReactorReceiver> source,
+    public MessageFlux(Flux<? extends ReactorReceiver> source,
                           int prefetch,
                           CreditFlowMode creditFlowMode,
                           AmqpRetryPolicy retryPolicy) {
@@ -63,6 +69,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         this.prefetch = prefetch;
         this.creditFlowMode = creditFlowMode;
         this.retryPolicy = Objects.requireNonNull(retryPolicy, "'retryPolicy' cannot be null.");
+        this.updateDispositionFunc = (t, s) -> Mono.error(new IllegalStateException("Cannot disposition as no receive-link is established."));
     }
 
     /**
@@ -73,7 +80,31 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
     @Override
     @SuppressWarnings("unchecked")
     public void subscribe(CoreSubscriber<? super Message> actual) {
-        source.subscribe(new RecoverableReactorReceiver((CoreSubscriber<Message>) actual, prefetch, creditFlowMode, retryPolicy));
+        source.subscribe(new RecoverableReactorReceiver(this, (CoreSubscriber<Message>) actual, prefetch, creditFlowMode, retryPolicy));
+    }
+
+    /**
+     * Updates the disposition state of a message uniquely identified by the given delivery tag.
+     *
+     * @param deliveryTag delivery tag of message.
+     * @param deliveryState Delivery state of message.
+     *
+     * @return A Mono that completes when the state is successfully updated and acknowledged by message broker.
+     */
+    public Mono<Void> updateDisposition(String deliveryTag, DeliveryState deliveryState) {
+        final BiFunction<String, DeliveryState, Mono<Void>> updateDispositionFunc = this.updateDispositionFunc;
+        return updateDispositionFunc.apply(deliveryTag, deliveryState);
+    }
+
+    /**
+     * The method is invoked when a new backing receiver is attached to the messaging entity from which this
+     * message-flux instance stream messages. There will be only one backing receiver at a time, and this method
+     * notifies the function to disposition messages arrive in that receiver.
+     *
+     * @param updateDispositionFunc the function to disposition messages delivered by the current backing receiver.
+     */
+    void onNextUpdateDispositionFunction(BiFunction<String, DeliveryState, Mono<Void>> updateDispositionFunc) {
+        this.updateDispositionFunc = updateDispositionFunc;
     }
 
     /**
@@ -89,10 +120,11 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         private  final boolean completeAfterMediatorFlush = false;
         // holds the current mediator that coordinates between a receiver and the recoverable-receiver.
         private final MediatorHolder mediatorHolder = new MediatorHolder();
-        private final ClientLogger logger;
+        private final MessageFlux parent;
         private final int prefetch;
         private final CreditFlowMode creditFlowMode;
         private final AmqpRetryPolicy retryPolicy;
+        private final ClientLogger logger;
         private final AtomicInteger retryAttempts = new AtomicInteger();
         private final CoreSubscriber<Message> messageSubscriber;
         volatile Throwable error;
@@ -117,16 +149,19 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * Create a recoverable-receiver to support the message-flux to stream messages from a messaging entity
          * to downstream subscriber.
          *
+         * @param parent the parent message-flux.
          * @param messageSubscriber the downstream subscriber to notify the events (messages, termination).
          * @param prefetch the number of messages that the operator should prefetch from the messaging entity
          *                 (for a less chatty network and faster message processing on the client).
          * @param creditFlowMode the mode indicating how to compute the credit and when to send it to the broker.
          * @param retryPolicy the retry policy to use to recover from receiver termination.
          */
-        RecoverableReactorReceiver(CoreSubscriber<Message> messageSubscriber,
+        RecoverableReactorReceiver(MessageFlux parent,
+                                   CoreSubscriber<Message> messageSubscriber,
                                    int prefetch,
                                    CreditFlowMode creditFlowMode,
                                    AmqpRetryPolicy retryPolicy) {
+            this.parent = parent;
             this.messageSubscriber = messageSubscriber;
             this.prefetch = prefetch;
             this.creditFlowMode = creditFlowMode;
@@ -168,7 +203,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             }
 
             // Create a new mediator to channel communication between the new receiver and the recoverable-receiver.
-            final ReactorReceiverMediator mediator = new ReactorReceiverMediator(this, receiver, prefetch, creditFlowMode);
+            final ReactorReceiverMediator mediator = new ReactorReceiverMediator(this, receiver, prefetch, creditFlowMode, logger);
 
             // Request MediatorHolder to set the new mediator as the current (for the drain-loop to pick)
             if (mediatorHolder.trySet(mediator)) {
@@ -264,9 +299,12 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         /**
          * Invoked by the new mediator when it is ready to be used. A mediator constructed in 'onNext' moves
          * to ready state when its backing receiver is active.
+         *
+         * @param updateDispositionFunc the function to disposition messages from mediator's backing receiver.
          */
-        void onMediatorReady() {
+        void onMediatorReady(BiFunction<String, DeliveryState, Mono<Void>> updateDispositionFunc) {
             retryAttempts.set(0);
+            parent.onNextUpdateDispositionFunction(updateDispositionFunc);
             // After invoking 'messageSubscriber.onSubscribe(subscription)' and before the readiness
             // of the mediator, there may be request signals for messages from the downstream, invoke
             // drain(...) to process those signals.
@@ -559,10 +597,12 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
      * The mediator that coordinates between {@link RecoverableReactorReceiver} and a {@link ReactorReceiver}.
      */
     private static final class ReactorReceiverMediator implements AsyncCloseable, CoreSubscriber<Message>, Subscription {
+        private static final Subscription CANCELLED_SUBSCRIPTION = Operators.cancelledSubscription();
         private final RecoverableReactorReceiver parent;
         private final ReactorReceiver receiver;
         private final int prefetch;
         private final CreditFlowMode creditFlowMode;
+        private final ClientLogger logger;
         private Disposable endpointStateDisposable;
         private volatile boolean ready;
         private CreditAccounting creditAccounting;
@@ -591,11 +631,13 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          *                 and faster message processing on the client).
          * @param creditFlowMode the mode indicating how to compute the credit and when to send it to the broker.
          */
-        ReactorReceiverMediator(RecoverableReactorReceiver parent, ReactorReceiver receiver, int prefetch, CreditFlowMode creditFlowMode) {
+        ReactorReceiverMediator(RecoverableReactorReceiver parent, ReactorReceiver receiver, int prefetch,
+                                CreditFlowMode creditFlowMode, ClientLogger logger) {
             this.parent = parent;
             this.receiver = receiver;
             this.prefetch = prefetch;
             this.creditFlowMode = creditFlowMode;
+            this.logger = logger;
             // Obtain a resizable single-producer & single-consumer queue (SpscLinkedArrayQueue).
             this.queue = Queues.<Message>get(Integer.MAX_VALUE).get();
         }
@@ -612,8 +654,10 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 .publishOn(Schedulers.boundedElastic())
                 .subscribe(state -> {
                     if (state == AmqpEndpointState.ACTIVE) {
-                        ready = true;
-                        parent.onMediatorReady();
+                        if (!ready) {
+                            ready = true;
+                            parent.onMediatorReady(this::updateDisposition);
+                        }
                     }
                 });
         }
@@ -757,6 +801,39 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             // Flux once the message publisher Flux terminates.
             return receiver.receive()
                 .concatWith(receiver.getEndpointStates().ignoreElements().cast(Message.class));
+        }
+
+        /**
+         * Updates the disposition state of a message uniquely identified by the given delivery tag.
+         *
+         * @param deliveryTag delivery tag of message.
+         * @param deliveryState Delivery state of message.
+         *
+         * @return A Mono that completes when the state is successfully updated and acknowledged by message broker.
+         */
+        private Mono<Void> updateDisposition(String deliveryTag, DeliveryState deliveryState) {
+            if (done || s == CANCELLED_SUBSCRIPTION) {
+                // 1]. 'done' is set to 'true' when the backing receiver signals completion or error.
+                // 2]. 's' is set to 'canceled' when the upstream signals completion or error to the parent
+                //     RecoverableReactorReceiver, Or downstream cancels parent RecoverableReactorReceiver.
+                //     It means we don't have to read the 'volatile' variables 'parent.done', 'parent.cancelled'
+                //
+                final String message = String.format("The disposition request to set the state as %s for the message"
+                        + " with id %s cannot be processed as the link that delivered the message is disconnected."
+                        + " Any new link to continue the receive operation can disposition only the message that arrives"
+                        + " on that link [State- link.done:%b link.cancelled:%b parent.done:%b parent.cancelled:%b]",
+                    deliveryState, deliveryTag, done, s == CANCELLED_SUBSCRIPTION, parent.done, parent.cancelled);
+
+                Throwable cause = parent.error;
+                if (cause == null) {
+                    cause = this.error;
+                }
+                final IllegalStateException error = new IllegalStateException(message, cause);
+                return monoError(logger.atError()
+                    .addKeyValue(DELIVERY_TAG_KEY, deliveryTag)
+                    .addKeyValue(DELIVERY_STATE_KEY, deliveryState), error);
+            }
+            return receiver.updateDisposition(deliveryTag, deliveryState);
         }
     }
 

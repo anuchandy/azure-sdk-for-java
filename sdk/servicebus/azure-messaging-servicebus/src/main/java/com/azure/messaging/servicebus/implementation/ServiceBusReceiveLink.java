@@ -28,6 +28,7 @@ public interface ServiceBusReceiveLink extends AmqpReceiveLink, AsyncCloseable {
      */
     Mono<OffsetDateTime> getSessionLockedUntil();
 
+    // TODO (anu): remove updateDisposition from this contract as it is now exported by the base AmqpReceiveLink.
     /**
      * Updates the disposition status of a message with corresponding lock token.
      *

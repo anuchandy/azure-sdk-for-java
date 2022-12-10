@@ -4,6 +4,7 @@
 package com.azure.core.amqp.implementation;
 
 import com.azure.core.amqp.AmqpLink;
+import org.apache.qpid.proton.amqp.transport.DeliveryState;
 import org.apache.qpid.proton.message.Message;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -25,6 +26,16 @@ public interface AmqpReceiveLink extends AmqpLink {
      * {@link AutoCloseable#close() AmqpReceiveLink.close()} or an unrecoverable error occurs on the AMQP link.
      */
     Flux<Message> receive();
+
+    /**
+     * Updates the disposition state of a message uniquely identified by the given delivery tag.
+     *
+     * @param deliveryTag delivery tag of message.
+     * @param deliveryState Delivery state of message.
+     *
+     * @return A Mono that completes when the state is successfully updated and acknowledged by message broker.
+     */
+    Mono<Void> updateDisposition(String deliveryTag, DeliveryState deliveryState);
 
     /**
      * Schedule to adds the specified number of credits to the link.
