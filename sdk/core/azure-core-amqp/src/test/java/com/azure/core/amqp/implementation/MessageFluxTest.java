@@ -8,6 +8,7 @@ import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.amqp.FixedAmqpRetryPolicy;
 import com.azure.core.amqp.exception.AmqpException;
+import org.apache.qpid.proton.amqp.messaging.Accepted;
 import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -234,5 +235,18 @@ public class MessageFluxTest {
             .then(() -> upstream.complete())
             .thenConsumeWhile(m -> true)
             .verifyComplete();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
+    public void updateDispositionShouldErrorIfReceiverIsNotInitialized(CreditFlowMode creditFlowMode, int prefetch) {
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
+
+        StepVerifier.create(messageFlux.updateDisposition("t", Accepted.getInstance()))
+            .verifyError(IllegalStateException.class);
     }
 }

@@ -8,6 +8,7 @@ import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.amqp.FixedAmqpRetryPolicy;
 import com.azure.core.amqp.exception.AmqpException;
+import org.apache.qpid.proton.amqp.messaging.Accepted;
 import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -21,15 +22,21 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.internal.verification.AtLeast;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 import reactor.test.publisher.TestPublisher;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -480,6 +487,124 @@ public class MessageFluxIsolatedTest {
 
         Assertions.assertEquals(firstReceiverMessagesCount, firstReceiverFacade.getMessageEmitCount());
         Assertions.assertEquals(secondReceiverMessagesCount, secondReceiverFacade.getMessageEmitCount());
+        upstream.assertCancelled();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
+    @Execution(ExecutionMode.SAME_THREAD)
+    public void canCompleteDownstreamWithoutUpstreamTermination(CreditFlowMode creditFlowMode, int prefetch) {
+        // The test validates it is possible to complete the downstream (message subscriber) by applying
+        // 'takeUntilOther' operator on MessageFlux without needing MessageFlux's upstream to send
+        // a termination signal.
+        // There is use case that the consumer client's closure associated with MessageFlux requires
+        // completing the downstream while other clients and their MessageFlux are still interested in
+        // using the upstream.
+        //
+        // Test also helps to catch any external regression e.g, https://github.com/reactor/reactor-core/issues/3268
+        //
+        final Sinks.Empty<Void> completionSink = Sinks.empty();
+        final AmqpRetryPolicy retryPolicy = new FixedAmqpRetryPolicy(new AmqpRetryOptions());
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        when(receiver.receive()).thenReturn(Flux.never());
+        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
+            verifier.create(() -> messageFlux.takeUntilOther(completionSink.asMono()))
+                .then(() -> upstream.next(receiver))
+                .then(() -> completionSink.emitEmpty(Sinks.EmitFailureHandler.FAIL_FAST))
+                .verifyComplete();
+        }
+
+        verify(receiver).closeAsync();
+        upstream.assertCancelled();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
+    @Execution(ExecutionMode.SAME_THREAD)
+    public void shouldHappenUpdateDispositionOnCurrentReceiver(CreditFlowMode creditFlowMode, int prefetch) {
+        final Duration retryDelay = Duration.ofSeconds(1);
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, creditFlowMode, retryPolicy);
+
+        final ReactorReceiver firstReceiver = mock(ReactorReceiver.class);
+        final ReactorReceiverFacade firstReceiverFacade = new ReactorReceiverFacade(upstream, firstReceiver);
+        when(firstReceiver.getEndpointStates()).thenReturn(firstReceiverFacade.getEndpointStates());
+        when(firstReceiver.receive()).thenReturn(firstReceiverFacade.getMessages());
+        final List<String> firstReceiverDispositionTags = new ArrayList<>();
+        doAnswer(invocation -> {
+            final Object[] args = invocation.getArguments();
+            @SuppressWarnings("unchecked")
+            final String deliveryTag = (String) args[0];
+            firstReceiverDispositionTags.add(deliveryTag);
+            return Mono.empty();
+        }).when(firstReceiver).updateDisposition(any(), any());
+        when(firstReceiver.closeAsync()).thenReturn(Mono.empty());
+
+        final ReactorReceiver secondReceiver = mock(ReactorReceiver.class);
+        final ReactorReceiverFacade secondReceiverFacade = new ReactorReceiverFacade(upstream, secondReceiver);
+        when(secondReceiver.getEndpointStates()).thenReturn(secondReceiverFacade.getEndpointStates());
+        when(secondReceiver.receive()).thenReturn(secondReceiverFacade.getMessages());
+        final List<String> secondReceiverDispositionTags = new ArrayList<>();
+        doAnswer(invocation -> {
+            final Object[] args = invocation.getArguments();
+            @SuppressWarnings("unchecked")
+            final String deliveryTag = (String) args[0];
+            secondReceiverDispositionTags.add(deliveryTag);
+            return Mono.empty();
+        }).when(secondReceiver).updateDisposition(any(), any());
+        when(secondReceiver.closeAsync()).thenReturn(Mono.empty());
+
+        final Message message = mock(Message.class);
+        final List<Message> firstReceiverMessages = generateMessages(message, 4);
+        final List<Message> secondReceiverMessages = generateMessages(message, 6);
+        final int firstReceiverMessagesCount = firstReceiverMessages.size();
+        final int secondReceiverMessagesCount = secondReceiverMessages.size();
+        final List<String> dispositionTags = new ArrayList<>();
+        for (int i = 0; i < firstReceiverMessagesCount; i++) {
+            dispositionTags.add(UUID.randomUUID().toString());
+        }
+        for (int i = 0; i < secondReceiverMessagesCount; i++) {
+            dispositionTags.add(UUID.randomUUID().toString());
+        }
+        final int[] idx = new int[1];
+        final int request = firstReceiverMessagesCount + secondReceiverMessagesCount + 5;
+
+        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
+            verifier.create(() -> messageFlux.concatMap(m -> messageFlux.updateDisposition(dispositionTags.get(idx[0]++), Accepted.getInstance()).thenReturn(m), 1))
+                .then(firstReceiverFacade.emit())
+                .thenRequest(request)
+                .then(firstReceiverFacade.emitAndCompleteEndpointStates(AmqpEndpointState.ACTIVE))
+                .then(firstReceiverFacade.emitAndCompleteMessages(firstReceiverMessages))
+                .thenAwait(retryDelay.plusSeconds(1))
+                .then(secondReceiverFacade.emit())
+                .then(secondReceiverFacade.emitAndCompleteEndpointStates(AmqpEndpointState.ACTIVE))
+                .then(secondReceiverFacade.emitAndCompleteMessages(secondReceiverMessages))
+                .then(() -> upstream.complete())
+                .expectNextCount(firstReceiverMessagesCount + secondReceiverMessagesCount)
+                .thenConsumeWhile(m -> true)
+                .verifyComplete();
+        }
+
+        int i = 0;
+        for (; i < firstReceiverMessagesCount; i++) {
+            Assertions.assertEquals(dispositionTags.get(i), firstReceiverDispositionTags.get(i));
+        }
+        int j = 0;
+        for (; i < firstReceiverMessagesCount + secondReceiverMessagesCount; i++, j++) {
+            Assertions.assertEquals(dispositionTags.get(i), secondReceiverDispositionTags.get(j));
+        }
         upstream.assertCancelled();
     }
 
