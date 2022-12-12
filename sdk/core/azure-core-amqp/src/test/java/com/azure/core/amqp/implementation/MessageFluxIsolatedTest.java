@@ -608,6 +608,69 @@ public class MessageFluxIsolatedTest {
         upstream.assertCancelled();
     }
 
+    @ParameterizedTest
+    @CsvSource({
+        "EmissionDriven,1",
+        "RequestDriven,0"
+    })
+    @Execution(ExecutionMode.SAME_THREAD)
+    public void shouldNotMakeDuplicateRetriesWhenRetryIsInProgress(CreditFlowMode creditFlowMode, int prefetch) {
+        final int[] upstreamEmission = new int[1];
+        final Sinks.Many<ReactorReceiver> upstreamSink = Sinks.many().unicast().onBackpressureBuffer();
+        final Flux<ReactorReceiver> upstream = upstreamSink.asFlux()
+            .doOnRequest(r -> {
+                Assertions.assertEquals(1, r);
+
+                final ReactorReceiver receiver = mock(ReactorReceiver.class);
+                when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+                upstreamEmission[0]++;
+                switch (upstreamEmission[0]) {
+                    case 1:
+                        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+                        when(receiver.receive()).thenReturn(Flux.empty());
+                        upstreamSink.emitNext(receiver, Sinks.EmitFailureHandler.FAIL_FAST);
+                        break;
+                    case 2:
+                        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+                        when(receiver.receive()).thenReturn(Flux.never());
+                        upstreamSink.emitNext(receiver, Sinks.EmitFailureHandler.FAIL_FAST);
+                        break;
+                    default:
+                        when(receiver.getEndpointStates()).thenReturn(Flux.error(new RuntimeException("unexpected request")));
+                        when(receiver.receive()).thenReturn(Flux.error(new RuntimeException("unexpected request")));
+                        upstreamSink.emitNext(receiver, Sinks.EmitFailureHandler.FAIL_FAST);
+                }
+            });
+
+        final Duration backoffBeforeRequestingNextReceiver = Duration.ofSeconds(10);
+        final AmqpRetryPolicy retryPolicy = new FixedAmqpRetryPolicy(new AmqpRetryOptions()
+            .setMaxRetries(MAX_RETRY)
+            .setDelay(backoffBeforeRequestingNextReceiver));
+        final MessageFlux messageFlux = new MessageFlux(upstream, prefetch, creditFlowMode, retryPolicy);
+
+
+        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
+            verifier.create(() -> messageFlux)
+                .thenRequest(1)
+                // The initial request ^ for one message, that leads to obtaining the first-receiver.
+                // Since first-receiver gets terminated, the message-flux will initiate a retry that
+                // will get the second-receiver only after 10 seconds.
+                .thenAwait(Duration.ofSeconds(1))
+                // After 1 sec ^, while there is still 9 seconds remaining in retry backoff, request for one
+                // message, resulting a drain-loop iteration, which should not attempt to get another receiver.
+                .thenRequest(1)
+                .thenAwait(Duration.ofSeconds(15))
+                // Await 15 seconds ^ so that retry backoff elapses and message-flux will get second-receiver.
+                .thenCancel()
+                .verify(Duration.ofSeconds(30));
+        }
+
+        // Assert there were only two emissions i.e. there were no attempt to obtain a receiver while retry
+        // is in progress.
+        Assertions.assertEquals(2, upstreamEmission[0]);
+    }
+
     private static List<Message> generateMessages(Message message, int count) {
         return IntStream.rangeClosed(1, count)
             .mapToObj(__ -> message)

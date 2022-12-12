@@ -343,8 +343,14 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 boolean d = done;
                 // Obtain the current mediator (backed by a receiver)
                 ReactorReceiverMediator mediator = mediatorHolder.mediator;
-                // the mediator can be null only if the upstream signals operator termination without emitting
-                // the very first receiver, hence no associated mediator.
+                // the mediator can be null only in two cases -
+                // 1. In RecoverableReactorReceiver::onSubscribe, it passes the 'Subscription' to downstream via
+                // messageSubscriber.onSubscribe(..). Once this method returns RecoverableReactorReceiver request a
+                // Receiver for the very first Mediator. But from within onSubscribe(), the messageSubscriber can call
+                // Subscription.request(n) resulting execution of drain-loop. In this case, the Mediator will be null
+                // since the request for the Receiver is yet to be made.
+                // 2. If the upstream signals operator termination without emitting the very first Receiver, hence no
+                // associated mediator.
                 boolean hasMediator = mediator != null && !mediatorHolder.noNextMediator;
 
                 if (terminateIfCancelled(downstream, null)) {
@@ -360,7 +366,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
 
                 long r = this.requested;
                 long emitted = 0L;
-                boolean requestNextMediator = false;
+                boolean mediatorTerminatedAndDrained = false;
 
                 if (r != 0L && hasMediator) {
                     // there is demand ('r' != 0) from the downstream; see if it can be satisfied.
@@ -384,7 +390,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                         if (empty && mediator.done) {
                             // Emitted all messages from the current mediator, and its backing receiver termination
                             // terminated the mediator; we may obtain a new mediator with a new backing receiver.
-                            requestNextMediator = true;
+                            mediatorTerminatedAndDrained = true;
                             break;
                         }
 
@@ -402,7 +408,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                         // The emitter-loop checks the need for a new mediator until 'r-1' emissions; let's check
                         // after the 'r'-th emission.
                         if (mediator.queue.isEmpty() && mediator.done) {
-                            requestNextMediator = true;
+                            mediatorTerminatedAndDrained = true;
                         }
                     }
 
@@ -430,11 +436,14 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                     // or pending signal indicating the mediator termination. E.g., receiver detached without
                     // receiving a message.
                     if (mediator.queue.isEmpty() && mediator.done) {
-                        requestNextMediator = true;
+                        mediatorTerminatedAndDrained = true;
                     }
                 }
 
-                if (requestNextMediator) {
+                // No need to check 'hasMediator' before accessing 'mediator.isRetryInitiated' since 'mediatorTerminatedAndDrained'
+                // being 'true' means 'mediator' is set.
+                if (mediatorTerminatedAndDrained && !mediator.isRetryInitiated) {
+                    mediator.isRetryInitiated = true;
                     // The current mediator's queue is drained, and the mediator is terminated, let's close it,
                     mediator.closeAsync().subscribe();
                     // and proceed with obtaining a new mediator.
@@ -619,8 +628,23 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             AtomicReferenceFieldUpdater.newUpdater(ReactorReceiverMediator.class,
                 Throwable.class,
                 "error");
+        /**
+         * The flag indicating if the mediator is terminated by completion or error.
+         */
         volatile boolean done;
+        /**
+         * The queue holding messages from the backing receiver's message publisher, waiting to be drained by
+         * the drain-loop iterations.
+         */
         final Queue<Message> queue;
+        /**
+         * The drain loop iteration that first identifies the mediator as terminated (done == true) and
+         * and drained (queue.isEmpty() == true) will initiate a retry to obtain the next mediator. While that retry
+         * completion is pending, any request for messages from downstream may lead to further drain loop iterations;
+         * the 'isRetryInitiated' flag ensures those drain loop iterations (those also see the mediator as terminated
+         * and drained) will not initiate duplicate retries.
+         */
+        volatile boolean isRetryInitiated;
 
         /**
          * Create a mediator to channel events (messages, termination) from a receiver to recoverable-receiver.
