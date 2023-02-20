@@ -3,6 +3,7 @@
 
 package com.azure.core.amqp.implementation;
 
+import com.azure.core.util.logging.ClientLogger;
 import org.reactivestreams.Subscription;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -24,9 +25,10 @@ final class RequestDrivenCreditAccounting extends CreditAccounting {
      * @param subscription the subscription to the receiver's message publisher to request messages when
      *                    needed (the publisher won't translate these requests to network flow performative).
      * @param prefetch the prefetch configured.
+     * @param logger the logger.
      */
-    RequestDrivenCreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch) {
-        super(receiver, subscription, validateAndBound(prefetch));
+    RequestDrivenCreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch, ClientLogger logger) {
+        super(receiver, subscription, validateAndBound(prefetch), logger);
     }
 
     @Override

@@ -7,6 +7,7 @@ import com.azure.core.amqp.AmqpEndpointState;
 import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.util.AsyncCloseable;
 import com.azure.core.util.logging.ClientLogger;
+import com.azure.core.util.logging.LoggingEventBuilder;
 import org.apache.qpid.proton.amqp.transport.DeliveryState;
 import org.apache.qpid.proton.message.Message;
 import org.reactivestreams.Subscription;
@@ -36,7 +37,6 @@ import static com.azure.core.amqp.implementation.ClientConstants.DELIVERY_STATE_
 import static com.azure.core.amqp.implementation.ClientConstants.ENTITY_PATH_KEY;
 import static com.azure.core.amqp.implementation.ClientConstants.LINK_NAME_KEY;
 import static com.azure.core.amqp.implementation.ClientConstants.DELIVERY_TAG_KEY;
-import static com.azure.core.amqp.implementation.ClientConstants.SUBSCRIBER_ID_KEY;
 import static com.azure.core.util.FluxUtil.monoError;
 
 /**
@@ -44,6 +44,8 @@ import static com.azure.core.util.FluxUtil.monoError;
  * to downstream subscriber.
  */
 public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
+    private static final String MESSAGE_FLUX_KEY = "messageFlux";
+    private final ClientLogger logger;
     private final int prefetch;
     private final CreditFlowMode creditFlowMode;
     private final AmqpRetryPolicy retryPolicy;
@@ -63,6 +65,11 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                           CreditFlowMode creditFlowMode,
                           AmqpRetryPolicy retryPolicy) {
         super(source);
+
+        final Map<String, Object> loggingContext = new HashMap<>(1);
+        loggingContext.put(MESSAGE_FLUX_KEY, StringUtil.getRandomString("mf"));
+        this.logger = new ClientLogger(MessageFlux.class, loggingContext);
+
         if (prefetch < 0) {
             throw new IllegalArgumentException("prefetch >= 0 required but it was " + prefetch);
         }
@@ -97,9 +104,9 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
     }
 
     /**
-     * The method is invoked when a new backing receiver is attached to the messaging entity from which this
-     * message-flux instance stream messages. There will be only one backing receiver at a time, and this method
-     * notifies the function to disposition messages arrive in that receiver.
+     * The callback invoked when next receiver is attached to the messaging entity from which this message-flux
+     * instance stream messages. There will be only one receiver at a time, and this callback delivers the reference
+     * to the function to disposition messages that arrives in the new receiver.
      *
      * @param updateDispositionFunc the function to disposition messages delivered by the current backing receiver.
      */
@@ -166,11 +173,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             this.prefetch = prefetch;
             this.creditFlowMode = creditFlowMode;
             this.retryPolicy = retryPolicy;
-
-            final String subscriberId = StringUtil.getRandomString("rrr");
-            final Map<String, Object> loggingContext = new HashMap<>(1);
-            loggingContext.put(SUBSCRIBER_ID_KEY, subscriberId);
-            this.logger = new ClientLogger(RecoverableReactorReceiver.class, loggingContext);
+            this.logger = parent.logger;
         }
 
         /**
@@ -263,9 +266,9 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         }
 
         /**
-         * Invoked by the downstream to signal the demand for messages. Whatever has been requested can be sent,
-         * so only signal the demand for what can be safely handled. No messages will be sent downstream until
-         * the demand is signaled.
+         * Invoked by the downstream to signal the demand for messages. Whatever has been requested can be sent
+         * downstream, so only signal the demand for what can be safely handled. No messages will be sent downstream
+         * until the demand is signaled.
          *
          * @param n the number of messages to send to downstream.
          */
@@ -415,6 +418,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                     if (emitted != 0 && r != Long.MAX_VALUE) {
                         r = REQUESTED.addAndGet(this, -emitted);
                     }
+                    // Unbounded (max-value) handling Ref:MultiSubscriptionSubscriber.produced().
                     mediator.update(r, emitted); // TODO (anu): max-value request mapping before 'update(..)'.
                 }
 
@@ -559,17 +563,24 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 return;
             }
 
+            final LoggingEventBuilder logBuilder = mediatorHolder.setCurrentReceiverKeys(logger.atWarning());
             final Duration delay;
             if (error == null) {
-                // TODO (anu): decide the back-off duration when no error.
+                // TODO (anu): discuss the back-off duration when no error.
                 delay = Duration.ofSeconds(1);
+                logBuilder.addKeyValue("retryAfter", delay.toMillis())
+                    .log("Receiver encountered terminal completion.");
             } else {
-                // error != null
-                // TODO (anu): it seems Event Hubs Processor retries only on receiver completion, not when error-ed. If true, we need a flag.
+                // TODO (anu): The EH Processor seems to retry only on receiver completion, not on receiver error If so,
+                //  EH should create MessageFlux with AmqpRetryOptions.setMaxRetries(0) to disable error-retry.
                 final int attempt = retryAttempts.incrementAndGet();
                 delay = retryPolicy.calculateRetryDelay(error, attempt);
-                if (delay == null) {
-                    // TODO (anu): log non-retriable or retry exhausted error
+                if (delay != null) {
+                    logBuilder.addKeyValue("attempt", attempt)
+                        .addKeyValue("retryAfter", delay.toMillis())
+                        .log("Receiver encountered transient error.", error);
+                } else {
+                    logBuilder.log("Receiver encountered non-retryable error.", error);
                     // Invoking 'onError' to signal the next drain-loop iteration to terminate the operator
                     // with 'error',
                     onError(error);
@@ -579,8 +590,6 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                     return;
                 }
             }
-
-            // TODO (anu): log retry attempt
 
             mediatorHolder.nextMediatorRequestDisposable = Schedulers.boundedElastic().schedule(() -> {
                 if (cancelled) {
@@ -697,10 +706,10 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
             if (Operators.setOnce(S, this, s)) {
                 switch (creditFlowMode) {
                     case RequestDriven:
-                        creditAccounting = new RequestDrivenCreditAccounting(receiver, s, prefetch);
+                        creditAccounting = new RequestDrivenCreditAccounting(receiver, s, prefetch, logger);
                         break;
                     case EmissionDriven:
-                        creditAccounting = new EmissionDrivenCreditAccounting(receiver, s, prefetch);
+                        creditAccounting = new EmissionDrivenCreditAccounting(receiver, s, prefetch, logger);
                         break;
                     default:
                         throw new IllegalArgumentException("Unknown CreditFlowMode " + creditFlowMode);
@@ -923,6 +932,15 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
         String getEntityPath() {
             final ReactorReceiverMediator m = mediator;
             return m != null ? m.receiver.getEntityPath() : null;
+        }
+
+        LoggingEventBuilder setCurrentReceiverKeys(LoggingEventBuilder builder) {
+            final ReactorReceiverMediator m = mediator;
+            if (m != null) {
+                return builder.addKeyValue(LINK_NAME_KEY, m.receiver.getLinkName())
+                    .addKeyValue(ENTITY_PATH_KEY, m.receiver.getEntityPath());
+            }
+            return builder;
         }
     }
 }

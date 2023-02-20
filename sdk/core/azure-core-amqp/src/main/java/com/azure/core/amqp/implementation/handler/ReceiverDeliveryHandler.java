@@ -32,8 +32,9 @@ import static com.azure.core.amqp.implementation.ClientConstants.LINK_NAME_KEY;
  * A type to handle all {@link Delivery} from the ProtonJ library. The ProtonJ library creates {@link Delivery}
  * object upon receiving a transfer or disposition frame from the broker.
  * <p>
- * This type takes care of streaming the {@link Message} objects read and decoded from the transfer frame based
- * {@link Delivery} objects and enables settlement of those deliveries.
+ * This type takes care of streaming the {@link Message} objects that are read and decoded from the transfer frame
+ * and (when DeliverySettleMode is SETTLE_VIA_DISPOSITION) this type allows the settlement of these deliveries by
+ * sending disposition frame to the broker and handling the corresponding acknowledgment disposition frame.
  */
 final class ReceiverDeliveryHandler {
     static final UUID DELIVERY_EMPTY_TAG = new UUID(0L, 0L);

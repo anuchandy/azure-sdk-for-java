@@ -3,8 +3,11 @@
 
 package com.azure.core.amqp.implementation;
 
+import com.azure.core.util.logging.ClientLogger;
 import org.reactivestreams.Subscription;
 
+import java.io.UncheckedIOException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Supplier;
 
 /**
@@ -13,6 +16,7 @@ import java.util.function.Supplier;
  */
 abstract class CreditAccounting {
     private final ReactorReceiver receiver;
+    protected final ClientLogger logger;
     protected final Subscription subscription;
     protected final int prefetch;
 
@@ -23,15 +27,17 @@ abstract class CreditAccounting {
      * @param subscription the subscription to the receiver's message publisher to request messages when
      *                    needed (the publisher won't translate these requests to network flow performative).
      * @param prefetch the prefetch configured.
+     * @param logger the logger.
      */
-    protected CreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch) {
+    protected CreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch, ClientLogger logger) {
         this.receiver = receiver;
         this.subscription = subscription;
         this.prefetch = prefetch;
+        this.logger = logger;
     }
 
     /**
-     * CONTRACT: Never invoke from the outside of serialized drain-loop.
+     * CONTRACT: Never invoke from the outside of serialized drain-loop of message-flux.
      * <br/>
      * Notify the latest view of the downstream request and messages emitted by the emitter-loop during
      * the last drain-loop iteration.
@@ -47,7 +53,12 @@ abstract class CreditAccounting {
      * @param creditSupplier the supplier that supplies the credit to send using flow.
      */
     protected void scheduleFlow(Supplier<Long> creditSupplier) {
-        // TODO (anu): Try-Catch-Log
-        receiver.scheduleFlow(creditSupplier);
+        try {
+            receiver.scheduleFlow(creditSupplier);
+        } catch (RejectedExecutionException e) {
+            logger.info("RejectedExecutionException when attempting to schedule credit flow.", e);
+        } catch (UncheckedIOException e) {
+            logger.info("UncheckedIOException when attempting to schedule credit flow.", e);
+        }
     }
 }
