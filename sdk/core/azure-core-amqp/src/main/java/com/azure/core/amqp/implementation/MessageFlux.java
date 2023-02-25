@@ -418,8 +418,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                     if (emitted != 0 && r != Long.MAX_VALUE) {
                         r = REQUESTED.addAndGet(this, -emitted);
                     }
-                    // Unbounded (max-value) handling Ref:MultiSubscriptionSubscriber.produced().
-                    mediator.update(r, emitted); // TODO (anu): max-value request mapping before 'update(..)'.
+                    mediator.update(r, emitted);
                 }
 
                 if (r == 0L && hasMediator) {
@@ -571,8 +570,8 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                 logBuilder.addKeyValue("retryAfter", delay.toMillis())
                     .log("Receiver encountered terminal completion.");
             } else {
-                // TODO (anu): The EH Processor seems to retry only on receiver completion, not on receiver error If so,
-                //  EH should create MessageFlux with AmqpRetryOptions.setMaxRetries(0) to disable error-retry.
+                // TODO (anu): The legacy EH Processor seems to retry only on receiver-completion, not on receiver-error
+                //   If so, EH should create MessageFlux with AmqpRetryOptions.setMaxRetries(0) to disable retry on error.
                 final int attempt = retryAttempts.incrementAndGet();
                 delay = retryPolicy.calculateRetryDelay(error, attempt);
                 if (delay != null) {
@@ -580,18 +579,19 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                         .addKeyValue("retryAfter", delay.toMillis())
                         .log("Receiver encountered transient error.", error);
                 } else {
-                    logBuilder.log("Receiver encountered non-retryable error.", error);
+                    logBuilder.addKeyValue("attempt", attempt)
+                        .log("Receiver encountered non-retryable error or retries are exhausted.", error);
                     // Invoking 'onError' to signal the next drain-loop iteration to terminate the operator
                     // with 'error',
                     onError(error);
                     // once the control returns below, the next immediate drain-loop iteration (iteration
-                    // guaranteed by the above signaling) picks the signal, terminates the operator
+                    // guaranteed by the above error signaling) picks the signal, terminates the operator
                     // through 'terminateIfErrored*' method and places tombstone on the drain-loop.
                     return;
                 }
             }
 
-            mediatorHolder.nextMediatorRequestDisposable = Schedulers.boundedElastic().schedule(() -> {
+            mediatorHolder.nextMediatorRequestDisposable = Schedulers.parallel().schedule(() -> {
                 if (cancelled) {
                     // The downstream signaled cancellation to terminate the operator before the retry
                     // back-off expiration.

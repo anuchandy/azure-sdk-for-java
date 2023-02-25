@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * once the value is greater than or equal to a fraction (e.g., 0.5) of the Prefetch.
  */
 final class EmissionDrivenCreditAccounting extends CreditAccounting {
-    private static final int MAX_VALUE_BOUND = 100;
+    private static final int MAX_INT_PREFETCH_BOUND = 100;
     private boolean placedInitialCredit;
     private final int limit;
     private final AtomicLong emissionAccumulated = new AtomicLong(0);
@@ -29,13 +29,14 @@ final class EmissionDrivenCreditAccounting extends CreditAccounting {
      */
     EmissionDrivenCreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch, ClientLogger logger) {
         super(receiver, subscription, validateAndBound(prefetch), logger);
-        // Refill the buffer once 50% of the buffer has emitted.
+        // Refill the buffer once 50% of the prefetch has emitted.
         this.limit = this.prefetch - (this.prefetch >> 1);
     }
 
     @Override
     void update(long request, long emitted) {
         // Non-thread-safe method, designed ONLY to be called from the serialized drain-loop of message-flux.
+
         if (emitted != 0L) {
             subscription.request(emitted);
             if (emissionAccumulated.addAndGet(emitted) >= limit) {
@@ -52,6 +53,6 @@ final class EmissionDrivenCreditAccounting extends CreditAccounting {
         if (prefetch <= 0) {
             throw new IllegalArgumentException("prefetch >= 1 required but it was " + prefetch);
         }
-        return prefetch == Integer.MAX_VALUE ? MAX_VALUE_BOUND : prefetch;
+        return prefetch == Integer.MAX_VALUE ? MAX_INT_PREFETCH_BOUND : prefetch;
     }
 }

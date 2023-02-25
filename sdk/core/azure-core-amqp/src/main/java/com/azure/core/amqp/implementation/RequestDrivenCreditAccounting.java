@@ -13,8 +13,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * once the value is greater than or equal to the Prefetch.
  */
 final class RequestDrivenCreditAccounting extends CreditAccounting {
-    private static final int MAX_VALUE_BOUND = 100;
+    private static final int MAX_INT_PREFETCH_BOUND = 100;
+    private static final long MAX_LONG_REQUEST_BOUND = 1;
     private long pendingMessageCount;
+    private boolean unbounded;
     private final AtomicLong requestAccumulated = new AtomicLong(0);
 
     /**
@@ -33,9 +35,19 @@ final class RequestDrivenCreditAccounting extends CreditAccounting {
 
     @Override
     void update(long request, long emitted) {
-        // Non-thread-safe method, designed ONLY to be called from the serialized drain-loop of message-flux.
+        // Non-thread-safe method, designed ONLY to be called from a serialized drain-loop of message-flux.
+
+        if (request == Long.MAX_VALUE) {
+            // Once an unbounded downstream request is encountered, future downstream request values, if any, will not
+            // be honored per reactive spec.
+            // While unbounded requests in the messaging context indicate a wrong downstream usage pattern, we'll
+            // adhere to  the spec by switching to a safe request constant value MAX_LONG_REQUEST_BOUND for the lifetime
+            // of this RequestDrivenCreditAccounting object (ref:MultiSubscriptionSubscriber.produced).
+            unbounded = true;
+        }
+        final long r = unbounded ? MAX_LONG_REQUEST_BOUND : request;
         pendingMessageCount -= emitted;
-        final long c = request - pendingMessageCount + prefetch;
+        final long c = r - pendingMessageCount + prefetch;
         if (c > 0) {
             pendingMessageCount += c;
             subscription.request(c);
@@ -49,6 +61,6 @@ final class RequestDrivenCreditAccounting extends CreditAccounting {
         if (prefetch < 0) {
             throw new IllegalArgumentException("prefetch >= 0 required but it was " + prefetch);
         }
-        return prefetch == Integer.MAX_VALUE ? MAX_VALUE_BOUND : prefetch;
+        return prefetch == Integer.MAX_VALUE ? MAX_INT_PREFETCH_BOUND : prefetch;
     }
 }
