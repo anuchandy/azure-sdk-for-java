@@ -220,7 +220,8 @@ public class ReactorReceiver implements AmqpReceiveLink, AsyncCloseable, AutoClo
         });
     }
 
-    public void scheduleFlow(Supplier<Long> creditSupplier) throws RejectedExecutionException, UncheckedIOException {
+    @Override
+    public void scheduleFlow(Supplier<Long> creditSupplier) {
         if (isDisposed()) {
             throw new RejectedExecutionException(String.format(
                 "connectionId[%s] linkName[%s] Cannot schedule credit flow post the link closure.",

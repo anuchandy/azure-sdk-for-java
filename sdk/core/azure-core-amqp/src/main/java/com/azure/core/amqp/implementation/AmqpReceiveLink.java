@@ -10,6 +10,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.UncheckedIOException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Supplier;
 
 /**
@@ -49,6 +50,18 @@ public interface AmqpReceiveLink extends AmqpLink {
      * @throws UncheckedIOException if the work could not be scheduled on the receive link.
      */
     Mono<Void> addCredits(int credits);
+
+    /**
+     * Schedules an AMQP flow performative to send to the broker. The API takes a {@link Supplier} that returns
+     * the required credit to be included in the flow performative; this allows the caller to provide the most
+     * up-to-date credit value when the link picks the scheduled work for execution rather than the credit at
+     * the time of scheduling.
+     *
+     * @param creditSupplier the supplier that returns the credit to include in the flow when schedulers pick the work.
+     * @throws RejectedExecutionException if the scheduler rejects the attempt to schedule the flow (e.g., the scheduler is closed).
+     * @throws UncheckedIOException if an IO error occurs that results in failure in flow scheduling.
+     */
+    void scheduleFlow(Supplier<Long> creditSupplier);
 
     /**
      * Gets the current number of credits this link has.

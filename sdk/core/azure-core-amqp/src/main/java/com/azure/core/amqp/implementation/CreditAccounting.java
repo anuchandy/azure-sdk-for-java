@@ -15,7 +15,7 @@ import java.util.function.Supplier;
  * to the receiver's message publisher and send the credits to the broker.
  */
 abstract class CreditAccounting {
-    private final ReactorReceiver receiver;
+    private final AmqpReceiveLink receiver;
     protected final ClientLogger logger;
     protected final Subscription subscription;
     protected final int prefetch;
@@ -29,7 +29,7 @@ abstract class CreditAccounting {
      * @param prefetch the prefetch configured.
      * @param logger the logger.
      */
-    protected CreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch, ClientLogger logger) {
+    protected CreditAccounting(AmqpReceiveLink receiver, Subscription subscription, int prefetch, ClientLogger logger) {
         this.receiver = receiver;
         this.subscription = subscription;
         this.prefetch = prefetch;

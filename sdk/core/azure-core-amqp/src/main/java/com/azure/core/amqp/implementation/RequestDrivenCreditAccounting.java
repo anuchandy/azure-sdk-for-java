@@ -29,7 +29,7 @@ final class RequestDrivenCreditAccounting extends CreditAccounting {
      * @param prefetch the prefetch configured.
      * @param logger the logger.
      */
-    RequestDrivenCreditAccounting(ReactorReceiver receiver, Subscription subscription, int prefetch, ClientLogger logger) {
+    RequestDrivenCreditAccounting(AmqpReceiveLink receiver, Subscription subscription, int prefetch, ClientLogger logger) {
         super(receiver, subscription, validateAndBound(prefetch), logger);
     }
 

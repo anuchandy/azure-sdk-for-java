@@ -43,7 +43,7 @@ import static com.azure.core.util.FluxUtil.monoError;
  * The Flux operator to stream messages reliably from a messaging entity (e.g., Event Hub, Service Bus Queue)
  * to downstream subscriber.
  */
-public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
+public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
     private static final String MESSAGE_FLUX_KEY = "messageFlux";
     private final ClientLogger logger;
     private final int prefetch;
@@ -60,7 +60,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
      * @param creditFlowMode the mode indicating how to compute the credit and when to send it to the broker.
      * @param retryPolicy the retry policy to use to recover from receiver termination.
      */
-    public MessageFlux(Flux<? extends ReactorReceiver> source,
+    public MessageFlux(Flux<? extends AmqpReceiveLink> source,
                           int prefetch,
                           CreditFlowMode creditFlowMode,
                           AmqpRetryPolicy retryPolicy) {
@@ -121,7 +121,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
      * receiver upon the current receiver's termination; recoveries happen underneath while the messages flow
      * transparently downstream.
      */
-    private static final class RecoverableReactorReceiver implements CoreSubscriber<ReactorReceiver>, Subscription {
+    private static final class RecoverableReactorReceiver implements CoreSubscriber<AmqpReceiveLink>, Subscription {
         // A flag indicates if the downstream termination due to the upstream signal for operator completion
         // needs to wait for the current mediator to terminate (experimental, disabled internally).
         private  final boolean completeAfterMediatorFlush = false;
@@ -198,7 +198,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * @param receiver the new receiver.
          */
         @Override
-        public void onNext(ReactorReceiver receiver) {
+        public void onNext(AmqpReceiveLink receiver) {
             if (done) {
                 receiver.closeAsync().subscribe();
                 Operators.onNextDropped(receiver, messageSubscriber.currentContext());
@@ -220,7 +220,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
                     .addKeyValue("oldLinkName", mediatorHolder.getLinkName())
                     .addKeyValue(LINK_NAME_KEY, receiver.getLinkName())
                     .addKeyValue(ENTITY_PATH_KEY, receiver.getEntityPath())
-                    .log("Got a ReactorReceiver when the MessageFlux is already terminated.");
+                    .log("Got a AmqpReceiveLink when the MessageFlux is already terminated.");
                 receiver.closeAsync().subscribe();
                 Operators.onDiscard(receiver, messageSubscriber.currentContext());
             }
@@ -612,12 +612,12 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
     }
 
     /**
-     * The mediator that coordinates between {@link RecoverableReactorReceiver} and a {@link ReactorReceiver}.
+     * The mediator that coordinates between {@link RecoverableReactorReceiver} and a {@link AmqpReceiveLink}.
      */
     private static final class ReactorReceiverMediator implements AsyncCloseable, CoreSubscriber<Message>, Subscription {
         private static final Subscription CANCELLED_SUBSCRIPTION = Operators.cancelledSubscription();
         private final RecoverableReactorReceiver parent;
-        private final ReactorReceiver receiver;
+        private final AmqpReceiveLink receiver;
         private final int prefetch;
         private final CreditFlowMode creditFlowMode;
         private final ClientLogger logger;
@@ -664,7 +664,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          *                 and faster message processing on the client).
          * @param creditFlowMode the mode indicating how to compute the credit and when to send it to the broker.
          */
-        ReactorReceiverMediator(RecoverableReactorReceiver parent, ReactorReceiver receiver, int prefetch,
+        ReactorReceiverMediator(RecoverableReactorReceiver parent, AmqpReceiveLink receiver, int prefetch,
                                 CreditFlowMode creditFlowMode, ClientLogger logger) {
             this.parent = parent;
             this.receiver = receiver;
@@ -829,7 +829,7 @@ public final class MessageFlux extends FluxOperator<ReactorReceiver, Message> {
          * @param receiver the receiver.
          * @return the Flux.
          */
-        private static Flux<Message> receive(ReactorReceiver receiver) {
+        private static Flux<Message> receive(AmqpReceiveLink receiver) {
             // The error is delivered through the endpoint-states Flux, so subscribe to endpoint-states
             // Flux once the message publisher Flux terminates.
             return receiver.receive()
