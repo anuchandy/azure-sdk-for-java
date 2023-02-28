@@ -334,7 +334,7 @@ public class ReceiverUnsettledDeliveriesTest {
     }
 
     @Test
-    public void preCloseAwaitForSendDispositionCompletion() throws IOException {
+    public void terminateAndAwaitShouldWaitForSendDispositionCompletion() throws IOException {
         final UUID deliveryTag = UUID.randomUUID();
         final DeliveryState desiredState = Accepted.getInstance();
         final DeliveryState remoteState = desiredState;
@@ -348,7 +348,7 @@ public class ReceiverUnsettledDeliveriesTest {
             final Mono<Void> dispositionMono = deliveries.sendDisposition(deliveryTag.toString(), desiredState);
             dispositionMono.subscribe();
 
-            StepVerifier.create(deliveries.preClose())
+            StepVerifier.create(deliveries.terminateAndAwaitForDispositionsInProgressToComplete())
                 .then(() -> deliveries.onDispositionAck(deliveryTag, delivery))
                 .verifyComplete();
 

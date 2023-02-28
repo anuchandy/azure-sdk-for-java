@@ -220,6 +220,6 @@ public class ReceiveLinkHandler extends LinkHandler {
      */
     public Mono<Void> preClose() {
         deliveryHandler.preClose();
-        return unsettledDeliveries.preClose();
+        return unsettledDeliveries.terminateAndAwaitForDispositionsInProgressToComplete();
     }
 }
