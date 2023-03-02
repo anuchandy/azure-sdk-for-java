@@ -411,6 +411,8 @@ final class ReceiverDeliveryHandler {
             final Link link = delivery.getLink();
             if (emitResult == Sinks.EmitResult.FAIL_OVERFLOW
                 && link.getLocalState() != EndpointState.CLOSED) {
+                // Pending Ticket: https://github.com/Azure/azure-sdk-for-java/issues/33703
+                // Ref PR: https://github.com/Azure/azure-sdk-for-java/pull/19924
                 link.setCondition(new ErrorCondition(Symbol.getSymbol("delivery-buffer-overflow"),
                     "Deliveries are not processed fast enough. Closing local link."));
                 link.close();
