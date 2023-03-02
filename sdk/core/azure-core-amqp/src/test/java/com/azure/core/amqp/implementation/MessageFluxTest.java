@@ -218,7 +218,7 @@ public class MessageFluxTest {
         receiverMessages.emit(messages.toArray(new Message[0]));
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE).concatWith(Flux.never()));
         when(receiver.receive()).thenReturn(receiverMessages.flux());
         when(receiver.closeAsync()).thenReturn(Mono.empty());
 

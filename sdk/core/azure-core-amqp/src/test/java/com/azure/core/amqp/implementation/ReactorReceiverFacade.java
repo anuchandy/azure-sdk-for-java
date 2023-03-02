@@ -88,6 +88,12 @@ final class ReactorReceiverFacade {
         };
     }
 
+    Runnable emitEndpointStates(AmqpEndpointState state) {
+        return () -> {
+            endpointStatesSink.emitNext(state, Sinks.EmitFailureHandler.FAIL_FAST);
+        };
+    }
+
     Runnable completeEndpointStates() {
         return () -> endpointStatesSink.emitComplete(Sinks.EmitFailureHandler.FAIL_FAST);
     }

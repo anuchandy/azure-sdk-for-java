@@ -29,7 +29,9 @@ import reactor.test.publisher.TestPublisher;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -364,12 +366,14 @@ public class MessageFluxIsolatedTest {
             verifier.create(() -> messageFlux)
                 .then(firstReceiverFacade.emit())
                 .thenRequest(request)
-                .then(firstReceiverFacade.emitAndCompleteEndpointStates(AmqpEndpointState.ACTIVE))
+                .then(firstReceiverFacade.emitEndpointStates(AmqpEndpointState.ACTIVE))
                 .then(firstReceiverFacade.emitAndCompleteMessages(firstReceiverMessages))
+                .then(firstReceiverFacade.completeEndpointStates())
                 .thenAwait(retryDelay.plusSeconds(1))
                 .then(secondReceiverFacade.emit())
-                .then(secondReceiverFacade.emitAndCompleteEndpointStates(AmqpEndpointState.ACTIVE))
+                .then(secondReceiverFacade.emitEndpointStates(AmqpEndpointState.ACTIVE))
                 .then(secondReceiverFacade.emitAndCompleteMessages(secondReceiverMessages))
+                .then(secondReceiverFacade.completeMessages())
                 .then(() -> upstream.complete())
                 .expectNextCount(firstReceiverMessagesCount + secondReceiverMessagesCount)
                 .thenConsumeWhile(m -> true)
@@ -385,7 +389,7 @@ public class MessageFluxIsolatedTest {
 
     @ParameterizedTest
     @CsvSource({
-        "EmissionDriven,1",
+        "EmissionDriven,256",
         "RequestDriven,0"
     })
     @Execution(ExecutionMode.SAME_THREAD)
@@ -410,25 +414,104 @@ public class MessageFluxIsolatedTest {
         when(secondReceiver.receive()).thenReturn(secondReceiverFacade.getMessages());
         when(secondReceiver.closeAsync()).thenReturn(Mono.empty());
 
-        final Message message = mock(Message.class);
-        final List<Message> firstReceiverMessages = generateMessages(message, 4);
-        final List<Message> secondReceiverMessages = generateMessages(message, 6);
+        final Deque<String> firstReceiverMessageIds = new ArrayDeque<>(4);
+        final List<Message> firstReceiverMessages = new ArrayList<>(4);
+        for (int i = 0; i < 4; i++) {
+            final String id = "F:" + i;
+            firstReceiverMessageIds.add(id);
+            final Message message = mock(Message.class);
+            when(message.getMessageId()).thenReturn(id);
+            firstReceiverMessages.add(message);
+        }
+
+        final Deque<String> secondReceiverMessageIds = new ArrayDeque<>(6);
+        final List<Message> secondReceiverMessages = new ArrayList<>(6);
+        for (int i = 0; i < 6; i++) {
+            final String id = "S:" + i;
+            secondReceiverMessageIds.add(id);
+            final Message message = mock(Message.class);
+            when(message.getMessageId()).thenReturn(id);
+            secondReceiverMessages.add(message);
+        }
+
         final int firstReceiverMessagesCount = firstReceiverMessages.size();
         final int secondReceiverMessagesCount = secondReceiverMessages.size();
         final int request = firstReceiverMessagesCount + secondReceiverMessagesCount + 5;
 
+        final boolean[] isFirstMessage = new boolean[1];
+        final int[] firstReceiverRemainingEmissions = new int[1];
+        isFirstMessage[0] = true;
+        firstReceiverRemainingEmissions[0] = firstReceiverMessagesCount - 1;
+        //
+        final boolean[] isFifthMessage = new boolean[1];
+        final int[] secondReceiverRemainingEmissions = new int[1];
+        isFifthMessage[0] = true;
+        secondReceiverRemainingEmissions[0] = secondReceiverMessagesCount - 1;
+
         try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
             verifier.create(() -> messageFlux)
-                .then(firstReceiverFacade.emitAndErrorEndpointStates(AmqpEndpointState.ACTIVE, error))
-                .then(firstReceiverFacade.emitAndCompleteMessages(firstReceiverMessages))
-                .then(secondReceiverFacade.emitAndCompleteEndpointStates(AmqpEndpointState.ACTIVE))
-                .then(secondReceiverFacade.emitAndCompleteMessages(secondReceiverMessages))
+                .then(firstReceiverFacade.emitEndpointStates(AmqpEndpointState.ACTIVE))
+                .then(firstReceiverFacade.emitMessage(firstReceiverMessages.get(0)))
+                .then(secondReceiverFacade.emitEndpointStates(AmqpEndpointState.ACTIVE))
+                .then(secondReceiverFacade.emitMessage(secondReceiverMessages.get(0)))
                 .thenRequest(request)
                 .then(firstReceiverFacade.emit())
                 .thenAwait(UPSTREAM_DELAY_BEFORE_NEXT)
                 .then(secondReceiverFacade.emit())
                 .then(() -> upstream.complete())
-                .thenConsumeWhile(m -> true)
+                .thenConsumeWhile(__ -> {
+                    if (isFirstMessage[0]) {
+                        isFirstMessage[0] = false;
+                        return true;
+                    }
+                    return false;
+                }, firstMessage -> {
+                    Assertions.assertEquals(firstReceiverMessageIds.poll(), firstMessage.getMessageId());
+                    // The first receiver had backpressure request recorded (256 in EmissionDriven mode and 15 in RequestDriven mode).
+                    // Here we got the first message from the first receiver through the 'messageSubscriber.onNext' call
+                    // in the drain loop. While we're inside that 'onNext', we let the receiver emit the remaining 3 messages.
+                    //
+                    // These 3 message emissions calls into 'ReactorReceiverMediator.onNext', since the WIP counter
+                    // is not decremented (because control is not returned from 'messageSubscriber.onNext'), the messages
+                    // gets buffered into 'ReactorReceiverMediator.queue'. After all the buffering, we let the endpoint
+                    // signal terminal error.
+                    firstReceiverFacade.emitAndCompleteMessages(firstReceiverMessages.subList(1, firstReceiverMessagesCount)).run();
+                    firstReceiverFacade.errorEndpointStates(error).run();
+                    // Goal of the test is to assert that - the buffered messages in a queue are drained before moving
+                    // to the second receiver.
+                })
+                .thenConsumeWhile(__ -> {
+                    if (firstReceiverRemainingEmissions[0] > 0) {
+                        firstReceiverRemainingEmissions[0]--;
+                        return true;
+                    }
+                    return false;
+                }, m -> {
+                    // Messages 2 to 4 (from first receiver).
+                    Assertions.assertEquals(firstReceiverMessageIds.poll(), m.getMessageId());
+                })
+                .thenConsumeWhile(__ -> {
+                    if (isFifthMessage[0]) {
+                        isFifthMessage[0] = false;
+                        return true;
+                    }
+                    return false;
+                }, fifthMessage -> {
+                    // Message 5 (from second receiver).
+                    Assertions.assertEquals(secondReceiverMessageIds.poll(), fifthMessage.getMessageId());
+                    secondReceiverFacade.emitAndCompleteMessages(secondReceiverMessages.subList(1, secondReceiverMessagesCount)).run();
+                    secondReceiverFacade.completeEndpointStates().run();
+                })
+                .thenConsumeWhile(__ -> {
+                    if (secondReceiverRemainingEmissions[0] > 0) {
+                        secondReceiverRemainingEmissions[0]--;
+                        return true;
+                    }
+                    return false;
+                }, m -> {
+                    // Messages 6 to 10 (from second receiver).
+                    Assertions.assertEquals(secondReceiverMessageIds.poll(), m.getMessageId());
+                })
                 .verifyComplete();
         }
 
@@ -439,7 +522,7 @@ public class MessageFluxIsolatedTest {
 
     @ParameterizedTest
     @CsvSource({
-        "EmissionDriven,1",
+        "EmissionDriven,256",
         "RequestDriven,0"
     })
     @Execution(ExecutionMode.SAME_THREAD)
@@ -463,25 +546,95 @@ public class MessageFluxIsolatedTest {
         when(secondReceiver.receive()).thenReturn(secondReceiverFacade.getMessages());
         when(secondReceiver.closeAsync()).thenReturn(Mono.empty());
 
-        final Message message = mock(Message.class);
-        final List<Message> firstReceiverMessages = generateMessages(message, 4);
-        final List<Message> secondReceiverMessages = generateMessages(message, 6);
+        final Deque<String> firstReceiverMessageIds = new ArrayDeque<>(4);
+        final List<Message> firstReceiverMessages = new ArrayList<>(4);
+        for (int i = 0; i < 4; i++) {
+            final String id = "F:" + i;
+            firstReceiverMessageIds.add(id);
+            final Message message = mock(Message.class);
+            when(message.getMessageId()).thenReturn(id);
+            firstReceiverMessages.add(message);
+        }
+
+        final Deque<String> secondReceiverMessageIds = new ArrayDeque<>(6);
+        final List<Message> secondReceiverMessages = new ArrayList<>(6);
+        for (int i = 0; i < 6; i++) {
+            final String id = "S:" + i;
+            secondReceiverMessageIds.add(id);
+            final Message message = mock(Message.class);
+            when(message.getMessageId()).thenReturn(id);
+            secondReceiverMessages.add(message);
+        }
+
         final int firstReceiverMessagesCount = firstReceiverMessages.size();
         final int secondReceiverMessagesCount = secondReceiverMessages.size();
         final int request = firstReceiverMessagesCount + secondReceiverMessagesCount + 5;
 
+        final boolean[] isFirstMessage = new boolean[1];
+        final int[] firstReceiverRemainingEmissions = new int[1];
+        isFirstMessage[0] = true;
+        firstReceiverRemainingEmissions[0] = firstReceiverMessagesCount - 1;
+        //
+        final boolean[] isFifthMessage = new boolean[1];
+        final int[] secondReceiverRemainingEmissions = new int[1];
+        isFifthMessage[0] = true;
+        secondReceiverRemainingEmissions[0] = secondReceiverMessagesCount - 1;
+
         try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
             verifier.create(() -> messageFlux)
-                .then(firstReceiverFacade.emitAndCompleteEndpointStates(AmqpEndpointState.ACTIVE))
-                .then(firstReceiverFacade.emitAndCompleteMessages(firstReceiverMessages))
-                .then(secondReceiverFacade.emitAndCompleteEndpointStates(AmqpEndpointState.ACTIVE))
-                .then(secondReceiverFacade.emitAndCompleteMessages(secondReceiverMessages))
+                .then(firstReceiverFacade.emitEndpointStates(AmqpEndpointState.ACTIVE))
+                .then(firstReceiverFacade.emitMessage(firstReceiverMessages.get(0)))
+                .then(secondReceiverFacade.emitEndpointStates(AmqpEndpointState.ACTIVE))
+                .then(secondReceiverFacade.emitMessage(secondReceiverMessages.get(0)))
                 .thenRequest(request)
                 .then(firstReceiverFacade.emit())
                 .thenAwait(UPSTREAM_DELAY_BEFORE_NEXT)
                 .then(secondReceiverFacade.emit())
                 .then(() -> upstream.complete())
-                .thenConsumeWhile(m -> true)
+                .thenConsumeWhile(__ -> {
+                    if (isFirstMessage[0]) {
+                        isFirstMessage[0] = false;
+                        return true;
+                    }
+                    return false;
+                }, firstMessage -> {
+                    Assertions.assertEquals(firstReceiverMessageIds.poll(), firstMessage.getMessageId());
+                    // Refer Notes for test: 'shouldDrainErroredReceiverBeforeGettingNextReceiver'
+                    firstReceiverFacade.emitAndCompleteMessages(firstReceiverMessages.subList(1, firstReceiverMessagesCount)).run();
+                    firstReceiverFacade.completeEndpointStates().run();
+                })
+                .thenConsumeWhile(__ -> {
+                    if (firstReceiverRemainingEmissions[0] > 0) {
+                        firstReceiverRemainingEmissions[0]--;
+                        return true;
+                    }
+                    return false;
+                }, m -> {
+                    // Messages 2 to 4 (from first receiver).
+                    Assertions.assertEquals(firstReceiverMessageIds.poll(), m.getMessageId());
+                })
+                .thenConsumeWhile(__ -> {
+                    if (isFifthMessage[0]) {
+                        isFifthMessage[0] = false;
+                        return true;
+                    }
+                    return false;
+                }, fifthMessage -> {
+                    // Message 5 (from second receiver).
+                    Assertions.assertEquals(secondReceiverMessageIds.poll(), fifthMessage.getMessageId());
+                    secondReceiverFacade.emitAndCompleteMessages(secondReceiverMessages.subList(1, secondReceiverMessagesCount)).run();
+                    secondReceiverFacade.completeEndpointStates().run();
+                })
+                .thenConsumeWhile(__ -> {
+                    if (secondReceiverRemainingEmissions[0] > 0) {
+                        secondReceiverRemainingEmissions[0]--;
+                        return true;
+                    }
+                    return false;
+                }, m -> {
+                    // Messages 6 to 10 (from second receiver).
+                    Assertions.assertEquals(secondReceiverMessageIds.poll(), m.getMessageId());
+                })
                 .verifyComplete();
         }
 
@@ -513,7 +666,7 @@ public class MessageFluxIsolatedTest {
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE).concatWith(Flux.never()));
         when(receiver.closeAsync()).thenReturn(Mono.empty());
 
         try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
@@ -585,12 +738,14 @@ public class MessageFluxIsolatedTest {
             verifier.create(() -> messageFlux.concatMap(m -> messageFlux.updateDisposition(dispositionTags.get(idx[0]++), Accepted.getInstance()).thenReturn(m), 1))
                 .then(firstReceiverFacade.emit())
                 .thenRequest(request)
-                .then(firstReceiverFacade.emitAndCompleteEndpointStates(AmqpEndpointState.ACTIVE))
+                .then(firstReceiverFacade.emitEndpointStates(AmqpEndpointState.ACTIVE))
                 .then(firstReceiverFacade.emitAndCompleteMessages(firstReceiverMessages))
+                .then(firstReceiverFacade.completeEndpointStates())
                 .thenAwait(retryDelay.plusSeconds(1))
                 .then(secondReceiverFacade.emit())
-                .then(secondReceiverFacade.emitAndCompleteEndpointStates(AmqpEndpointState.ACTIVE))
+                .then(secondReceiverFacade.emitEndpointStates(AmqpEndpointState.ACTIVE))
                 .then(secondReceiverFacade.emitAndCompleteMessages(secondReceiverMessages))
+                .then(secondReceiverFacade.completeEndpointStates())
                 .then(() -> upstream.complete())
                 .expectNextCount(firstReceiverMessagesCount + secondReceiverMessagesCount)
                 .thenConsumeWhile(m -> true)
@@ -632,7 +787,7 @@ public class MessageFluxIsolatedTest {
                         upstreamSink.emitNext(receiver, Sinks.EmitFailureHandler.FAIL_FAST);
                         break;
                     case 2:
-                        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+                        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE).concatWith(Flux.never()));
                         when(receiver.receive()).thenReturn(Flux.never());
                         upstreamSink.emitNext(receiver, Sinks.EmitFailureHandler.FAIL_FAST);
                         break;
