@@ -722,11 +722,14 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
          */
         void onParentReady() {
             final long trackingId = System.nanoTime();
+            updateLogWithReceiverId(logger.atWarning())
+                .addKeyValue(TRACKING_ID_KEY, trackingId)
+                .log("Setting next Receiver.");
 
-            // Subscribe for the messages on the AmqpReceiveLink.
+            // Subscribe for the messages on the Receiver (AmqpReceiveLink).
             receiver.receive().subscribe(this);
 
-            // Subscribe for the AmqpReceiveLink terminal-state.
+            // Subscribe for the Receiver (AmqpReceiveLink) terminal-state.
             final Disposable taskOnTerminate =  receiver.getEndpointStates()
                 .ignoreElements()
                 .subscribe(__ -> { },
@@ -743,10 +746,6 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                         onLinkComplete();
                     });
             this.endpointStateDisposables.add(taskOnTerminate);
-
-            updateLogWithReceiverId(logger.atWarning())
-                .addKeyValue(TRACKING_ID_KEY, trackingId)
-                .log("Subscriptions are made to Receiver for messages and terminal-state.");
 
             final Disposable taskOnActive = receiver.getEndpointStates()
                 .publishOn(Schedulers.boundedElastic())
