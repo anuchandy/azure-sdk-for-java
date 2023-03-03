@@ -41,8 +41,8 @@ import static com.azure.core.amqp.implementation.ClientConstants.DELIVERY_TAG_KE
 import static com.azure.core.util.FluxUtil.monoError;
 
 /**
- * The Flux operator to stream messages reliably from a messaging entity (e.g., Event Hub, Service Bus Queue)
- * to downstream subscriber.
+ * The Flux operator to stream messages reliably from a messaging entity (e.g., Event Hub partition,
+ * Service Bus Queue, Topic) to downstream message subscriber.
  */
 public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
     private static final String MESSAGE_FLUX_KEY = "messageFlux";
@@ -56,11 +56,11 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
     /**
      * Create a message-flux to stream messages from a messaging entity to downstream subscriber.
      *
-     * @param source the upstream source that, upon request, provide receivers connected to the messaging entity.
+     * @param source the upstream source that, upon a request, provide a new receiver connected to the messaging entity.
      * @param prefetch the number of messages that the operator should prefetch from the messaging entity (for a
      *                 less chatty network and faster message processing on the client).
      * @param creditFlowMode the mode indicating how to compute the credit and when to send it to the broker.
-     * @param retryPolicy the retry policy to use to recover from receiver termination.
+     * @param retryPolicy the retry policy to use to obtain a new receiver upon current receiver termination.
      */
     public MessageFlux(Flux<? extends AmqpReceiveLink> source,
                           int prefetch,
@@ -117,11 +117,13 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
     }
 
     /**
-     * The underlying consumer and producer extension of the message-flux operator. The consuming side processes
-     * events from the upstream (which provides receivers) and current receiver (which provide messages),
-     * and producing side publishes the events to the downstream. The type has recovery mechanism to create a new
-     * receiver upon the current receiver's termination; recoveries happen underneath while the messages flow
-     * transparently downstream.
+     * The underlying consumer and producer extension of the message-flux operator. The consuming side processes events
+     * (about new receiver, terminal signals) from the upstream and events (messages, terminal signals) from
+     * the current receiver. The producing side publishes the messages to message-flux's downstream. The type has
+     * a recovery mechanism to obtain a new receiver from upstream upon the current receiver's termination.
+     * Recoveries happen underneath while the messages flow transparently downstream. The type can terminate downstream
+     * if the upstream terminates, the recovery path encounters a non-retriable error (i.e., the current receiver
+     * terminated with a non-retriable error), or recovery retries exhaust.
      */
     private static final class RecoverableReactorReceiver implements CoreSubscriber<AmqpReceiveLink>, Subscription {
         // A flag indicates if the downstream termination due to the upstream signal for operator completion
@@ -155,11 +157,11 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
             AtomicIntegerFieldUpdater.newUpdater(RecoverableReactorReceiver.class, "wip");
 
         /**
-         * Create a recoverable-receiver to support the message-flux to stream messages from a messaging entity
-         * to downstream subscriber.
+         * Create a recoverable-receiver that supports the message-flux to stream messages from the receiver attached
+         * to a messaging entity to the message-flux's downstream subscriber and recover from receiver termination.
          *
          * @param parent the parent message-flux.
-         * @param messageSubscriber the downstream subscriber to notify the events (messages, termination).
+         * @param messageSubscriber the message-flux's downstream subscriber to notify the events.
          * @param prefetch the number of messages that the operator should prefetch from the messaging entity
          *                 (for a less chatty network and faster message processing on the client).
          * @param creditFlowMode the mode indicating how to compute the credit and when to send it to the broker.
@@ -179,15 +181,17 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
         }
 
         /**
-         * Invoked by the upstream in-response to the subscription to message-flux operator.
+         * Invoked by the upstream in response to message-flux subscribing to it.
          *
-         * @param s the subscription that the operator uses to request receivers from the upstream
-         *         or terminate upstream through cancellation when it is no longer needed.
+         * @param s the subscription handle for requesting receivers from the upstream or terminating upstream
+         *         through cancellation when it is no longer needed.
          */
         @Override
         public void onSubscribe(Subscription s) {
             if (Operators.validate(this.upstream, s)) {
                 this.upstream = s;
+                // Invoke the downstream's 'onSubscribe' with the subscription handle enabling downstream to
+                // request messages or cancellation.
                 messageSubscriber.onSubscribe(this);
                 // Request the first receiver from the upstream.
                 s.request(1);
@@ -229,8 +233,8 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
         }
 
         /**
-         * Invoked by the upstream to signal operator termination with an error or invoked from the drain-loop
-         * to signal operator termination due to 'non-retriable or retry exhaust' error.
+         * Invoked by the upstream to signal termination with an error or invoked from the drain-loop to signal
+         * termination due to 'non-retriable or retry exhaust' error.
          *
          * @param e the error signaled.
          */
@@ -246,18 +250,18 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
             if (Exceptions.addThrowable(ERROR, this, e)) {
                 done = true;
                 mediatorHolder.updateLogWithReceiverId(logger.atWarning())
-                        .log("Terminal error signal (from upstream Or from retry loop - non_retriable or exhausted) arrived at MessageFlux.", e);
+                        .log("Terminal error signal from upstream Or from retry loop (non_retriable or exhausted) arrived at MessageFlux.", e);
                 drain(null);
             } else {
                 // Once the drain-loop processed the last error, then further errors dropped through the standard
                 // Reactor channel. E.g., retry exhaust error happened and, as part of its processing, upstream
-                // gets canceled, but if upstream still signals an error, then it gets dropped.
+                // gets canceled, but if upstream still signals an error, then that error gets dropped.
                 Operators.onErrorDropped(e, messageSubscriber.currentContext());
             }
         }
 
         /**
-         * Invoked by the upstream to signal operator termination with completion.
+         * Invoked by the upstream to signal termination with completion.
          */
         @Override
         public void onComplete() {
@@ -272,9 +276,9 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
         }
 
         /**
-         * Invoked by the downstream to signal the demand for messages. Whatever has been requested can be sent
-         * downstream, so only signal the demand for what can be safely handled. No messages will be sent downstream
-         * until the demand is signaled.
+         * Invoked by the downstream message subscriber to signal the demand for messages. Whatever has been
+         * requested can be sent downstream, so only signal the demand for what can be safely handled.
+         * No messages will be sent downstream until the demand is signaled.
          *
          * @param n the number of messages to send to downstream.
          */
@@ -287,7 +291,7 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
         }
 
         /**
-         * Invoked by downstream to signal termination of operator by cancellation.
+         * Invoked by downstream to signal termination by cancellation.
          */
         @Override
         public void cancel() {
@@ -316,9 +320,9 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
         void onMediatorReady(BiFunction<String, DeliveryState, Mono<Void>> updateDispositionFunc) {
             retryAttempts.set(0);
             parent.onNextUpdateDispositionFunction(updateDispositionFunc);
-            // After invoking 'messageSubscriber.onSubscribe(subscription)' and before the readiness
-            // of the mediator, there may be request signals for messages from the downstream, invoke
-            // drain(...) to process those signals.
+            // After invoking 'messageSubscriber.onSubscribe(this)' and before the readiness of the mediator,
+            // there may be request signals for messages from the downstream, invoke drain(...) to process
+            // those signals.
             drain(null);
         }
 
@@ -523,9 +527,11 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                     downstream.onError(e);
                     return true;
                 }
-                // The absence of error indicates upstream signaled operator termination with completion;
-                // downstream completion can be delayed until the current mediator's queue is drained and
-                // terminated, or downstream completion can be done eagerly.
+                // The absence of error indicates upstream signaled operator termination with completion, then
+                // [1]. the downstream completion can be delayed until the current (last) mediator's queue is
+                // drained and terminated (when completeAfterMediatorFlush == true),
+                // [2]. Or the downstream completion can be done eagerly.
+                //
                 if (completeAfterMediatorFlush) {
                     // The termination of the downstream with completion should happen only after the current
                     // mediator is drained and terminated.
