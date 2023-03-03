@@ -7,6 +7,7 @@ import com.azure.core.amqp.AmqpEndpointState;
 import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.amqp.FixedAmqpRetryPolicy;
+import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import reactor.test.publisher.TestPublisher;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -64,7 +66,7 @@ public class MessageFluxRequestDrivenCreditFlowIsolatedTest {
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.getEndpointStates()).thenReturn(activeThenNeverTerminate());
         when(receiver.closeAsync()).thenReturn(Mono.empty());
 
         final AtomicLong initialFlow = new AtomicLong();
@@ -99,7 +101,7 @@ public class MessageFluxRequestDrivenCreditFlowIsolatedTest {
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.getEndpointStates()).thenReturn(activeThenNeverTerminate());
         when(receiver.closeAsync()).thenReturn(Mono.empty());
 
         final AtomicInteger flowCalls = new AtomicInteger();
@@ -150,7 +152,7 @@ public class MessageFluxRequestDrivenCreditFlowIsolatedTest {
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.getEndpointStates()).thenReturn(activeThenNeverTerminate());
         when(receiver.closeAsync()).thenReturn(Mono.empty());
 
         final AtomicInteger flowCalls = new AtomicInteger();
@@ -201,7 +203,7 @@ public class MessageFluxRequestDrivenCreditFlowIsolatedTest {
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.getEndpointStates()).thenReturn(activeThenNeverTerminate());
         when(receiver.closeAsync()).thenReturn(Mono.empty());
 
         final AtomicInteger flowCalls = new AtomicInteger();
@@ -247,5 +249,55 @@ public class MessageFluxRequestDrivenCreditFlowIsolatedTest {
         Assertions.assertEquals(40, fourthFlow.get());
         verify(receiver).closeAsync();
         upstream.assertCancelled();
+    }
+
+    @Test
+    @Execution(ExecutionMode.SAME_THREAD)
+    public void shouldBoundUnboundedRequest() {
+        final int prefetch = 0;
+        final TestPublisher<ReactorReceiver> upstream = TestPublisher.create();
+        final MessageFlux messageFlux = new MessageFlux(upstream.flux(), prefetch, CreditFlowMode.RequestDriven, retryPolicy);
+
+        final ReactorReceiver receiver = mock(ReactorReceiver.class);
+        final Message message = mock(Message.class);
+        final int messagesCount = 4;
+        when(receiver.receive()).thenReturn(Flux.range(0, messagesCount - 1).map(__ -> message));
+        when(receiver.getEndpointStates()).thenReturn(activeThenNeverTerminate());
+        when(receiver.closeAsync()).thenReturn(Mono.empty());
+
+        final ConcurrentLinkedQueue<Long> flows = new ConcurrentLinkedQueue<>();
+        doAnswer(invocation -> {
+            final Object[] args = invocation.getArguments();
+            @SuppressWarnings("unchecked")
+            final Supplier<Long> creditSupplier = (Supplier<Long>) args[0];
+            Assertions.assertNotNull(creditSupplier);
+            flows.add(creditSupplier.get());
+            return null;
+        }).when(receiver).scheduleFlow(any());
+
+        try (VirtualTimeStepVerifier verifier = new VirtualTimeStepVerifier()) {
+            verifier.create(() -> messageFlux)
+                .then(() -> upstream.next(receiver))
+                //  Unbounded-Request: (Combined with no Prefetch) Switches to a mode where initially one message is requested,
+                //  the arrival then the emission of resulting message trigger request for next message and so on...
+                .thenRequest(Long.MAX_VALUE)
+                .thenAwait()
+                //  Any requests post Unbounded-Request are ignored.
+                .thenRequest(10)
+                .thenRequest(20)
+                .then(() -> upstream.complete())
+                .thenConsumeWhile(__ -> true)
+                .verifyComplete();
+        }
+
+        // With Prefetch disabled, there is going to be 'messagesCount' flow calls, each with credit 1
+        Assertions.assertEquals(messagesCount, flows.size());
+        flows.forEach(c -> Assertions.assertEquals(1, c));
+        verify(receiver).closeAsync();
+        upstream.assertCancelled();
+    }
+
+    private static Flux<AmqpEndpointState> activeThenNeverTerminate() {
+        return Flux.just(AmqpEndpointState.ACTIVE).concatWith(Flux.never());
     }
 }

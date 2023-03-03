@@ -7,7 +7,6 @@ import com.azure.core.amqp.AmqpEndpointState;
 import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.AmqpRetryPolicy;
 import com.azure.core.amqp.FixedAmqpRetryPolicy;
-import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,11 +22,8 @@ import reactor.test.publisher.TestPublisher;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -67,7 +63,7 @@ public class MessageFluxEmissionDrivenCreditFlowIsolatedTest {
 
         final ReactorReceiver receiver = mock(ReactorReceiver.class);
         when(receiver.receive()).thenReturn(Flux.never());
-        when(receiver.getEndpointStates()).thenReturn(Flux.just(AmqpEndpointState.ACTIVE));
+        when(receiver.getEndpointStates()).thenReturn(activeThenNeverTerminate());
         when(receiver.closeAsync()).thenReturn(Mono.empty());
 
         final AtomicLong initialFlow = new AtomicLong();
@@ -93,10 +89,7 @@ public class MessageFluxEmissionDrivenCreditFlowIsolatedTest {
         upstream.assertCancelled();
     }
 
-    private static List<Message> generateMessages(Message message, int count) {
-        return IntStream.rangeClosed(1, count)
-            .mapToObj(__ -> message)
-            .collect(Collectors.toList());
+    private static Flux<AmqpEndpointState> activeThenNeverTerminate() {
+        return Flux.just(AmqpEndpointState.ACTIVE).concatWith(Flux.never());
     }
-
 }
