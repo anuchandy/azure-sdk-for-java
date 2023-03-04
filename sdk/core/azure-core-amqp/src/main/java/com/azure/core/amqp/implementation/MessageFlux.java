@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -190,7 +191,7 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
         public void onSubscribe(Subscription s) {
             if (Operators.validate(this.upstream, s)) {
                 this.upstream = s;
-                // Invoke the downstream's 'onSubscribe' with the subscription handle enabling downstream to
+                // Invoke the downstream 'onSubscribe' with the subscription handle enabling downstream to
                 // request messages or cancellation.
                 messageSubscriber.onSubscribe(this);
                 // Request the first receiver from the upstream.
@@ -360,12 +361,12 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                 ReactorReceiverMediator mediator = mediatorHolder.mediator;
                 // the mediator can be null only in two cases -
                 // 1. In RecoverableReactorReceiver::onSubscribe, it passes the 'Subscription' to downstream via
-                // messageSubscriber.onSubscribe(..). Once this method returns RecoverableReactorReceiver request a
-                // receiver for the very first Mediator. But from within onSubscribe(), the messageSubscriber can call
-                // Subscription.request(n) resulting execution of drain-loop. In this case, the Mediator will be null
-                // since the request for the receiver is yet to be made.
-                // 2. If the upstream signals operator termination without emitting the very first receiver, hence no
-                // associated mediator.
+                // messageSubscriber.onSubscribe(..). Once this method returns RecoverableReactorReceiver request
+                // a receiver to back the very first Mediator. But from inside messageSubscriber.onSubscribe(),
+                // Subscription.request(n) could be called resulting execution of drain-loop. In this case,
+                // the Mediator will be null since the request for the first receiver is yet to be made.
+                // 2. If the upstream signals operator termination without emitting the very first receiver, hence
+                // no associated Mediator.
                 boolean hasMediator = mediator != null && !mediatorHolder.noNextMediator;
 
                 if (terminateIfCancelled(downstream, null)) {
@@ -462,7 +463,7 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                     // The current mediator's queue is drained, and the mediator is terminated, let's close it,
                     mediator.closeAsync().subscribe();
                     // and proceed with requesting a new mediator if MessageFlux is in a state to do so.
-                    signalTerminationOrScheduleNextMediatorRequest(mediator.error, mediatorHolder);
+                    setTerminationSignalOrScheduleNextMediatorRequest(mediator.error, downstream, mediatorHolder);
                 }
 
                 missed = WIP.addAndGet(this, -missed);
@@ -556,15 +557,18 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
         /**
          * CONTRACT: Never invoke from the outside of serialized drain-loop.
          * <br/>
-         * Request the next mediator if the operator is not in a termination signaled state and error is
-         * retriable and the retry is not exhausted. If there is 'non-retriable or retry exhaust' error,
-         * then proceed with error-ed termination of the operator.
+         * Schedule request for the next mediator if (a). the operator is not in a termination signaled state and
+         * (b). there is no error Or (c). error is retriable and the retry is not exhausted.
+         * If there is 'non-retriable or retry exhaust' error, then set an error signal for the drain-loop to
+         * terminate the operator.
          *
          * @param error the error that leads to error-ed termination of the last mediator or {@code null}
          *              if terminated with completion.
+         * @param downstream the downstream.
          * @param mediatorHolder the mediator holder.
          */
-        private void signalTerminationOrScheduleNextMediatorRequest(Throwable error, MediatorHolder mediatorHolder) {
+        private void setTerminationSignalOrScheduleNextMediatorRequest(Throwable error,
+            CoreSubscriber<Message> downstream, MediatorHolder mediatorHolder) {
             final LoggingEventBuilder logBuilder = mediatorHolder.updateLogWithReceiverId(logger.atWarning());
             if (cancelled || done) {
                 // To terminate the operator, the downstream signaled cancellation Or upstream signaled error
@@ -572,10 +576,10 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                 // the operator through one of the 'terminateIf*' methods followed by placing tombstone on
                 // the drain-loop.
 
-                // Below flag signals that there is no mediator currently, and there won't be one in the future,
-                // which shows the current mediator is flushed. If 'completeAfterMediatorFlush' is 'true' and
-                // upstream signals operator completion, the flag 'noNextMediator' tells the next drain-loop iteration
-                // that it can terminate downstream gracefully.
+                // Setting the 'noNextMediator' flag signals that the current mediator is flushed and there will not be
+                // a new mediator.
+                // If 'completeAfterMediatorFlush' is 'true' and upstream signals operator completion, 'noNextMediator'
+                // tells the next drain-loop iteration that it can terminate downstream gracefully.
                 mediatorHolder.noNextMediator = true;
                 logBuilder.log("MessageFlux reached terminal-state [done:{}, cancelled:{}].", done, cancelled);
                 return;
@@ -590,9 +594,6 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                     .addKeyValue("retryAfter", delay.toMillis())
                     .log("Current mediator reached terminal completion-state (retriable:true).");
             } else {
-                // TODO (anu): The legacy EH Processor retries only on receiver-completion, not on receiver-error.
-                //   To get the same behavior, EH can create MessageFlux with AmqpRetryOptions.setMaxRetries(0) to
-                //   disable retry on receiver-error.
                 final int attempt = retryAttempts.incrementAndGet();
                 delay = retryPolicy.calculateRetryDelay(error, attempt);
                 if (delay != null) {
@@ -603,17 +604,28 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                 } else {
                     logBuilder.addKeyValue("attempt", attempt)
                         .log("Current mediator reached terminal error-state (retriable:false) Or MessageFlux retries exhausted.", error);
-                    // Invoking 'onError' to signal the next drain-loop iteration to terminate the operator
-                    // with 'error',
+                    // Note: this method is (will be by contract) called from the drain-loop's current iteration.
+                    // Invoke 'onError' to set an error signal for the next drain-loop iteration to terminate the operator.
                     onError(error);
-                    // once the control returns below, the next immediate drain-loop iteration (iteration
-                    // guaranteed by the above error signaling) picks the signal, terminates the operator
-                    // through 'terminateIfErrored*' method and places tombstone on the drain-loop.
+                    // Once the control from this method 'return' to the caller i.e. to drain-loop, the next immediate
+                    // drain-loop iteration (iteration guaranteed by the above error signaling) picks the error signal,
+                    // terminates the operator and downstream through 'terminateIfErrored*' method and places tombstone
+                    // on the drain-loop.
                     return;
                 }
             }
 
-            scheduleNextMediatorRequest(trackingId, delay, mediatorHolder);
+            try {
+                scheduleNextMediatorRequest(trackingId, delay, mediatorHolder);
+            } catch (RejectedExecutionException ree) {
+                final RuntimeException e = Operators.onRejectedExecution(ree, downstream.currentContext());
+                mediatorHolder.updateLogWithReceiverId(logger.atWarning())
+                    .log("Unable to schedule a request for a new mediator (retriable:false).", e);
+                onError(e);
+                // See the above Note on 'onError' about why the downstream termination is guaranteed immediately
+                // after control 'return' to drain-loop.
+                return;
+            }
         }
 
         /**
@@ -622,6 +634,7 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
          * @param trackingId an id to correlate the logs from the scheduled task with the relevant logs from the caller.
          * @param delay the backoff duration before requesting the next mediator.
          * @param mediatorHolder the mediator holder.
+         * @throws RejectedExecutionException if the scheduler is unable to schedule the task.
          */
         private void scheduleNextMediatorRequest(long trackingId, Duration delay, MediatorHolder mediatorHolder) {
             final Runnable delayedTask = () -> {
@@ -730,7 +743,7 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
             final long trackingId = System.nanoTime();
             updateLogWithReceiverId(logger.atWarning())
                 .addKeyValue(TRACKING_ID_KEY, trackingId)
-                .log("Setting next Receiver.");
+                .log("Setting next mediator.");
 
             // Subscribe for the messages on the Receiver (AmqpReceiveLink).
             receiver.receive().subscribe(this);
@@ -760,7 +773,7 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                         if (!ready) {
                             updateLogWithReceiverId(logger.atWarning())
                                 .addKeyValue(TRACKING_ID_KEY, trackingId)
-                                .log("The Receiver is active.");
+                                .log("The mediator is active.");
                             // Set the 'ready' flag to indicate AmqpReceiveLink's successful transition to the ACTIVE state.
                             // Once this flag is set, the drain-loop can request credit placement via 'RequestAccounting'
                             // contract as needed, i.e., the flag ensures credit is placed only after the Link is ACTIVE.
