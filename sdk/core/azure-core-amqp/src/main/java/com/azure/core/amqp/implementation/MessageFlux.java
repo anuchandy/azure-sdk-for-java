@@ -127,9 +127,6 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
      * terminated with a non-retriable error), or recovery retries exhaust.
      */
     private static final class RecoverableReactorReceiver implements CoreSubscriber<AmqpReceiveLink>, Subscription {
-        // A flag indicates if the downstream termination due to the upstream signal for operator completion
-        // needs to wait for the current mediator to terminate (experimental, disabled internally).
-        private  final boolean completeAfterMediatorFlush = false;
         // holds the current mediator that coordinates between a receiver and the recoverable-receiver.
         private final MediatorHolder mediatorHolder = new MediatorHolder();
         private final MessageFlux parent;
@@ -367,7 +364,7 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                 //      the Mediator will be null since the request for the first receiver is yet to be made.
                 // [2]. If the upstream signals operator termination without emitting the very first receiver, hence
                 //      no associated Mediator.
-                boolean hasMediator = mediator != null && !mediatorHolder.noNextMediator;
+                boolean hasMediator = mediator != null;
 
                 if (terminateIfCancelled(downstream, null)) {
                     // the 'return' from the drain-loop in response to 'true' from 'terminateIf*' methods
@@ -376,7 +373,7 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                     return;
                 }
 
-                if (terminateIfErroredOrUpstreamCompleted(d, hasMediator, downstream, null)) {
+                if (terminateIfErroredOrUpstreamCompleted(d, downstream, null)) {
                     return;
                 }
 
@@ -397,7 +394,7 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                             return;
                         }
 
-                        if (terminateIfErroredOrUpstreamCompleted(done, true, downstream, message)) {
+                        if (terminateIfErroredOrUpstreamCompleted(done, downstream, message)) {
                             return;
                         }
 
@@ -445,7 +442,7 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                     // or pending signal from the upstream to terminate the operator with error or completion
                     // or last drain-loop iteration detected 'non-retriable or retry exhaust' error needing
                     // operator termination,
-                    if (terminateIfErroredOrUpstreamCompleted(done, true, downstream, null)) {
+                    if (terminateIfErroredOrUpstreamCompleted(done, downstream, null)) {
                         return;
                     }
 
@@ -502,14 +499,11 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
          * downstream.
          *
          * @param d indicate if the operator termination was signaled.
-         * @param hasMediator indicate there is no active mediator and there won't be one in the future.
          * @param downstream the downstream.
          * @param messageDropped the message that gets dropped if termination happened.
          * @return true if terminated, false otherwise.
          */
-        private boolean terminateIfErroredOrUpstreamCompleted(boolean d, boolean hasMediator,
-                                                              CoreSubscriber<Message> downstream,
-                                                              Message messageDropped) {
+        private boolean terminateIfErroredOrUpstreamCompleted(boolean d, CoreSubscriber<Message> downstream, Message messageDropped) {
             if (d) {
                 // true for 'd' means the operator termination was signaled.
                 final LoggingEventBuilder logBuilder = mediatorHolder.updateLogWithReceiverId(logger.atWarning());
@@ -528,28 +522,14 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                     downstream.onError(e);
                     return true;
                 }
-                // The absence of error indicates upstream signaled operator termination with completion, then
-                // [1]. the downstream completion can be delayed until the current (last) mediator's queue is
-                //      drained and terminated (when completeAfterMediatorFlush == true),
-                // [2]. Or the downstream completion can be done eagerly.
                 //
-                if (completeAfterMediatorFlush) {
-                    // The termination of the downstream with completion should happen only after the current
-                    // mediator is drained and terminated.
-                    // [Note: downstream completion awaiting on flush is experimental & disabled].
-                    if (!hasMediator) {
-                        // No mediator indicates, had there a mediator, it will be now drained and terminated.
-                        downstream.onComplete();
-                        return true;
-                    }
-                } else {
-                    Operators.onDiscard(messageDropped, downstream.currentContext());
-                    upstream.cancel();
-                    mediatorHolder.freeze();
-                    logBuilder.log("MessageFlux reached a terminal completion-state, signaling it downstream.");
-                    downstream.onComplete();
-                    return true;
-                }
+                // The absence of error (e) indicates upstream signaled operator termination with completion.
+                Operators.onDiscard(messageDropped, downstream.currentContext());
+                upstream.cancel();
+                mediatorHolder.freeze();
+                logBuilder.log("MessageFlux reached a terminal completion-state, signaling it downstream.");
+                downstream.onComplete();
+                return true;
             }
             return false;
         }
@@ -575,12 +555,6 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                 // or completion. The next drain-loop iteration as a result of that signalling will terminate
                 // the operator through one of the 'terminateIf*' methods followed by placing tombstone on
                 // the drain-loop.
-
-                // Setting the 'noNextMediator' flag signals that the current mediator is flushed and there will not be
-                // a new mediator.
-                // If 'completeAfterMediatorFlush' is 'true' and upstream signals operator completion, 'noNextMediator'
-                // tells the next drain-loop iteration that it can terminate downstream gracefully.
-                mediatorHolder.noNextMediator = true;
                 logBuilder.log("MessageFlux reached terminal-state [done:{}, cancelled:{}].", done, cancelled);
                 return;
             }
@@ -641,17 +615,8 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
                 final LoggingEventBuilder logBuilder = mediatorHolder.updateLogWithReceiverId(logger.atWarning())
                     .addKeyValue(TRACKING_ID_KEY, trackingId);
 
-                if (cancelled) {
-                    logBuilder.log("During the backoff, MessageFlux reached terminal-state due to downstream cancellation signal.");
-                    return;
-                }
-
-                if (done) {
-                    logBuilder.log("During the backoff, MessageFlux reached terminal-state due to upstream termination signal.");
-                    if (completeAfterMediatorFlush) {
-                        mediatorHolder.noNextMediator = true;
-                        drain(null);
-                    }
+                if (cancelled || done) {
+                    logBuilder.log("During the backoff, MessageFlux reached terminal-state [done:{}, cancelled:{}].", done, cancelled);
                     return;
                 }
 
@@ -966,7 +931,6 @@ public final class MessageFlux extends FluxOperator<AmqpReceiveLink, Message> {
      */
     private static final class MediatorHolder {
         private boolean isFrozen;
-        volatile boolean noNextMediator;
         volatile ReactorReceiverMediator mediator;
         // Holds the subscription to the task that, when executed, request the next mediator.
         volatile Disposable nextMediatorRequestDisposable;
