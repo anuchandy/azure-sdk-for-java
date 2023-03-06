@@ -52,16 +52,15 @@ public interface AmqpReceiveLink extends AmqpLink {
     Mono<Void> addCredits(int credits);
 
     /**
-     * Schedules an AMQP flow performative to send to the broker. The API takes a {@link Supplier} that returns
-     * the required credit to be included in the flow performative; this allows the caller to provide the most
-     * up-to-date credit value when the link picks the scheduled work for execution rather than the credit at
-     * the time of scheduling.
+     * Schedules an event to send a credit to the broker. The API takes a {@link Supplier} that returns the credit
+     * to send. The supplier allows providing the most up-to-date credit value when the scheduler picks the scheduled
+     * work for execution rather than the credit at the time of scheduling.
      *
-     * @param creditSupplier the supplier that returns the credit to include in the flow when schedulers pick the work.
-     * @throws RejectedExecutionException if the scheduler rejects the attempt to schedule the flow (e.g., the scheduler is closed).
-     * @throws UncheckedIOException if an IO error occurs that results in failure in flow scheduling.
+     * @param creditSupplier the supplier that returns the credit to send.
+     * @throws RejectedExecutionException if the scheduler rejects the scheduling attempt (e.g., the scheduler is closed).
+     * @throws UncheckedIOException if an IO error occurs when scheduling.
      */
-    void scheduleFlow(Supplier<Long> creditSupplier);
+    void scheduleCredit(Supplier<Long> creditSupplier);
 
     /**
      * Gets the current number of credits this link has.

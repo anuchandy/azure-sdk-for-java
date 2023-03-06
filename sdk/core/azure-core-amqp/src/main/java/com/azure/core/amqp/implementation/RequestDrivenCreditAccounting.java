@@ -9,8 +9,8 @@ import org.reactivestreams.Subscription;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * The type tracks the downstream request accumulated since the last broker flow and sends a flow
- * once the value is greater than or equal to the Prefetch.
+ * The type tracks the downstream request accumulated since the last credit flow to the broker and once the accumulated
+ * request is greater than or equal to the Prefetch, send it as the next credit.
  */
 final class RequestDrivenCreditAccounting extends CreditAccounting {
     private static final int MAX_INT_PREFETCH_BOUND = 100;
@@ -52,7 +52,7 @@ final class RequestDrivenCreditAccounting extends CreditAccounting {
             pendingMessageCount += c;
             subscription.request(c);
             if (requestAccumulated.addAndGet(c) >= prefetch) {
-                scheduleFlow(() -> requestAccumulated.getAndSet(0));
+                scheduleCredit(() -> requestAccumulated.getAndSet(0));
             }
         }
     }

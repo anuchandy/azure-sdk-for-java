@@ -9,8 +9,8 @@ import org.reactivestreams.Subscription;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * The type tracks the number of messages emitted to downstream since the last broker flow and sends a flow
- * once the value is greater than or equal to a fraction (e.g., 0.5) of the Prefetch.
+ * The type tracks the number of messages emitted downstream since the last credit flow to the broker, and once
+ * the emission count is greater than or equal to a fraction (e.g., 0.5) of the Prefetch, send it as the next credit.
  */
 final class EmissionDrivenCreditAccounting extends CreditAccounting {
     private static final int MAX_INT_PREFETCH_BOUND = 100;
@@ -40,12 +40,12 @@ final class EmissionDrivenCreditAccounting extends CreditAccounting {
         if (emitted != 0L) {
             subscription.request(emitted);
             if (emissionAccumulated.addAndGet(emitted) >= limit) {
-                scheduleFlow(() -> emissionAccumulated.getAndSet(0));
+                scheduleCredit(() -> emissionAccumulated.getAndSet(0));
             }
         } else if (!placedInitialCredit) {
             placedInitialCredit = true;
             subscription.request(prefetch);
-            scheduleFlow(() -> Long.valueOf(prefetch));
+            scheduleCredit(() -> Long.valueOf(prefetch));
         }
     }
 

@@ -11,8 +11,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Supplier;
 
 /**
- * The type tracking the credits for the receiver in message-flux. It decides when to request messages
- * to the receiver's message publisher and send the credits to the broker.
+ * The type that tracks and sends credits for the receiver in message-flux.
  */
 abstract class CreditAccounting {
     private final AmqpReceiveLink receiver;
@@ -40,7 +39,7 @@ abstract class CreditAccounting {
      * CONTRACT: Never invoke from the outside of serialized drain-loop of message-flux.
      * <br/>
      * Notify the latest view of the downstream request and messages emitted by the emitter-loop during
-     * the last drain-loop iteration.
+     * the last drain-loop iteration in message-flux.
      *
      * @param request the latest view of the downstream request.
      * @param emitted the number of messages emitted by the latest emitter-loop run.
@@ -48,13 +47,13 @@ abstract class CreditAccounting {
     abstract void update(long request, long emitted);
 
     /**
-     * Request receiver to schedule sending of a flow performative to the broker.
+     * Request receiver to schedule an event to send a credit to the broker.
      *
-     * @param creditSupplier the supplier that supplies the credit to send using flow.
+     * @param creditSupplier the supplier that supplies the credit to send.
      */
-    protected void scheduleFlow(Supplier<Long> creditSupplier) {
+    protected void scheduleCredit(Supplier<Long> creditSupplier) {
         try {
-            receiver.scheduleFlow(creditSupplier);
+            receiver.scheduleCredit(creditSupplier);
         } catch (RejectedExecutionException e) {
             logger.info("RejectedExecutionException when attempting to schedule credit flow.", e);
         } catch (UncheckedIOException e) {
