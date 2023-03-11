@@ -15,7 +15,7 @@ import com.azure.core.annotation.ServiceClient;
 import com.azure.core.util.CoreUtils;
 import com.azure.core.util.logging.ClientLogger;
 import com.azure.messaging.servicebus.implementation.MessagingEntityType;
-import com.azure.messaging.servicebus.implementation.ServiceBusConnectionProcessor;
+import com.azure.messaging.servicebus.implementation.ServiceBusAmqpConnection;
 import com.azure.messaging.servicebus.implementation.instrumentation.ServiceBusTracer;
 import com.azure.messaging.servicebus.models.CreateMessageBatchOptions;
 import org.apache.qpid.proton.amqp.Binary;
@@ -164,7 +164,8 @@ public final class ServiceBusSenderAsyncClient implements AutoCloseable {
     private final MessagingEntityType entityType;
     private final Runnable onClientClose;
     private final String entityName;
-    private final ServiceBusConnectionProcessor connectionProcessor;
+    private final Mono<ServiceBusAmqpConnection> connectionProcessor;
+    private final String fqdn;
     private final String viaEntityName;
     private final String identifier;
     private final ServiceBusSenderInstrumentation instrumentation;
@@ -174,15 +175,16 @@ public final class ServiceBusSenderAsyncClient implements AutoCloseable {
      * Creates a new instance of this {@link ServiceBusSenderAsyncClient} that sends messages to a Service Bus entity.
      */
     ServiceBusSenderAsyncClient(String entityName, MessagingEntityType entityType,
-        ServiceBusConnectionProcessor connectionProcessor, AmqpRetryOptions retryOptions, ServiceBusSenderInstrumentation instrumentation,
+        ServiceBusConnectionSupport connectionSupport, AmqpRetryOptions retryOptions, ServiceBusSenderInstrumentation instrumentation,
         MessageSerializer messageSerializer, Runnable onClientClose, String viaEntityName, String identifier) {
         // Caching the created link so we don't invoke another link creation.
         this.messageSerializer = Objects.requireNonNull(messageSerializer,
             "'messageSerializer' cannot be null.");
         this.retryOptions = Objects.requireNonNull(retryOptions, "'retryOptions' cannot be null.");
         this.entityName = Objects.requireNonNull(entityName, "'entityPath' cannot be null.");
-        this.connectionProcessor = Objects.requireNonNull(connectionProcessor,
-            "'connectionProcessor' cannot be null.");
+        Objects.requireNonNull(connectionSupport, "'connectionSupport' cannot be null.");
+        this.connectionProcessor = connectionSupport.getConnection();
+        this.fqdn = connectionSupport.getFullyQualifiedNamespace();
         this.instrumentation = Objects.requireNonNull(instrumentation, "'instrumentation' cannot be null.");
         this.tracer = instrumentation.getTracer();
         this.retryPolicy = getRetryPolicy(retryOptions);
@@ -198,7 +200,7 @@ public final class ServiceBusSenderAsyncClient implements AutoCloseable {
      * @return The fully qualified namespace.
      */
     public String getFullyQualifiedNamespace() {
-        return connectionProcessor.getFullyQualifiedNamespace();
+        return fqdn;
     }
 
     /**

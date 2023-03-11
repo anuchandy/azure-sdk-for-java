@@ -142,6 +142,7 @@ class ServiceBusSenderAsyncClientTest {
     private final FluxSink<AmqpEndpointState> endpointSink = endpointProcessor.sink(FluxSink.OverflowStrategy.BUFFER);
     private ServiceBusSenderAsyncClient sender;
     private ServiceBusConnectionProcessor connectionProcessor;
+    private ServiceBusConnectionSupport connectionSupport;
     private ConnectionOptions connectionOptions;
 
     @BeforeAll
@@ -170,7 +171,9 @@ class ServiceBusSenderAsyncClientTest {
             new ServiceBusConnectionProcessor(connectionOptions.getFullyQualifiedNamespace(),
                 connectionOptions.getRetry()));
 
-        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionProcessor,
+        connectionSupport = new ServiceBusConnectionSupport(connectionProcessor);
+
+        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionSupport,
             retryOptions, DEFAULT_INSTRUMENTATION, serializer, onClientClose, null, CLIENT_IDENTIFIER);
 
         when(connection.getManagementNode(anyString(), any(MessagingEntityType.class)))
@@ -401,7 +404,7 @@ class ServiceBusSenderAsyncClientTest {
 
         final ServiceBusMessageBatch batch = new ServiceBusMessageBatch(256 * 1024,
             errorContextProvider, instrumentation.getTracer(), serializer);
-        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionProcessor,
+        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionSupport,
             retryOptions, instrumentation, serializer, onClientClose, null, CLIENT_IDENTIFIER);
 
         when(connection.createSendLink(eq(ENTITY_NAME), eq(ENTITY_NAME), eq(retryOptions), isNull(), eq(CLIENT_IDENTIFIER)))
@@ -456,7 +459,7 @@ class ServiceBusSenderAsyncClientTest {
         TestMeter meter = new TestMeter();
         ServiceBusSenderInstrumentation instrumentation = new ServiceBusSenderInstrumentation(null, meter, NAMESPACE, ENTITY_NAME);
 
-        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionProcessor,
+        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionSupport,
             retryOptions, instrumentation, serializer, onClientClose, null, CLIENT_IDENTIFIER);
 
         when(connection.createSendLink(eq(ENTITY_NAME), eq(ENTITY_NAME), eq(retryOptions), isNull(), eq(CLIENT_IDENTIFIER)))
@@ -493,7 +496,7 @@ class ServiceBusSenderAsyncClientTest {
         Tracer tracer = mock(Tracer.class);
         ServiceBusSenderInstrumentation instrumentation = new ServiceBusSenderInstrumentation(tracer, meter, NAMESPACE, ENTITY_NAME);
 
-        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionProcessor,
+        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionSupport,
             retryOptions, instrumentation, serializer, onClientClose, null, CLIENT_IDENTIFIER);
 
         when(connection.createSendLink(eq(ENTITY_NAME), eq(ENTITY_NAME), eq(retryOptions), isNull(), eq(CLIENT_IDENTIFIER)))
@@ -534,7 +537,7 @@ class ServiceBusSenderAsyncClientTest {
         batch.tryAddMessage(new ServiceBusMessage(TEST_CONTENTS));
         batch.tryAddMessage(new ServiceBusMessage(TEST_CONTENTS));
 
-        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionProcessor,
+        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionSupport,
             retryOptions, instrumentation, serializer, onClientClose, null, CLIENT_IDENTIFIER);
 
         when(connection.createSendLink(eq(ENTITY_NAME), eq(ENTITY_NAME), eq(retryOptions), isNull(), eq(CLIENT_IDENTIFIER)))
@@ -560,7 +563,7 @@ class ServiceBusSenderAsyncClientTest {
         TestMeter meter = new TestMeter();
         ServiceBusSenderInstrumentation instrumentation = new ServiceBusSenderInstrumentation(null, meter, NAMESPACE, ENTITY_NAME);
 
-        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionProcessor,
+        sender = new ServiceBusSenderAsyncClient(ENTITY_NAME, MessagingEntityType.QUEUE, connectionSupport,
             retryOptions, instrumentation, serializer, onClientClose, null, CLIENT_IDENTIFIER);
 
         when(connection.createSendLink(eq(ENTITY_NAME), eq(ENTITY_NAME), eq(retryOptions), isNull(), eq(CLIENT_IDENTIFIER)))
