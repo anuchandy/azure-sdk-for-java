@@ -17,7 +17,6 @@ import static com.azure.core.amqp.implementation.ClientConstants.CONNECTION_ID_K
 import static com.azure.core.amqp.implementation.ClientConstants.EMIT_RESULT_KEY;
 import static com.azure.core.amqp.implementation.ClientConstants.ERROR_CONDITION_KEY;
 import static com.azure.core.amqp.implementation.ClientConstants.ERROR_DESCRIPTION_KEY;
-import static com.azure.core.amqp.implementation.ClientConstants.NOT_APPLICABLE;
 import static com.azure.core.amqp.implementation.ClientConstants.SIGNAL_TYPE_KEY;
 
 /**
@@ -56,17 +55,12 @@ public final class AmqpLoggingUtils {
      * Adds {@link ErrorCondition} to the {@link LoggingEventBuilder}. Writes the {@code getCondition()} under {@code errorCondition} key
      * and {@code getDescription()} under {@code errorDescription} keys.
      *
-     * If errorCondition is {@code null} writes {@code n/a}.
-
      * @return updated {@link LoggingEventBuilder} for chaining.
      */
     public static LoggingEventBuilder addErrorCondition(LoggingEventBuilder logBuilder, ErrorCondition errorCondition) {
-        if (errorCondition == null) {
-            return logBuilder
-                .addKeyValue(ERROR_CONDITION_KEY, NOT_APPLICABLE)
-                .addKeyValue(ERROR_DESCRIPTION_KEY, NOT_APPLICABLE);
+        if (errorCondition == null || (errorCondition.getCondition() == null && errorCondition.getDescription() == null)) {
+            return logBuilder;
         }
-
         return logBuilder
             .addKeyValue(ERROR_CONDITION_KEY, errorCondition.getCondition())
             .addKeyValue(ERROR_DESCRIPTION_KEY,  errorCondition.getDescription());
