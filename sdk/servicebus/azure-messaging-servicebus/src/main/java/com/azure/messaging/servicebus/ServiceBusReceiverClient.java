@@ -788,7 +788,7 @@ public final class ServiceBusReceiverClient implements AutoCloseable {
      */
     @Override
     public void close() {
-        SynchronousMessageSubscriber messageSubscriber = synchronousMessageSubscriber.getAndSet(null);
+        SynchronousMessageSubscriber messageSubscriber = synchronousMessageSubscriber.get();
         if (messageSubscriber != null && !messageSubscriber.isDisposed()) {
             messageSubscriber.dispose();
         }
