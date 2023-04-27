@@ -10,6 +10,7 @@
 
 - Fixed issue where receiving messages from `ServiceBusSessionReceiverAsyncClient` would never complete. ([#34597](https://github.com/Azure/azure-sdk-for-java/issues/34597))
 - one more 
+- another
 
 ### Other Changes
 
