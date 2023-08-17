@@ -1604,7 +1604,8 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
         if (isOnV2) {
             final MessageFlux messageFlux = new MessageFlux(receiveLinkFlux, receiverOptions.getPrefetchCount(),
                 CreditFlowMode.RequestDriven, retryPolicy);
-            newConsumer = new ServiceBusAsyncConsumer(linkName, messageFlux, messageSerializer, receiverOptions);
+
+            newConsumer = new ServiceBusAsyncConsumer(linkName, messageFlux, messageSerializer, receiverOptions, instrumentation);
         } else {
             final ServiceBusReceiveLinkProcessor linkMessageProcessor = receiveLinkFlux.subscribeWith(
                 new ServiceBusReceiveLinkProcessor(receiverOptions.getPrefetchCount(), retryPolicy));
@@ -1747,12 +1748,12 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
     }
 
     Flux<ServiceBusReceivedMessage> nonSessionProcessorReceiveV2() {
-        assert  isOnV2 && !isSessionEnabled;
+        assert isOnV2 && !isSessionEnabled;
         return getOrCreateConsumer().receive();
     }
 
     private Flux<ServiceBusReceivedMessage> nonSessionReactiveReceiveV2() {
-        assert  isOnV2 && !isSessionEnabled;
+        assert isOnV2 && !isSessionEnabled;
 
         final boolean enableAutoDisposition = receiverOptions.isEnableAutoComplete();
         final boolean enableAutoLockRenew = receiverOptions.isAutoLockRenewEnabled();
@@ -1769,7 +1770,7 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
     }
 
     Flux<ServiceBusReceivedMessage> nonSessionSyncReceiveV2() {
-        assert  isOnV2 && !isSessionEnabled;
+        assert isOnV2 && !isSessionEnabled;
         return getOrCreateConsumer().receive();
     }
 
