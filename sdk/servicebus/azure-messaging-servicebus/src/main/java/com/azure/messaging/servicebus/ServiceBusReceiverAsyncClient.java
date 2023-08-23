@@ -13,6 +13,7 @@ import com.azure.core.amqp.implementation.MessageSerializer;
 import com.azure.core.amqp.implementation.RequestResponseChannelClosedException;
 import com.azure.core.amqp.implementation.RetryUtil;
 import com.azure.core.amqp.implementation.StringUtil;
+import com.azure.core.amqp.implementation.handler.DeliveryNotOnLinkException;
 import com.azure.core.annotation.ServiceClient;
 import com.azure.core.util.CoreUtils;
 import com.azure.core.util.IterableStream;
@@ -287,7 +288,7 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
         this.isOnV2 = this.connectionCacheWrapper.isV2();
         this.isSessionEnabled = false;
 
-        this.managementNodeLocks = new LockContainer<>(cleanupInterval);
+        this.managementNodeLocks = new LockContainer<OffsetDateTime>(cleanupInterval);
         this.renewalContainer = new LockContainer<>(EXPIRED_RENEWAL_CLEANUP_INTERVAL, renewal -> {
             LOGGER.atVerbose()
                 .addKeyValue(LOCK_TOKEN_KEY, renewal.getLockToken())
@@ -1099,7 +1100,7 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
             .flatMap(connection -> connection.getManagementNode(entityPath, entityType))
             .flatMap(serviceBusManagementNode ->
                 serviceBusManagementNode.renewMessageLock(lockToken, getLinkName(null)))
-            .map(offsetDateTime -> managementNodeLocks.addOrUpdate(lockToken, offsetDateTime,
+            .map(offsetDateTime -> isOnV2 ? offsetDateTime : managementNodeLocks.addOrUpdate(lockToken, offsetDateTime,
                 offsetDateTime));
     }
 
@@ -1468,6 +1469,7 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
 
         Mono<Void> updateDispositionOperation;
         if (isOnV2 && isSessionEnabled) {
+            // V2: Disposition of Message pulled from a Session aware entity.
             // 'this.sessionManager': Already validated for non-null & ServiceBusSingleSessionManager type in the Constructor.
             updateDispositionOperation = sessionManager.updateDisposition(lockToken, sessionId, dispositionStatus,
                 propertiesToModify, deadLetterReason, deadLetterErrorDescription, transactionContext)
@@ -1483,6 +1485,7 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
                     message.setIsSettled();
                 }));
         } else if (sessionManager != null) {
+            // V1: Disposition of Message pulled from a Session aware entity.
             updateDispositionOperation = sessionManager.updateDisposition(lockToken, sessionId, dispositionStatus,
                 propertiesToModify, deadLetterReason, deadLetterErrorDescription, transactionContext)
                 .flatMap(isSuccess -> {
@@ -1496,6 +1499,7 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
                     return performOnManagement;
                 });
         } else {
+            // V1, V2: Disposition of Message pulled from a Session unaware entity.
             final ServiceBusAsyncConsumer existingConsumer = consumer.get();
             if (isManagementToken(lockToken) || existingConsumer == null) {
                 updateDispositionOperation = performOnManagement;
@@ -1513,6 +1517,14 @@ public final class ServiceBusReceiverAsyncClient implements AutoCloseable {
                         message.setIsSettled();
                         renewalContainer.remove(lockToken);
                     }));
+
+                if (isOnV2) {
+                    // V2: fallback to Disposition via Management Channel on DeliveryNotOnLinkException.
+                    updateDispositionOperation = updateDispositionOperation
+                        .onErrorResume(DeliveryNotOnLinkException.class, __ -> {
+                            return performOnManagement;
+                        });
+                }
             }
         }
 
