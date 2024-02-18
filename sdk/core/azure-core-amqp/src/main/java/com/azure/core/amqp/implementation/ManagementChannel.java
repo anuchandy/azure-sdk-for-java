@@ -33,7 +33,7 @@ import static com.azure.core.amqp.implementation.ClientConstants.ERROR_DESCRIPTI
  */
 public class ManagementChannel implements AmqpManagementNode {
     private final TokenManager tokenManager;
-    private final AmqpChannelProcessor<RequestResponseChannel> createChannel;
+    private final ChannelCacheWrapper channelCache;
     private final String fullyQualifiedNamespace;
     private final ClientLogger logger;
     private final String entityPath;
@@ -41,14 +41,14 @@ public class ManagementChannel implements AmqpManagementNode {
     /**
      * Creates a new instance of ManagementChannel.
      *
-     * @param createChannel Creates a new AMQP channel.
+     * @param channelCache The request response channel cache.
      * @param fullyQualifiedNamespace Fully qualified namespace for the message broker.
      * @param entityPath The entity path for the message broker.
      * @param tokenManager Manages tokens for authorization.
      */
-    public ManagementChannel(AmqpChannelProcessor<RequestResponseChannel> createChannel,
+    public ManagementChannel(ChannelCacheWrapper channelCache,
         String fullyQualifiedNamespace, String entityPath, TokenManager tokenManager) {
-        this.createChannel = Objects.requireNonNull(createChannel, "'createChannel' cannot be null.");
+        this.channelCache = Objects.requireNonNull(channelCache, "'channelCache' cannot be null.");
         this.fullyQualifiedNamespace = Objects.requireNonNull(fullyQualifiedNamespace,
             "'fullyQualifiedNamespace' cannot be null.");
         this.entityPath = Objects.requireNonNull(entityPath, "'entityPath' cannot be null.");
@@ -62,7 +62,7 @@ public class ManagementChannel implements AmqpManagementNode {
 
     @Override
     public Mono<AmqpAnnotatedMessage> send(AmqpAnnotatedMessage message) {
-        return isAuthorized().then(createChannel.flatMap(channel -> {
+        return isAuthorized().then(channelCache.get().flatMap(channel -> {
             final Message protonJMessage = MessageUtils.toProtonJMessage(message);
 
             return channel.sendWithAck(protonJMessage)
@@ -74,7 +74,7 @@ public class ManagementChannel implements AmqpManagementNode {
 
     @Override
     public Mono<AmqpAnnotatedMessage> send(AmqpAnnotatedMessage message, DeliveryOutcome deliveryOutcome) {
-        return isAuthorized().then(createChannel.flatMap(channel -> {
+        return isAuthorized().then(channelCache.get().flatMap(channel -> {
             final Message protonJMessage = MessageUtils.toProtonJMessage(message);
             final DeliveryState protonJDeliveryState = MessageUtils.toProtonJDeliveryState(deliveryOutcome);
 
@@ -87,7 +87,7 @@ public class ManagementChannel implements AmqpManagementNode {
 
     @Override
     public Mono<Void> closeAsync() {
-        return createChannel.flatMap(channel -> channel.closeAsync()).cache();
+        return channelCache.closeAsync().cache();
     }
 
     private void handleResponse(Message response, SynchronousSink<AmqpAnnotatedMessage> sink,
@@ -161,5 +161,37 @@ public class ManagementChannel implements AmqpManagementNode {
 
     private AmqpErrorContext getErrorContext() {
         return new SessionErrorContext(fullyQualifiedNamespace, entityPath);
+    }
+
+
+    static final class ChannelCacheWrapper {
+        private final AmqpChannelProcessor<RequestResponseChannel> channelProcessor;
+        private final RequestResponseChannelCache channelCache;
+
+        ChannelCacheWrapper(AmqpChannelProcessor<RequestResponseChannel> channelProcessor) {
+            this.channelProcessor = Objects.requireNonNull(channelProcessor, "'channelProcessor' cannot be null.");
+            this.channelCache = null;
+        }
+
+        ChannelCacheWrapper(RequestResponseChannelCache channelCache) {
+            this.channelCache = Objects.requireNonNull(channelCache, "'channelCache' cannot be null.");
+            this.channelProcessor = null;
+        }
+
+        Mono<RequestResponseChannel> get() {
+            if (channelProcessor != null) {
+                return channelProcessor;
+            } else {
+                return channelCache.get();
+            }
+        }
+
+        Mono<Void> closeAsync() {
+            if (channelProcessor != null) {
+                return channelProcessor.flatMap(channel -> channel.closeAsync());
+            } else {
+                return channelCache.closeAsync();
+            }
+        }
     }
 }

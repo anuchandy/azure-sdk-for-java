@@ -13,6 +13,7 @@ import com.azure.core.amqp.AmqpShutdownSignal;
 import com.azure.core.amqp.ClaimsBasedSecurityNode;
 import com.azure.core.amqp.exception.AmqpException;
 import com.azure.core.amqp.implementation.handler.ConnectionHandler;
+import com.azure.core.amqp.implementation.ManagementChannel.ChannelCacheWrapper;
 import com.azure.core.util.logging.ClientLogger;
 import org.apache.qpid.proton.amqp.transport.ReceiverSettleMode;
 import org.apache.qpid.proton.amqp.transport.SenderSettleMode;
@@ -92,6 +93,8 @@ public class ReactorConnection implements AmqpConnection {
 
     private volatile ClaimsBasedSecurityChannel cbsChannel;
     private volatile AmqpChannelProcessor<RequestResponseChannel> cbsChannelProcessor;
+    private volatile RequestResponseChannelCache cbsChannelCache;
+    private final ConcurrentHashMap<String, RequestResponseChannelCache> managementChannelCacheMap = new ConcurrentHashMap<>();
     private volatile Connection connection;
     private final boolean isV2;
 
@@ -267,9 +270,13 @@ public class ReactorConnection implements AmqpConnection {
                     .addKeyValue("address", address)
                     .log("Creating management node.");
 
-                final AmqpChannelProcessor<RequestResponseChannel> requestResponseChannel =
-                    createRequestResponseChannel(sessionName, linkName, address);
-                return new ManagementChannel(requestResponseChannel, getFullyQualifiedNamespace(), entityPath,
+                final ChannelCacheWrapper channelCache;
+                if (isV2) {
+                    channelCache = new ChannelCacheWrapper(new RequestResponseChannelCache(this, sessionName, linkName, address, retryPolicy));
+                } else {
+                    channelCache = new ChannelCacheWrapper(createRequestResponseChannel(sessionName, linkName, address));
+                }
+                return new ManagementChannel(channelCache, getFullyQualifiedNamespace(), entityPath,
                     tokenManager);
             }));
         });
@@ -447,10 +454,18 @@ public class ReactorConnection implements AmqpConnection {
         }
 
         final Mono<Void> cbsCloseOperation;
-        if (cbsChannelProcessor != null) {
-            cbsCloseOperation = cbsChannelProcessor.flatMap(channel -> channel.closeAsync());
+        if (isV2) {
+            if (cbsChannelCache != null) {
+                cbsCloseOperation = cbsChannelCache.closeAsync();
+            } else {
+                cbsCloseOperation = Mono.empty();
+            }
         } else {
-            cbsCloseOperation = Mono.empty();
+            if (cbsChannelProcessor != null) {
+                cbsCloseOperation = cbsChannelProcessor.flatMap(channel -> channel.closeAsync());
+            } else {
+                cbsCloseOperation = Mono.empty();
+            }
         }
 
         final Mono<Void> managementNodeCloseOperations = Mono.when(
@@ -542,13 +557,20 @@ public class ReactorConnection implements AmqpConnection {
     private synchronized ClaimsBasedSecurityNode getOrCreateCBSNode() {
         if (cbsChannel == null) {
             logger.info("Setting CBS channel.");
-            cbsChannelProcessor = createRequestResponseChannel(CBS_SESSION_NAME, CBS_LINK_NAME, CBS_ADDRESS);
-            cbsChannel = new ClaimsBasedSecurityChannel(
-                cbsChannelProcessor,
-                connectionOptions.getTokenCredential(), connectionOptions.getAuthorizationType(),
-                connectionOptions.getRetry());
+            if (isV2) {
+                cbsChannelCache = new RequestResponseChannelCache(this, CBS_ADDRESS, CBS_SESSION_NAME, CBS_LINK_NAME, retryPolicy);
+                cbsChannel = new ClaimsBasedSecurityChannel(
+                    cbsChannelCache.get(),
+                    connectionOptions.getTokenCredential(), connectionOptions.getAuthorizationType(),
+                    connectionOptions.getRetry());
+            } else {
+                cbsChannelProcessor = createRequestResponseChannel(CBS_SESSION_NAME, CBS_LINK_NAME, CBS_ADDRESS);
+                cbsChannel = new ClaimsBasedSecurityChannel(
+                    cbsChannelProcessor,
+                    connectionOptions.getTokenCredential(), connectionOptions.getAuthorizationType(),
+                    connectionOptions.getRetry());
+            }
         }
-
         return cbsChannel;
     }
 

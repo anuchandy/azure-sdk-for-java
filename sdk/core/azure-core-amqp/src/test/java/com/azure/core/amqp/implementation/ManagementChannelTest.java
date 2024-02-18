@@ -103,7 +103,8 @@ public class ManagementChannelTest {
         when(requestResponseChannel.getErrorContext()).thenReturn(errorContext);
         when(requestResponseChannel.getEndpointStates()).thenReturn(Flux.never());
 
-        managementChannel = new ManagementChannel(requestResponseMono, NAMESPACE, ENTITY_PATH, tokenManager);
+        final ManagementChannel.ChannelCacheWrapper channelCache = new ManagementChannel.ChannelCacheWrapper(requestResponseMono);
+        managementChannel = new ManagementChannel(channelCache, NAMESPACE, ENTITY_PATH, tokenManager);
     }
 
     @AfterEach

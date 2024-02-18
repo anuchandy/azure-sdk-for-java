@@ -66,7 +66,7 @@ final class ProtonSession {
     }
 
     /**
-     * Gets the hostname of the QPid Proton-j Connection hosting the session.
+     * Gets the hostname of the QPid Proton-j Connection facilitating the session.
      *
      * @return the hostname.
      */
@@ -75,7 +75,7 @@ final class ProtonSession {
     }
 
     /**
-     * Gets the identifier of the QPid Proton-j Connection hosting the session.
+     * Gets the identifier of the QPid Proton-j Connection facilitating the session.
      *
      * @return the connection identifier.
      */
@@ -201,7 +201,7 @@ final class ProtonSession {
     }
 
     /**
-     * Gets a sender on the session for sending messages.
+     * Gets a QPid Proton-j sender on the session.
      * <p>
      * The call site required to invoke this method on Reactor dispatcher thread associated with the session.
      * It is possible to run into race conditions with proton-j if invoked from any other threads.
@@ -217,7 +217,7 @@ final class ProtonSession {
     }
 
     /**
-     * Gets a receiver on the session for receiving messages.
+     * Gets a QPid Proton-j receiver on the session.
      * <p>
      * The call site required to invoke this method on Reactor dispatcher thread associated with the session.
      * It is possible to run into race conditions with proton-j if invoked from any other threads.
