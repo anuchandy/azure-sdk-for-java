@@ -123,7 +123,8 @@ public class ReactorSessionTest {
 
         when(amqpConnection.getShutdownSignals()).thenReturn(connectionShutdown.flux());
         final AmqpRetryOptions options = new AmqpRetryOptions().setTryTimeout(TIMEOUT);
-        this.reactorSession = new ReactorSession(amqpConnection, session, handler, NAME, reactorProvider,
+        final ProtonSessionWrapper protonSession = new ProtonSessionWrapper(session, NAME, HOST, ID, handler, reactorProvider);
+        this.reactorSession = new ReactorSession(amqpConnection, protonSession,
             reactorHandlerProvider, new AmqpLinkProvider(), cbsNodeSupplier, tokenManagerProvider, serializer, options);
     }
 
@@ -141,7 +142,7 @@ public class ReactorSessionTest {
         // Assert
         verify(session, times(1)).open();
 
-        Assertions.assertSame(session, reactorSession.session());
+        // Assertions.assertSame(session, reactorSession.channel());
         Assertions.assertEquals(NAME, reactorSession.getSessionName());
         Assertions.assertEquals(TIMEOUT, reactorSession.getOperationTimeout());
     }

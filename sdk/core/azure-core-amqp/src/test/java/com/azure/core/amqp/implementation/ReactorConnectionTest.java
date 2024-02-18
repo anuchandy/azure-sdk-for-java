@@ -264,7 +264,7 @@ class ReactorConnectionTest {
                 assertNotNull(s);
                 assertEquals(SESSION_NAME, s.getSessionName());
                 assertTrue(s instanceof ReactorSession);
-                assertSame(session, ((ReactorSession) s).session());
+                assertSame(session, ((ReactorSession) s).channel());
             })
             .expectComplete()
             .verify(VERIFY_TIMEOUT);
@@ -275,7 +275,7 @@ class ReactorConnectionTest {
                 assertNotNull(s);
                 assertEquals(SESSION_NAME, s.getSessionName());
                 assertTrue(s instanceof ReactorSession);
-                assertSame(session, ((ReactorSession) s).session());
+                assertSame(session, ((ReactorSession) s).channel());
             })
             .expectComplete()
             .verify(VERIFY_TIMEOUT);
@@ -409,7 +409,7 @@ class ReactorConnectionTest {
                 assertNotNull(s);
                 assertEquals(SESSION_NAME, s.getSessionName());
                 assertTrue(s instanceof ReactorSession);
-                assertSame(session2, ((ReactorSession) s).session());
+                assertSame(session2, ((ReactorSession) s).channel());
             })
             .expectComplete()
             .verify();

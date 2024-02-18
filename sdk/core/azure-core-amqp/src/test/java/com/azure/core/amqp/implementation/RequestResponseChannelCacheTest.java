@@ -9,6 +9,7 @@ import com.azure.core.amqp.FixedAmqpRetryPolicy;
 import com.azure.core.amqp.implementation.handler.DeliverySettleMode;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler2;
 import com.azure.core.amqp.implementation.handler.SendLinkHandler;
+import com.azure.core.amqp.implementation.ProtonSessionWrapper.ProtonChannelWrapper;
 import org.apache.qpid.proton.amqp.transport.ReceiverSettleMode;
 import org.apache.qpid.proton.amqp.transport.SenderSettleMode;
 import org.apache.qpid.proton.engine.EndpointState;
@@ -468,9 +469,10 @@ public class RequestResponseChannelCacheTest {
                 final SenderSettleMode settleMode = SenderSettleMode.SETTLED;
                 final ReceiverSettleMode receiverSettleMode = ReceiverSettleMode.SECOND;
 
-                channel = new RequestResponseChannel(connection, connectionId, fqdn, chLinkName, chEntityPath, session,
+                final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(new ProtonSession.ProtonChannel(chLinkName, sender, receiver));
+                channel = new RequestResponseChannel(connection, connectionId, fqdn, chEntityPath, protonChannel,
                     retryOptions, handlerProvider, reactorProvider, serializer, settleMode, receiverSettleMode,
-                    AmqpMetricsProvider.noop(), true);
+                    AmqpMetricsProvider.noop());
             }
 
             RequestResponseChannel inner() {

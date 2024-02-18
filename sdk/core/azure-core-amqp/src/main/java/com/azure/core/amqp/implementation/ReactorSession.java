@@ -16,6 +16,7 @@ import com.azure.core.amqp.ClaimsBasedSecurityNode;
 import com.azure.core.amqp.exception.AmqpErrorContext;
 import com.azure.core.amqp.exception.AmqpException;
 import com.azure.core.amqp.implementation.handler.SendLinkHandler;
+import com.azure.core.amqp.implementation.ProtonSessionWrapper.ProtonChannelWrapper;
 import com.azure.core.util.CoreUtils;
 import com.azure.core.util.logging.ClientLogger;
 import com.azure.core.util.logging.LoggingEventBuilder;
@@ -29,7 +30,6 @@ import org.apache.qpid.proton.amqp.transport.SenderSettleMode;
 import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.Receiver;
 import org.apache.qpid.proton.engine.Sender;
-import org.apache.qpid.proton.engine.Session;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
@@ -85,7 +85,7 @@ public class ReactorSession implements AmqpSession {
     private final Mono<Void> activeAwaiter;
 
     private final AmqpConnection amqpConnection;
-    private final ProtonSession protonSession;
+    private final ProtonSessionWrapper protonSession;
     private final String sessionName;
     private final String connectionId;
     private final String hostname;
@@ -107,7 +107,6 @@ public class ReactorSession implements AmqpSession {
      *
      * @param amqpConnection AMQP connection associated with this session.
      * @param protonSession Proton-j session for this AMQP session.
-     * @param provider Provides reactor instances for messages to sent with.
      * @param handlerProvider Providers reactor handlers for listening to proton-j reactor events.
      * @param linkProvider Provides AMQP links that are created from proton-j links.
      * @param cbsNodeSupplier Mono that returns a reference to the {@link ClaimsBasedSecurityNode}.
@@ -116,16 +115,16 @@ public class ReactorSession implements AmqpSession {
      * @param messageSerializer Serializes and deserializes proton-j messages.
      * @param retryOptions for the session operations.
      */
-    public ReactorSession(AmqpConnection amqpConnection, ProtonSession protonSession, ReactorProvider provider,
+    public ReactorSession(AmqpConnection amqpConnection, ProtonSessionWrapper protonSession,
         ReactorHandlerProvider handlerProvider, AmqpLinkProvider linkProvider, Mono<ClaimsBasedSecurityNode> cbsNodeSupplier,
         TokenManagerProvider tokenManagerProvider, MessageSerializer messageSerializer, AmqpRetryOptions retryOptions) {
         this.amqpConnection = amqpConnection;
         this.protonSession = protonSession;
-        this.sessionName = protonSession.getName();
+        this.sessionName = protonSession.getSessionName();
         this.connectionId = protonSession.getConnectionId();
         this.hostname = protonSession.getHostname();
         this.handlerProvider = handlerProvider;
-        this.provider = provider;
+        this.provider = protonSession.getReactorProvider();
         this.linkProvider = linkProvider;
         this.cbsNodeSupplier = cbsNodeSupplier;
         this.tokenManagerProvider = tokenManagerProvider;
@@ -165,14 +164,15 @@ public class ReactorSession implements AmqpSession {
         shutdownSignals = amqpConnection.getShutdownSignals();
         subscriptions.add(this.endpointStates.subscribe());
         subscriptions.add(shutdownSignals.flatMap(signal ->  closeAsync("Shutdown signal received", null, false)).subscribe());
+        protonSession.openUnsafeIfV1();
     }
 
-    public final Mono<Void> open() {
+    final Mono<Void> open() {
         return Mono.when(protonSession.open(), activeAwaiter);
     }
 
-    Session session(String childName) {
-        return protonSession.get(childName);
+    final Mono<ProtonChannelWrapper> channel(String name) {
+        return protonSession.channel(name, retryOptions);
     }
 
     @Override
@@ -528,7 +528,7 @@ public class ReactorSession implements AmqpSession {
         org.apache.qpid.proton.amqp.transport.Target target, Map<Symbol, Object> linkProperties,
         AmqpRetryOptions options, TokenManager tokenManager) {
 
-        final Sender sender = protonSession.sender(linkName);
+        final Sender sender = protonSession.senderUnsafe(linkName);
         sender.setTarget(target);
         sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
 
@@ -582,7 +582,7 @@ public class ReactorSession implements AmqpSession {
         Symbol[] receiverDesiredCapabilities, SenderSettleMode senderSettleMode, ReceiverSettleMode receiverSettleMode,
         TokenManager tokenManager, ConsumerFactory consumerFactory) {
 
-        final Receiver receiver = protonSession.receiver(linkName);
+        final Receiver receiver = protonSession.receiverUnsafe(linkName);
         final Source source = new Source();
         source.setAddress(entityPath);
 

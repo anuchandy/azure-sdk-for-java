@@ -327,8 +327,8 @@ public class ReactorConnection implements AmqpConnection {
      *
      * @return A new instance of AMQP session.
      */
-    protected ReactorSession createSession(ProtonSession protonSession) {
-        return new ReactorSession(this, protonSession, reactorProvider,
+    protected ReactorSession createSession(ProtonSessionWrapper protonSession) {
+        return new ReactorSession(this, protonSession,
             handlerProvider, linkProvider, getClaimsBasedSecurityNode(), tokenManagerProvider, messageSerializer,
             connectionOptions.getRetry());
     }
@@ -380,14 +380,15 @@ public class ReactorConnection implements AmqpConnection {
      */
     protected AmqpChannelProcessor<RequestResponseChannel> createRequestResponseChannel(String sessionName,
         String linkName, String entityPath) {
-
+        assert !isV2;
         Objects.requireNonNull(entityPath, "'entityPath' cannot be null.");
 
         final Flux<RequestResponseChannel> createChannel = createSession(sessionName)
             .cast(ReactorSession.class)
-            .map(reactorSession -> new RequestResponseChannel(this, getId(), getFullyQualifiedNamespace(), linkName,
-                entityPath, reactorSession.session("request response channel"), connectionOptions.getRetry(), handlerProvider, reactorProvider,
-                messageSerializer, senderSettleMode, receiverSettleMode, handlerProvider.getMetricProvider(getFullyQualifiedNamespace(), entityPath), isV2))
+            .flatMap(reactorSession -> reactorSession.channel(linkName))
+            .map(protonChannel -> new RequestResponseChannel(this, getId(), getFullyQualifiedNamespace(),
+                entityPath, protonChannel, connectionOptions.getRetry(), handlerProvider, reactorProvider,
+                messageSerializer, senderSettleMode, receiverSettleMode, handlerProvider.getMetricProvider(getFullyQualifiedNamespace(), entityPath)))
             .doOnNext(e -> {
                 logger.atInfo()
                     .addKeyValue(ENTITY_PATH_KEY, entityPath)
@@ -406,15 +407,16 @@ public class ReactorConnection implements AmqpConnection {
     }
 
     // Note: The V1 'createRequestResponseChannel(...)' internal API will be removed once entirely on the V2 stack.
-    Mono<RequestResponseChannel> newRequestResponseChannel(String sessionName, String linksNamePrefix, String entityPath) {
+    Mono<RequestResponseChannel> newRequestResponseChannel(String sessionName, String name, String entityPath) {
         assert isV2;
         Objects.requireNonNull(entityPath, "'entityPath' cannot be null.");
 
         return createSession(sessionName)
             .cast(ReactorSession.class)
-            .map(reactorSession -> new RequestResponseChannel(this, getId(), getFullyQualifiedNamespace(), linksNamePrefix,
-                entityPath, reactorSession.session("request response channel"), connectionOptions.getRetry(), handlerProvider, reactorProvider,
-                messageSerializer, senderSettleMode, receiverSettleMode, handlerProvider.getMetricProvider(getFullyQualifiedNamespace(), entityPath), isV2));
+            .flatMap(reactorSession -> reactorSession.channel(name))
+            .map(protonChannel -> new RequestResponseChannel(this, getId(), getFullyQualifiedNamespace(),
+                entityPath, protonChannel, connectionOptions.getRetry(), handlerProvider, reactorProvider,
+                messageSerializer, senderSettleMode, receiverSettleMode, handlerProvider.getMetricProvider(getFullyQualifiedNamespace(), entityPath)));
     }
 
     @Override
@@ -640,20 +642,20 @@ public class ReactorConnection implements AmqpConnection {
         private final ReactorHandlerProvider handlerProvider;
         private final ReactorProvider reactorProvider;
         private final Duration openTimeout;
-        private final Function<ProtonSession, ReactorSession> loader;
+        private final Function<ProtonSessionWrapper, ReactorSession> cacheLoader;
         private final Supplier<Boolean> isConnectionDisposed;
         private final ClientLogger logger;
 
         SessionCache(String fullyQualifiedNamespace, String connectionId, ReactorHandlerProvider handlerProvider,
             ReactorProvider reactorProvider, Duration openTimeout,
-            Function<ProtonSession, ReactorSession> loader, Supplier<Boolean> isConnectionDisposed,
+            Function<ProtonSessionWrapper, ReactorSession> cacheLoader, Supplier<Boolean> isConnectionDisposed,
             ClientLogger logger) {
             this.fullyQualifiedNamespace = fullyQualifiedNamespace;
             this.connectionId = connectionId;
             this.handlerProvider = handlerProvider;
             this.reactorProvider = reactorProvider;
             this.openTimeout = openTimeout;
-            this.loader = loader;
+            this.cacheLoader = cacheLoader;
             this.isConnectionDisposed = isConnectionDisposed;
             this.logger = logger;
         }
@@ -663,7 +665,7 @@ public class ReactorConnection implements AmqpConnection {
                 final Entry cached = entries.computeIfAbsent(name, sessionName -> load(connection, sessionName));
                 return cached;
             }).flatMap(cached -> {
-                return cached.ensureOpened()
+                return cached.openSession()
                     .doOnError(error -> {
                         if (!(error instanceof AmqpException)) {
                             return;
@@ -697,8 +699,7 @@ public class ReactorConnection implements AmqpConnection {
         }
 
         private Entry load(Connection connection, String name) {
-            final ProtonSession protonSession = createProtonSession(connection, name);
-            final ReactorSession session = loader.apply(protonSession);
+            final ReactorSession session = cacheLoader.apply(createProtonSession(connection, name));
             final Disposable disposable = session.getEndpointStates()
                 .subscribe(state -> {
                 }, error -> {
@@ -719,9 +720,10 @@ public class ReactorConnection implements AmqpConnection {
             return new Entry(session, disposable);
         }
 
-        private ProtonSession createProtonSession(Connection connection, String name) {
-            return new ProtonSession(fullyQualifiedNamespace, connectionId, connection,
+        private ProtonSessionWrapper createProtonSession(Connection connection, String name) {
+            final ProtonSession protonSession = new ProtonSession(fullyQualifiedNamespace, connectionId, connection,
                 handlerProvider, reactorProvider, name, openTimeout, logger);
+            return new ProtonSessionWrapper(protonSession);
         }
 
         private static final class Entry extends AtomicBoolean {
@@ -734,7 +736,7 @@ public class ReactorConnection implements AmqpConnection {
                 this.disposable = disposable;
             }
 
-            private Mono<AmqpSession> ensureOpened() {
+            private Mono<AmqpSession> openSession() {
                 return session.open().thenReturn(session);
             }
 

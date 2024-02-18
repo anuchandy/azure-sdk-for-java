@@ -13,6 +13,7 @@ import com.azure.core.amqp.implementation.handler.DeliverySettleMode;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler2;
 import com.azure.core.amqp.implementation.handler.SendLinkHandler;
+import com.azure.core.amqp.implementation.ProtonSessionWrapper.ProtonChannelWrapper;
 import com.azure.core.util.AsyncCloseable;
 import com.azure.core.util.logging.ClientLogger;
 import org.apache.qpid.proton.Proton;
@@ -28,7 +29,6 @@ import org.apache.qpid.proton.engine.Delivery;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Receiver;
 import org.apache.qpid.proton.engine.Sender;
-import org.apache.qpid.proton.engine.Session;
 import org.apache.qpid.proton.engine.impl.DeliveryImpl;
 import org.apache.qpid.proton.message.Message;
 import reactor.core.Disposable;
@@ -45,6 +45,7 @@ import reactor.util.context.ContextView;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.RejectedExecutionException;
@@ -123,9 +124,8 @@ public class RequestResponseChannel implements AsyncCloseable {
      * @param amqpConnection AMQP connection associated with this request response channel.
      * @param connectionId Identifier of the connection.
      * @param fullyQualifiedNamespace Fully qualified namespace for the the host.
-     * @param linkName Name of the link.
      * @param entityPath Address in the message broker to send message to.
-     * @param session Reactor session associated with this link.
+     * @param protonChannel Channel providing the sender and receiver links.
      * @param retryOptions Retry options to use for sending the request response.
      * @param handlerProvider Provides handlers that interact with proton-j's reactor.
      * @param provider The reactor provider that the request will be sent with.
@@ -133,16 +133,17 @@ public class RequestResponseChannel implements AsyncCloseable {
      * @param senderSettleMode to set as {@link SenderSettleMode} on sender.
      * @param receiverSettleMode to set as {@link ReceiverSettleMode} on receiver.
      * @param metricsProvider The AMQP metrics provider.
-     * @param isV2 (temporary) flag to use either v1 or v2 receiver.
      *
      * @throws RuntimeException if the send/receive links could not be locally scheduled to open.
      */
     protected RequestResponseChannel(AmqpConnection amqpConnection, String connectionId,
-        String fullyQualifiedNamespace, String linkName, String entityPath, Session session,
+        String fullyQualifiedNamespace, String entityPath, ProtonChannelWrapper protonChannel,
         AmqpRetryOptions retryOptions, ReactorHandlerProvider handlerProvider, ReactorProvider provider,
         MessageSerializer messageSerializer, SenderSettleMode senderSettleMode,
-        ReceiverSettleMode receiverSettleMode, AmqpMetricsProvider metricsProvider, boolean isV2) {
+        ReceiverSettleMode receiverSettleMode, AmqpMetricsProvider metricsProvider) {
+        Objects.requireNonNull(protonChannel, "'protonChannel' cannot be null.");
 
+        final String linkName = protonChannel.getName();
         Map<String, Object> loggingContext = createContextWithConnectionId(connectionId);
         loggingContext.put(LINK_NAME_KEY, linkName);
         this.logger = new ClientLogger(RequestResponseChannel.class, loggingContext);
@@ -159,7 +160,7 @@ public class RequestResponseChannel implements AsyncCloseable {
         this.messageSerializer = messageSerializer;
 
         // Setup send (request) link.
-        this.sendLink = session.sender(linkName + ":sender");
+        this.sendLink = protonChannel.sender();
         final Target senderTarget = new Target();
         senderTarget.setAddress(entityPath);
         this.sendLink.setTarget(senderTarget);
@@ -171,7 +172,7 @@ public class RequestResponseChannel implements AsyncCloseable {
         BaseHandler.setHandler(sendLink, sendLinkHandler);
 
         // Setup receive (response) link.
-        this.receiveLink = session.receiver(linkName + ":receiver");
+        this.receiveLink =  protonChannel.receiver();
         final Source receiverSource = new Source();
         receiverSource.setAddress(entityPath);
         this.receiveLink.setSource(receiverSource);
@@ -182,6 +183,7 @@ public class RequestResponseChannel implements AsyncCloseable {
         this.receiveLink.setSenderSettleMode(senderSettleMode);
         this.receiveLink.setReceiverSettleMode(receiverSettleMode);
 
+        final boolean isV2 = protonChannel.isV2();
         this.receiveLinkHandler = new RequestChannelWrapper(connectionId, fullyQualifiedNamespace,
             linkName, entityPath, receiveLink, handlerProvider, provider, retryOptions, isV2);
 

@@ -11,6 +11,7 @@ import com.azure.core.amqp.exception.AmqpErrorContext;
 import com.azure.core.amqp.exception.AmqpException;
 import com.azure.core.amqp.implementation.handler.ReceiveLinkHandler;
 import com.azure.core.amqp.implementation.handler.SendLinkHandler;
+import com.azure.core.amqp.implementation.ProtonSessionWrapper.ProtonChannelWrapper;
 import com.azure.core.test.utils.metrics.TestMeasurement;
 import com.azure.core.test.utils.metrics.TestMeter;
 import org.apache.qpid.proton.amqp.Binary;
@@ -157,10 +158,12 @@ class RequestResponseChannelTest {
         receiveEndpoints.next(EndpointState.ACTIVE);
         sendEndpoints.next(EndpointState.ACTIVE);
 
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
+
         // Act
-        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE, LINK_NAME,
-            ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer, settleMode,
-            receiverSettleMode, AmqpMetricsProvider.noop(), isV2);
+        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer, settleMode,
+            receiverSettleMode, AmqpMetricsProvider.noop());
         final AmqpErrorContext errorContext = channel.getErrorContext();
 
         StepVerifier.create(channel.closeAsync())
@@ -185,9 +188,10 @@ class RequestResponseChannelTest {
     @Test
     void disposeAsync() {
         // Arrange
-        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE, LINK_NAME,
-            ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
-            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
+        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
+            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
 
         receiveEndpoints.next(EndpointState.ACTIVE);
         sendEndpoints.next(EndpointState.ACTIVE);
@@ -211,9 +215,10 @@ class RequestResponseChannelTest {
     @Test
     void dispose() throws IOException {
         // Arrange
-        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE, LINK_NAME,
-            ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
-            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
+        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
+            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
 
         receiveEndpoints.next(EndpointState.ACTIVE);
         sendEndpoints.next(EndpointState.ACTIVE);
@@ -250,9 +255,10 @@ class RequestResponseChannelTest {
     @Test
     void sendNull() {
         // Arrange
-        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE, LINK_NAME,
-            ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
-            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
+        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
+            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
 
         receiveEndpoints.next(EndpointState.ACTIVE);
         sendEndpoints.next(EndpointState.ACTIVE);
@@ -269,9 +275,10 @@ class RequestResponseChannelTest {
     @Test
     void sendReplyToSet() {
         // Arrange
-        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE, LINK_NAME,
-            ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
-            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
+        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
+            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
         final Message message = mock(Message.class);
         when(message.getReplyTo()).thenReturn("test-reply-to");
 
@@ -287,9 +294,10 @@ class RequestResponseChannelTest {
     @Test
     void sendMessageIdSet() {
         // Arrange
-        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE, LINK_NAME,
-            ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
-            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
+        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
+            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
         final Message message = mock(Message.class);
         when(message.getMessageId()).thenReturn(10L);
 
@@ -316,9 +324,10 @@ class RequestResponseChannelTest {
             64, 64, 0, 83, 116, -63, 49, 4, -95, 11, 115, 116, 97, 116, 117, 115, 45, 99, 111, 100, 101, 113, 0, 0, 0,
             -54, -95, 18, 115, 116, 97, 116, 117, 115, 45, 100, 101, 115, 99, 114, 105, 112, 116, 105, 111, 110, -95, 8,
             65, 99, 99, 101, 112, 116, 101, 100};
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
         final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
-            LINK_NAME, ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer,
-            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer,
+            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
         final UnsignedLong messageId = UnsignedLong.valueOf(1);
         final Message message = mock(Message.class);
         final int encodedSize = 143;
@@ -373,9 +382,10 @@ class RequestResponseChannelTest {
             64, 64, 0, 83, 116, -63, 49, 4, -95, 11, 115, 116, 97, 116, 117, 115, 45, 99, 111, 100, 101, 113, 0, 0, 0,
             -54, -95, 18, 115, 116, 97, 116, 117, 115, 45, 100, 101, 115, 99, 114, 105, 112, 116, 105, 111, 110, -95, 8,
             65, 99, 99, 101, 112, 116, 101, 100};
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
         final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
-            LINK_NAME, ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer,
-            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer,
+            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
         final UnsignedLong messageId = UnsignedLong.valueOf(1);
         final Message message = mock(Message.class);
         final int encodedSize = 143;
@@ -430,9 +440,10 @@ class RequestResponseChannelTest {
             65, 99, 99, 101, 112, 116, 101, 100};
 
         TestMeter meter = new TestMeter();
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
         final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
-            LINK_NAME, ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer,
-            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, new AmqpMetricsProvider(meter, NAMESPACE, ENTITY_PATH), isV2);
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer,
+            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, new AmqpMetricsProvider(meter, NAMESPACE, ENTITY_PATH));
 
         final UnsignedLong messageId = UnsignedLong.valueOf(1);
         final Message message = mock(Message.class);
@@ -486,9 +497,10 @@ class RequestResponseChannelTest {
     void sendMessageSendErrorWithMetrics() {
         // Arrange
         TestMeter meter = new TestMeter();
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
         final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
-            LINK_NAME, ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer,
-            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, new AmqpMetricsProvider(meter, NAMESPACE, ENTITY_PATH), isV2);
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer,
+            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, new AmqpMetricsProvider(meter, NAMESPACE, ENTITY_PATH));
 
         final UnsignedLong messageId = UnsignedLong.valueOf(1);
         final Message message = mock(Message.class);
@@ -524,9 +536,10 @@ class RequestResponseChannelTest {
     void sendMessageEndpointErrorWithMetrics() {
         // Arrange
         TestMeter meter = new TestMeter();
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
         final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
-            LINK_NAME, ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer,
-            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, new AmqpMetricsProvider(meter, NAMESPACE, ENTITY_PATH), isV2);
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer,
+            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, new AmqpMetricsProvider(meter, NAMESPACE, ENTITY_PATH));
 
         final AmqpException error = new AmqpException(true, "Message", new AmqpErrorContext("some-context"));
         final Message message = mock(Message.class);
@@ -564,9 +577,10 @@ class RequestResponseChannelTest {
     @Test
     void clearMessagesOnError() {
         // Arrange
-        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE, LINK_NAME,
-            ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
-            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
+        final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer, SenderSettleMode.SETTLED,
+            ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
         final AmqpException error = new AmqpException(true, "Message", new AmqpErrorContext("some-context"));
         final Message message = mock(Message.class);
         when(serializer.getSize(message)).thenReturn(150);
@@ -591,9 +605,10 @@ class RequestResponseChannelTest {
     @Test
     void parentDisposesConnection() {
         // Arrange
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
         final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
-            LINK_NAME, ENTITY_PATH, session, retryOptions, handlerProvider, reactorProvider, serializer,
-            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+            ENTITY_PATH, protonChannel, retryOptions, handlerProvider, reactorProvider, serializer,
+            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
         final AmqpShutdownSignal shutdownSignal = new AmqpShutdownSignal(false, false, "Test-shutdown-signal");
 
         doAnswer(invocationOnMock -> {
@@ -630,10 +645,11 @@ class RequestResponseChannelTest {
     @Test
     public void closeAsyncTimeout() {
         // Arrange
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
         final AmqpRetryOptions retry = new AmqpRetryOptions().setTryTimeout(Duration.ofSeconds(1)).setMaxRetries(0);
         final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
-            LINK_NAME, ENTITY_PATH, session, retry, handlerProvider, reactorProvider, serializer,
-            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+            ENTITY_PATH, protonChannel, retry, handlerProvider, reactorProvider, serializer,
+            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
 
         // Act & Assert
         StepVerifier.create(channel.closeAsync())
@@ -661,9 +677,10 @@ class RequestResponseChannelTest {
     public void closeAsync() {
         // Arrange
         final AmqpRetryOptions retry = new AmqpRetryOptions().setTryTimeout(Duration.ofSeconds(1)).setMaxRetries(0);
+        final ProtonChannelWrapper protonChannel = new ProtonChannelWrapper(LINK_NAME, session);
         final RequestResponseChannel channel = new RequestResponseChannel(amqpConnection, CONNECTION_ID, NAMESPACE,
-            LINK_NAME, ENTITY_PATH, session, retry, handlerProvider, reactorProvider, serializer,
-            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop(), isV2);
+            ENTITY_PATH, protonChannel, retry, handlerProvider, reactorProvider, serializer,
+            SenderSettleMode.SETTLED, ReceiverSettleMode.SECOND, AmqpMetricsProvider.noop());
 
         sendEndpoints.next(EndpointState.ACTIVE);
         receiveEndpoints.next(EndpointState.ACTIVE);
