@@ -318,8 +318,8 @@ public class ReactorConnection implements AmqpConnection {
      */
     @Override
     public Mono<AmqpSession> createSession(String sessionName) {
-        final Function<ProtonSessionWrapper, ReactorSession> cacheLoader = protonSession -> createSession(protonSession);
-        return sessionCache.getOrLoad(connectionMono, sessionName, cacheLoader).cast(AmqpSession.class);
+        final Function<ProtonSessionWrapper, ReactorSession> loader = protonSession -> createSession(protonSession);
+        return sessionCache.getOrLoad(connectionMono, sessionName, loader).cast(AmqpSession.class);
     }
 
     /**
@@ -340,7 +340,7 @@ public class ReactorConnection implements AmqpConnection {
      */
     @Override
     public boolean removeSession(String sessionName) {
-        return sessionCache.remove(sessionName);
+        return sessionCache.evict(sessionName);
     }
 
     @Override
@@ -613,7 +613,7 @@ public class ReactorConnection implements AmqpConnection {
 
     private boolean markDisposed() {
         if (isDisposed.getAndSet(true)) {
-            sessionCache.ownerDisposed();
+            sessionCache.setOwnerDisposed();
             return true;
         } else {
             return false;
