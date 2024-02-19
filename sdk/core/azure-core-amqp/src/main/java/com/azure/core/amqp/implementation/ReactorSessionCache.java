@@ -18,7 +18,7 @@ import java.util.function.Function;
 import static com.azure.core.amqp.implementation.ClientConstants.SESSION_NAME_KEY;
 
 /**
- * A cache for {@link ReactorSession} hosted on a QPid proton-j connection, owned by a {@link ReactorConnection}.
+ * A cache of {@link ReactorSession} hosted on a QPid Proton-j {@link Connection}, owned by a {@link ReactorConnection}.
  */
 final class ReactorSessionCache {
     private final ConcurrentMap<String, Entry> entries = new ConcurrentHashMap<>();
@@ -33,14 +33,14 @@ final class ReactorSessionCache {
     /**
      * Creates the cache.
      *
-     * @param fullyQualifiedNamespace the host name of the broker.
-     * @param connectionId the id of the {@link ReactorConnection} hosting the sessions in the cache.
-     * @param handlerProvider the handler provider for various type of endpoints.
+     * @param connectionId the id of the {@link ReactorConnection} owning the cache.
+     * @param fullyQualifiedNamespace the host name of the broker that the owner is connected to.
+     * @param handlerProvider the handler provider for various type of endpoints (session, link).
      * @param reactorProvider the provider for reactor dispatcher.
      * @param openTimeout the session open timeout.
      * @param logger the client logger.
      */
-    ReactorSessionCache(String fullyQualifiedNamespace, String connectionId, ReactorHandlerProvider handlerProvider,
+    ReactorSessionCache(String connectionId, String fullyQualifiedNamespace, ReactorHandlerProvider handlerProvider,
         ReactorProvider reactorProvider, Duration openTimeout, ClientLogger logger) {
         this.fullyQualifiedNamespace = fullyQualifiedNamespace;
         this.connectionId = connectionId;
@@ -51,6 +51,9 @@ final class ReactorSessionCache {
         this.logger = logger;
     }
 
+    /**
+     * Signal that the owner ({@link ReactorConnection}) of the cache is disposed of.
+     */
     void setOwnerDisposed() {
         isOwnerDisposed.set(true);
     }
@@ -64,27 +67,28 @@ final class ReactorSessionCache {
      * A session will be evicted from the cache if it terminates (e.g., broker disconnected the session).
      * </p>
      *
-     * @param connectionMono the Mono that emits QPid proton-j connection that host the session.
+     * @param connectionMono the Mono that emits QPid Proton-j {@link Connection} that host the session.
      * @param name the session name.
      * @param loader the function to load the session on cache miss, cache miss can happen if session is requested
      *  for the first time or previously loaded one was evicted.
      *
      * @return the session, that is active and connected to the broker.
      */
-    Mono<ReactorSession> getOrLoad(Mono<Connection> connectionMono, String name, Function<ProtonSessionWrapper, ReactorSession> loader) {
-        final Mono<Entry> cachedMono = connectionMono.map(connection -> {
-            final Entry cached = entries.computeIfAbsent(name, sessionName -> {
-                final ReactorSession session = load(connection, sessionName, loader);
-                final Disposable disposable = setupEviction(name, session);
+    Mono<ReactorSession> getOrLoad(Mono<Connection> connectionMono, String name,
+        Function<ProtonSessionWrapper, ReactorSession> loader) {
+        final Mono<Entry> cachedMono = connectionMono.map(protonConnection -> {
+            return entries.computeIfAbsent(name, sessionName -> {
+                final ReactorSession session = load(protonConnection, sessionName, loader);
+                final Disposable disposable = setupAutoEviction(session);
                 return new Entry(session, disposable);
             });
-            return cached;
         });
         return cachedMono.flatMap(cached -> {
-            // 'openSession()' will open the session if it is just loaded, once opened, future calls to 'openSession'
-            // returns the session as long as it is connected to the broker (iow active).
+            // 'openSession()' will open the session to the broker when called for the first time. Later calls to
+            // 'openSession()' only check if the session is still active (i.e., connected to the broker), if not
+            // then error will be returned.
             return cached.openSession()
-                .doOnError(error -> evictOnError(name, "Evicting session failed to open or that didn't active.", error));
+                .doOnError(error -> evictOnError(name, "Evicting failed to open or in-active session.", error));
         });
     }
 
@@ -105,6 +109,12 @@ final class ReactorSessionCache {
         return removed != null;
     }
 
+    /**
+     * When the owner {@link ReactorConnection} is being disposed of, all sessions will receive shutdown signal,
+     * this method waits for all those sessions to complete it closing.
+     *
+     * @return a Mono that completes when all sessions are closed via owner shutdown signaling.
+     */
     Mono<Void> awaitClose() {
         final ArrayList<Mono<Void>> closing = new ArrayList<>(entries.size());
         for (Entry entry : entries.values()) {
@@ -114,35 +124,36 @@ final class ReactorSessionCache {
     }
 
     /**
-     * Load a new {@link ReactorSession} to be cached.
+     * Obtain a new {@link ReactorSession} to be cached.
      *
-     * @param connection the QPid proton-j connection to host the session.
+     * @param protonConnection the QPid Proton-j connection to host the session.
      * @param name the session name.
-     * @param loader the function to load the session.
+     * @param loader the function to obtain the session.
      *
      * @return the session to cache.
      */
-    private ReactorSession load(Connection connection, String name, Function<ProtonSessionWrapper, ReactorSession> loader) {
-        final ProtonSession protonSession = new ProtonSession(fullyQualifiedNamespace, connectionId, connection,
+    private ReactorSession load(Connection protonConnection, String name,
+        Function<ProtonSessionWrapper, ReactorSession> loader) {
+        final ProtonSession protonSession = new ProtonSession(connectionId, fullyQualifiedNamespace, protonConnection,
             handlerProvider, reactorProvider, name, openTimeout, logger);
-        final ReactorSession session = loader.apply(new ProtonSessionWrapper(protonSession));
-        return session;
+        return loader.apply(new ProtonSessionWrapper(protonSession));
     }
 
     /**
      * Register to evict the session from the cache when the session terminates.
      *
-     * @param name the name of the session.
      * @param session the session to register for cache eviction.
      * @return the registration disposable.
      */
-    private Disposable setupEviction(String name, ReactorSession session) {
+    private Disposable setupAutoEviction(ReactorSession session) {
+        final String name = session.getSessionName();
         return session.getEndpointStates()
             .subscribe(__ -> {
             }, error -> {
                 evictOnError(name, "Evicting session terminated with error.", error);
             }, () -> {
                 if (isOwnerDisposed.get()) {
+                    // See notes in 'evictOnError(..)' method.
                     return;
                 }
                 evict(name);
@@ -150,7 +161,7 @@ final class ReactorSessionCache {
     }
 
     /**
-     * Evicts the session from the cache due to an error.
+     * Evicts the session from the cache due to a session error.
      *
      * @param name the session name.
      * @param message the message to log on eviction.
@@ -158,8 +169,10 @@ final class ReactorSessionCache {
      */
     private void evictOnError(String name, String message, Throwable error) {
         if (isOwnerDisposed.get()) {
-            // If (owning) connection is already disposing of, all session(s) would be discarded,
-            // avoid double-close call and close Subscription allocation.
+            // If (owning) connection is already disposing of, all session(s) would be discarded.
+            // Which means the whole cache itself would be discarded. Don’t evict individual entries, this avoids
+            // double close, subscription allocations and prevent downstream attempting to load sessions while connection
+            // cleanup is running.
             return;
         }
         logger.atInfo().addKeyValue(SESSION_NAME_KEY, name).log(message, error);
@@ -174,6 +187,12 @@ final class ReactorSessionCache {
         private final ReactorSession session;
         private final Disposable disposable;
 
+        /**
+         * Creates a cache entry.
+         *
+         * @param session the session to cache.
+         * @param disposable the disposable to evict the session from the cache.
+         */
         private Entry(ReactorSession session, Disposable disposable) {
             super(false);
             this.session = session;
@@ -198,6 +217,9 @@ final class ReactorSessionCache {
             return session.isClosed();
         }
 
+        /**
+         * Dispose of the cached session and the eviction disposable.
+         */
         private void dispose() {
             if (super.getAndSet(true)) {
                 return;

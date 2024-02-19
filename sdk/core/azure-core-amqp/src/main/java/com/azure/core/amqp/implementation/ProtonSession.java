@@ -46,7 +46,7 @@ final class ProtonSession {
     private final SessionHandler handler;
     private final ClientLogger logger;
 
-    ProtonSession(String fullyQualifiedNamespace, String connectionId, Connection connection,
+    ProtonSession(String connectionId, String fullyQualifiedNamespace, Connection connection,
         ReactorHandlerProvider handlerProvider, ReactorProvider reactorProvider, String sessionName,
         Duration openTimeout, ClientLogger logger) {
         this.connection = Objects.requireNonNull(connection, "'connection' cannot be null.");

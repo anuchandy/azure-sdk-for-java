@@ -182,7 +182,7 @@ public class ReactorConnection implements AmqpConnection {
 
         this.subscriptions = Disposables.composite(this.endpointStates.subscribe());
 
-        this.sessionCache = new ReactorSessionCache(handler.getHostname(), connectionId,
+        this.sessionCache = new ReactorSessionCache(connectionId, handler.getHostname(),
             handlerProvider, reactorProvider, operationTimeout, logger);
     }
 
@@ -318,7 +318,7 @@ public class ReactorConnection implements AmqpConnection {
      */
     @Override
     public Mono<AmqpSession> createSession(String sessionName) {
-        final Function<ProtonSessionWrapper, ReactorSession> loader = protonSession -> createSession(protonSession);
+        final Function<ProtonSessionWrapper, ReactorSession> loader = this::createSession;
         return sessionCache.getOrLoad(connectionMono, sessionName, loader).cast(AmqpSession.class);
     }
 
