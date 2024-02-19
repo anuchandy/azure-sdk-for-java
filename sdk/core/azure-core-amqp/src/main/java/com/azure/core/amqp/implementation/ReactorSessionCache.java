@@ -76,9 +76,9 @@ final class ReactorSessionCache {
      */
     Mono<ReactorSession> getOrLoad(Mono<Connection> connectionMono, String name,
         Function<ProtonSessionWrapper, ReactorSession> loader) {
-        final Mono<Entry> cachedMono = connectionMono.map(protonConnection -> {
+        final Mono<Entry> cachedMono = connectionMono.map(connection -> {
             return entries.computeIfAbsent(name, sessionName -> {
-                final ReactorSession session = load(protonConnection, sessionName, loader);
+                final ReactorSession session = load(connection, sessionName, loader);
                 final Disposable disposable = setupAutoEviction(session);
                 return new Entry(session, disposable);
             });
@@ -126,15 +126,15 @@ final class ReactorSessionCache {
     /**
      * Obtain a new {@link ReactorSession} to be cached.
      *
-     * @param protonConnection the QPid Proton-j connection to host the session.
+     * @param connection the QPid Proton-j connection to host the session.
      * @param name the session name.
      * @param loader the function to obtain the session.
      *
      * @return the session to cache.
      */
-    private ReactorSession load(Connection protonConnection, String name,
+    private ReactorSession load(Connection connection, String name,
         Function<ProtonSessionWrapper, ReactorSession> loader) {
-        final ProtonSession protonSession = new ProtonSession(connectionId, fullyQualifiedNamespace, protonConnection,
+        final ProtonSession protonSession = new ProtonSession(connectionId, fullyQualifiedNamespace, connection,
             handlerProvider, reactorProvider, name, openTimeout, logger);
         return loader.apply(new ProtonSessionWrapper(protonSession));
     }
