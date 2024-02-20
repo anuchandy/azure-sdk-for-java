@@ -15,6 +15,7 @@ import org.apache.qpid.proton.engine.Session;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.Objects;
 
 public final class ProtonSessionWrapper {
@@ -50,19 +51,11 @@ public final class ProtonSessionWrapper {
         this.sessionUnsafe = null;
     }
 
-    String getSessionName() {
+    String getName() {
         if (isV2) {
             return session.getName();
         } else {
             return sessionName;
-        }
-    }
-
-    String getHostname() {
-        if (isV2) {
-            return session.getHostname();
-        } else {
-            return hostName;
         }
     }
 
@@ -71,6 +64,14 @@ public final class ProtonSessionWrapper {
             return session.getConnectionId();
         } else {
             return connectionId;
+        }
+    }
+
+    String getFullyQualifiedNamespace() {
+        if (isV2) {
+            return session.getFullyQualifiedNamespace();
+        } else {
+            return hostName;
         }
     }
 
@@ -112,9 +113,9 @@ public final class ProtonSessionWrapper {
         }
     }
 
-    Mono<ProtonChannelWrapper> channel(String name, AmqpRetryOptions retryOptions) {
+    Mono<ProtonChannelWrapper> channel(String name, Duration timeout) {
         if (isV2) {
-            return session.channel(name, retryOptions).map(ProtonChannelWrapper::new);
+            return session.channel(name, timeout).map(ProtonChannelWrapper::new);
         } else {
             return Mono.just(new ProtonChannelWrapper(name, sessionUnsafe));
         }

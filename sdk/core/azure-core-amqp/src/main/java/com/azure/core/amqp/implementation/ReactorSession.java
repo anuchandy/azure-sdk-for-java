@@ -68,6 +68,7 @@ import static com.azure.core.util.FluxUtil.monoError;
 public class ReactorSession implements AmqpSession {
     private static final String TRANSACTION_LINK_NAME = "coordinator";
     private static final String ACTIVE_WAIT_TIMED_OUT = "connectionId[%s] sessionName[%s] Timeout waiting for session to be active.";
+    private static final String COMPLETED_WITHOUT_ACTIVE = "connectionId[%s] sessionName[%s] Session completed without being active.";
     private final ConcurrentMap<String, LinkSubscription<AmqpSendLink>> openSendLinks = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, LinkSubscription<AmqpReceiveLink>> openReceiveLinks = new ConcurrentHashMap<>();
 
@@ -120,9 +121,9 @@ public class ReactorSession implements AmqpSession {
         TokenManagerProvider tokenManagerProvider, MessageSerializer messageSerializer, AmqpRetryOptions retryOptions) {
         this.amqpConnection = amqpConnection;
         this.protonSession = protonSession;
-        this.sessionName = protonSession.getSessionName();
+        this.sessionName = protonSession.getName();
         this.connectionId = protonSession.getConnectionId();
-        this.hostname = protonSession.getHostname();
+        this.hostname = protonSession.getFullyQualifiedNamespace();
         this.handlerProvider = handlerProvider;
         this.provider = protonSession.getReactorProvider();
         this.linkProvider = linkProvider;
@@ -154,6 +155,10 @@ public class ReactorSession implements AmqpSession {
         this.activeAwaiter = this.endpointStates
             .filter(state -> state == AmqpEndpointState.ACTIVE)
             .next()
+            .switchIfEmpty(Mono.defer(() -> {
+                final String message = String.format(COMPLETED_WITHOUT_ACTIVE, connectionId, sessionName);
+                return Mono.error(new AmqpException(true, message, getErrorContext()));
+            }))
             .timeout(activeTimeout,
                 Mono.error(() -> {
                     final String message = String.format(ACTIVE_WAIT_TIMED_OUT, connectionId, sessionName);
@@ -172,7 +177,7 @@ public class ReactorSession implements AmqpSession {
     }
 
     final Mono<ProtonChannelWrapper> channel(String name) {
-        return protonSession.channel(name, retryOptions);
+        return protonSession.channel(name, retryOptions.getTryTimeout());
     }
 
     @Override

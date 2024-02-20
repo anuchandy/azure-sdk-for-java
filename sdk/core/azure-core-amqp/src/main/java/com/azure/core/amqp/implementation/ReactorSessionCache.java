@@ -18,7 +18,7 @@ import java.util.function.Function;
 import static com.azure.core.amqp.implementation.ClientConstants.SESSION_NAME_KEY;
 
 /**
- * A cache of {@link ReactorSession} hosted on a QPid Proton-j {@link Connection}, owned by a {@link ReactorConnection}.
+ * A cache of {@link ReactorSession} owned by a {@link ReactorConnection}.
  */
 final class ReactorSessionCache {
     private final ConcurrentMap<String, Entry> entries = new ConcurrentHashMap<>();
@@ -84,9 +84,9 @@ final class ReactorSessionCache {
             });
         });
         return cachedMono.flatMap(cached -> {
-            // 'openSession()' will open the session to the broker when called for the first time. Later calls to
-            // 'openSession()' only check if the session is still active (i.e., connected to the broker), if not
-            // then error will be returned.
+            // 'openSession()' will open the session (connects to the broker) when called for the first time.
+            // Later calls to 'openSession()' only check if the session is still active (i.e., connected to the broker),
+            // if not then error will be returned.
             return cached.openSession()
                 .doOnError(error -> evictOnError(name, "Evicting failed to open or in-active session.", error));
         });
@@ -110,8 +110,8 @@ final class ReactorSessionCache {
     }
 
     /**
-     * When the owner {@link ReactorConnection} is being disposed of, all sessions will receive shutdown signal,
-     * this method waits for all those sessions to complete it closing.
+     * When the owner {@link ReactorConnection} is being disposed of, all {@link ReactorSession} loaded into the
+     * cache will receive shutdown signal, this method waits for sessions to complete it closing.
      *
      * @return a Mono that completes when all sessions are closed via owner shutdown signaling.
      */
@@ -124,11 +124,11 @@ final class ReactorSessionCache {
     }
 
     /**
-     * Obtain a new {@link ReactorSession} to be cached.
+     * Load a new {@link ReactorSession} to be cached.
      *
      * @param connection the QPid Proton-j connection to host the session.
      * @param name the session name.
-     * @param loader the function to obtain the session.
+     * @param loader the function to load the session.
      *
      * @return the session to cache.
      */

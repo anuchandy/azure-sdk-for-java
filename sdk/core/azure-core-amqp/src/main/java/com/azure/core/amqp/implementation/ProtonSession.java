@@ -3,7 +3,6 @@
 
 package com.azure.core.amqp.implementation;
 
-import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.exception.AmqpErrorCondition;
 import com.azure.core.amqp.exception.AmqpErrorContext;
 import com.azure.core.amqp.exception.AmqpException;
@@ -36,8 +35,9 @@ import static reactor.core.publisher.Sinks.EmitFailureHandler.FAIL_FAST;
  */
 final class ProtonSession {
     private static final String SESSION_NOT_OPENED_MESSAGE = "session has not been opened.";
-    private static final String REACTOR_SHUTDOWN_MESSAGE = "connection-reactor is disposed.";
     private static final String DISPOSED_MESSAGE_FORMAT = "Cannot create %s in a closed session.";
+    private static final String REACTOR_CLOSED_MESSAGE_FORMAT = "connectionId:[%s] sessionName:[%s] connection-reactor is disposed.";
+    private static final String OBTAIN_CHANNEL_TIMEOUT_MESSAGE_FORMAT = "connectionId:[%s] sessionName:[%s] obtaining channel (%s) timed out.";
     private final AtomicReference<State> state = new AtomicReference<>(State.EMPTY);
     private final AtomicBoolean opened = new AtomicBoolean(false);
     private final Sinks.Empty<Void> openAwaiter = Sinks.empty();
@@ -46,6 +46,19 @@ final class ProtonSession {
     private final SessionHandler handler;
     private final ClientLogger logger;
 
+    /**
+     * Creates a ProtonSession.
+     *
+     * @param connectionId the id of the QPid Proton-j Connection hosting the session.
+     * @param fullyQualifiedNamespace the host name of the broker that the QPid Proton-j Connection hosting
+     *  the session is connected to.
+     * @param connection the QPid Proton-j Connection hosting the session.
+     * @param handlerProvider the handler provider for various type of endpoints (session, link).
+     * @param reactorProvider the provider for reactor dispatcher.
+     * @param sessionName the session name.
+     * @param openTimeout the session open timeout.
+     * @param logger the client logger.
+     */
     ProtonSession(String connectionId, String fullyQualifiedNamespace, Connection connection,
         ReactorHandlerProvider handlerProvider, ReactorProvider reactorProvider, String sessionName,
         Duration openTimeout, ClientLogger logger) {
@@ -57,21 +70,12 @@ final class ProtonSession {
     }
 
     /**
-     * Gets the name of the session.
+     * Gets the session name.
      *
      * @return the session name.
      */
     String getName() {
         return handler.getSessionName();
-    }
-
-    /**
-     * Gets the hostname of the QPid Proton-j Connection facilitating the session.
-     *
-     * @return the hostname.
-     */
-    String getHostname() {
-        return handler.getHostname();
     }
 
     /**
@@ -81,6 +85,16 @@ final class ProtonSession {
      */
     String getConnectionId() {
         return handler.getConnectionId();
+    }
+
+    /**
+     * Gets the host name of the broker that the QPid Proton-j Connection facilitating the session
+     * is connected to.
+     *
+     * @return the hostname.
+     */
+    String getFullyQualifiedNamespace() {
+        return handler.getHostname();
     }
 
     /**
@@ -117,6 +131,12 @@ final class ProtonSession {
      * Opens the session in the QPid Proton-j Connection.
      *
      * @return a mono that completes when the session is opened.
+     * <p>
+     * <ul>the mono terminates with retriable {@link AmqpException} if
+     *      <li>the session disposal happened before opening,</li>
+     *      <li>or the connection reactor thread is shutdown.</li>
+     * </ul>
+     * </p>
      */
     Mono<Void> open() {
         if (opened.getAndSet(true)) {
@@ -144,8 +164,8 @@ final class ProtonSession {
             });
         } catch (Exception e) {
             if (e instanceof IOException | e instanceof RejectedExecutionException) {
-                openAwaiter.emitError(
-                    retriableAmqpError(null, REACTOR_SHUTDOWN_MESSAGE, e), FAIL_FAST);
+                final String message = String.format(REACTOR_CLOSED_MESSAGE_FORMAT, getConnectionId(), getName());
+                openAwaiter.emitError(retriableAmqpError(null, message, e), FAIL_FAST);
             } else {
                 openAwaiter.emitError(e, FAIL_FAST);
             }
@@ -157,10 +177,23 @@ final class ProtonSession {
      * Gets a channel on the session for sending and receiving messages.
      *
      * @param name the channel name.
-     * @param retryOptions the retry options.
+     * @param timeout the timeout for obtaining the channel.
+     *
      * @return a mono that completes with a {@link ProtonChannel} when the channel is created in the session.
+     * <p>
+     *  <ul>
+     *      <li>the mono terminates with {@link IllegalStateException} if the session is not opened yet.</li>
+     *      <li>the mono terminates with retriable {@link AmqpException} if
+     *          <ul>
+     *              <li>the session is disposed,</li>
+     *              <li>obtaining channel timeout,</li>
+     *              <li>or the connection reactor thread is shutdown.</li>
+     *          </ul>
+     *      </li>
+     *  </ul>
+     * </p>
      */
-    Mono<ProtonChannel> channel(final String name, AmqpRetryOptions retryOptions) {
+    Mono<ProtonChannel> channel(final String name, Duration timeout) {
         final Mono<ProtonChannel> channel = Mono.create(sink -> {
             if (name == null) {
                 sink.error(new NullPointerException("'name' cannot be null."));
@@ -187,15 +220,15 @@ final class ProtonSession {
                 });
             } catch (Exception e) {
                 if (e instanceof IOException | e instanceof RejectedExecutionException) {
-                    sink.error(retriableAmqpError(null, REACTOR_SHUTDOWN_MESSAGE, e));
+                    final String message = String.format(REACTOR_CLOSED_MESSAGE_FORMAT, getConnectionId(), getName());
+                    sink.error(retriableAmqpError(null, message, e));
                 } else {
                     sink.error(e);
                 }
             }
         });
-        final Duration timeout = retryOptions.getTryTimeout().plusSeconds(2);
-        return channel.timeout(timeout, Mono.error(() -> {
-            final String message = "Obtaining channel timed out. name:" + name;
+        return channel.timeout(timeout.plusSeconds(2), Mono.error(() -> {
+            final String message = String.format(OBTAIN_CHANNEL_TIMEOUT_MESSAGE_FORMAT, getConnectionId(), getName(), name);
             return retriableAmqpError(TIMEOUT_ERROR, message, null);
         }));
     }
@@ -203,13 +236,16 @@ final class ProtonSession {
     /**
      * Gets a QPid Proton-j sender on the session.
      * <p>
-     * The call site required to invoke this method on Reactor dispatcher thread associated with the session.
-     * It is possible to run into race conditions with proton-j if invoked from any other threads.
+     * The call site required to invoke this method on Reactor dispatcher thread using {@link #getReactorProvider()}.
+     * It is possible to run into race conditions with QPid Proton-j if invoked from any other threads.
      * </p>
      * @see #getReactorProvider()
      *
      * @param name the sender name.
+     *
      * @return the sender.
+     * @throws IllegalStateException if the attempt to obtain the receiver was made before opening the session.
+     * @throws AmqpException if the session was disposed.
      */
     Sender senderUnsafe(String name) {
         final Session session = getSession("sender-link");
@@ -219,13 +255,16 @@ final class ProtonSession {
     /**
      * Gets a QPid Proton-j receiver on the session.
      * <p>
-     * The call site required to invoke this method on Reactor dispatcher thread associated with the session.
-     * It is possible to run into race conditions with proton-j if invoked from any other threads.
+     * The call site required to invoke this method on Reactor dispatcher thread using {@link #getReactorProvider()}.
+     * It is possible to run into race conditions with QPid Proton-j if invoked from any other threads.
      * </p>
      * @see #getReactorProvider()
      *
      * @param name the sender name.
+     *
      * @return the sender.
+     * @throws IllegalStateException if the attempt to obtain the receiver was made before opening the session.
+     * @throws AmqpException if the session was disposed.
      */
     Receiver receiverUnsafe(String name) {
         final Session session = getSession("receive-link");
@@ -250,51 +289,97 @@ final class ProtonSession {
         handler.close();
     }
 
-    private Session getSession(String resourceName) {
+    /**
+     * Obtain the underlying QPid Proton-j {@link Session} atomically.
+     *
+     * @param resourceType the type of the resource (e.g., sender, receiver, channel) that the call site want to host
+     *  on the obtained session.
+     *
+     * @return the QPid Proton-j session.
+     * @throws IllegalStateException if the attempt to obtain the session was made before opening via {@link #open()}.
+     * @throws AmqpException if the session was disposed.
+     */
+    private Session getSession(String resourceType) {
         final State s = state.get();
         if (s == State.EMPTY) {
             throw new IllegalStateException(SESSION_NOT_OPENED_MESSAGE);
         }
         if (s == State.DISPOSED) {
-            throw retriableAmqpError(null, String.format(DISPOSED_MESSAGE_FORMAT, resourceName), null);
+            throw retriableAmqpError(null, String.format(DISPOSED_MESSAGE_FORMAT, resourceType), null);
         }
         return s.get();
     }
 
+    /**
+     * Creates a retriable AMQP exception.
+     * <p>
+     * The call sites uses this method to translate a session unavailability "event" (session disposed, or
+     * connection being closed) to a retriable error. While the "event" is transient, resolving it (e.g. by creating
+     * a new session on current connection or on a new connection) needs to be done not by the parent 'AmqpConnection'
+     * owning this ProtonSession but by the downstream layer. E.g., the downstream Consumer, Producer Client that has
+     * access to the chain to propagate retry request to top level connection-cache (or v1 connection-processor).
+     * </p>
+     * @param condition the error condition.
+     * @param message the error message.
+     * @param cause the actual cause of error.
+     * @return the retriable AMQP exception.
+     */
     private AmqpException retriableAmqpError(AmqpErrorCondition condition, String message, Throwable cause) {
-        // The call sites uses this method to translate a session unavailability "event" (session disposed, or
-        // connection being closed) to a retriable error.
-        // While the "event" is transient, resolving it (e.g. by creating a new session on current connection or
-        // on a new connection) needs to be done not by the parent 'AmqpConnection' owning this ProtonSession but
-        // by the downstream layer. E.g., the downstream Consumer, Producer Client that has access to the chain to
-        // propagate retry request to top level connection-cache (or v1 connection-processor).
         return new AmqpException(true, condition, message, cause, handler.getErrorContext());
     }
 
+    /**
+     * Type representing a bidirectional channel hosted on the QPid Proton-j session.
+     */
     static final class ProtonChannel {
         private final String name;
         private final Sender sender;
         private final Receiver receiver;
 
+        /**
+         * Creates a ProtonChannel.
+         *
+         * @param name the channel name.
+         * @param sender the sender endpoint of the channel.
+         * @param receiver the receiver endpoint of the channel.
+         */
         ProtonChannel(String name, Sender sender, Receiver receiver) {
             this.name = name;
             this.sender = sender;
             this.receiver = receiver;
         }
 
+        /**
+         * Gets the channel name.
+         *
+         * @return the channel name.
+         */
         String getName() {
             return name;
         }
 
+        /**
+         * Gets the sender endpoint of the channel.
+         *
+         * @return the channel's sender endpoint.
+         */
         Sender getSender() {
             return sender;
         }
 
+        /**
+         * Gets the receiver endpoint of the channel.
+         *
+         * @return the channel's receiver endpoint.
+         */
         Receiver getReceiver() {
             return receiver;
         }
     }
 
+    /**
+     * A type to ensure atomic access to the QPid Proton-j session.
+     */
     private static final class State {
         private static final State EMPTY = new State();
         private static final State DISPOSED = new State();
