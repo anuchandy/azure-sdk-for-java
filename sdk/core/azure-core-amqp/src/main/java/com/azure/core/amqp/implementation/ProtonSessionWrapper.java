@@ -19,7 +19,6 @@ import java.time.Duration;
 import java.util.Objects;
 
 public final class ProtonSessionWrapper {
-    private final boolean isV2;
     private final Session sessionUnsafe;
     private final ProtonSession session;
     private final String sessionName;
@@ -30,7 +29,7 @@ public final class ProtonSessionWrapper {
 
     ProtonSessionWrapper(Session sessionUnsafe, String sessionName, String hostName, String connectionId,
         SessionHandler handler, ReactorProvider provider) {
-        this.isV2 = false;
+        // V1
         this.sessionUnsafe = Objects.requireNonNull(sessionUnsafe, "'sessionUnsafe' cannot be null.");
         this.sessionName = Objects.requireNonNull(sessionName, "'sessionName' cannot be null.");
         this.hostName = Objects.requireNonNull(hostName, "'hostName' cannot be null.");
@@ -41,7 +40,7 @@ public final class ProtonSessionWrapper {
     }
 
     ProtonSessionWrapper(ProtonSession session) {
-        this.isV2 = true;
+        // V2
         this.session = Objects.requireNonNull(session, "'session' cannot be null.");
         this.sessionName = null;
         this.hostName = null;
@@ -51,8 +50,12 @@ public final class ProtonSessionWrapper {
         this.sessionUnsafe = null;
     }
 
+    boolean isV2() {
+        return session != null;
+    }
+
     String getName() {
-        if (isV2) {
+        if (session != null) {
             return session.getName();
         } else {
             return sessionName;
@@ -60,7 +63,7 @@ public final class ProtonSessionWrapper {
     }
 
     String getConnectionId() {
-        if (isV2) {
+        if (session != null) {
             return session.getConnectionId();
         } else {
             return connectionId;
@@ -68,7 +71,7 @@ public final class ProtonSessionWrapper {
     }
 
     String getFullyQualifiedNamespace() {
-        if (isV2) {
+        if (session != null) {
             return session.getFullyQualifiedNamespace();
         } else {
             return hostName;
@@ -76,7 +79,7 @@ public final class ProtonSessionWrapper {
     }
 
     Flux<EndpointState> getEndpointStates() {
-        if (isV2) {
+        if (session != null) {
             return session.getEndpointStates();
         } else {
             return handler.getEndpointStates();
@@ -84,7 +87,7 @@ public final class ProtonSessionWrapper {
     }
 
     ReactorProvider getReactorProvider() {
-        if (isV2) {
+        if (session != null) {
             return session.getReactorProvider();
         } else {
             return provider;
@@ -92,7 +95,7 @@ public final class ProtonSessionWrapper {
     }
 
     AmqpErrorContext getErrorContext() {
-        if (isV2) {
+        if (session != null) {
             return session.getErrorContext();
         } else {
             return handler.getErrorContext();
@@ -100,13 +103,13 @@ public final class ProtonSessionWrapper {
     }
 
     void openUnsafeIfV1() {
-        if (!isV2) {
+        if (sessionUnsafe != null) {
             sessionUnsafe.open();
         }
     }
 
     Mono<Void> open() {
-        if (isV2) {
+        if (session != null) {
             return session.open();
         } else {
             return Mono.error(new UnsupportedOperationException("async open() requires v2 mode."));
@@ -114,7 +117,7 @@ public final class ProtonSessionWrapper {
     }
 
     Mono<ProtonChannelWrapper> channel(String name, Duration timeout) {
-        if (isV2) {
+        if (session != null) {
             return session.channel(name, timeout).map(ProtonChannelWrapper::new);
         } else {
             return Mono.just(new ProtonChannelWrapper(name, sessionUnsafe));
@@ -122,7 +125,7 @@ public final class ProtonSessionWrapper {
     }
 
     Sender senderUnsafe(String name) {
-        if (isV2) {
+        if (session != null) {
             return session.senderUnsafe(name);
         } else {
             return sessionUnsafe.sender(name);
@@ -130,7 +133,7 @@ public final class ProtonSessionWrapper {
     }
 
     Receiver receiverUnsafe(String name) {
-        if (isV2) {
+        if (session != null) {
             return session.receiverUnsafe(name);
         } else {
             return sessionUnsafe.receiver(name);
@@ -138,7 +141,7 @@ public final class ProtonSessionWrapper {
     }
 
     void beginClose(ErrorCondition condition) {
-        if (isV2) {
+        if (session != null) {
             session.beginClose(condition);
         } else {
             if (sessionUnsafe.getLocalState() != EndpointState.CLOSED) {
@@ -151,7 +154,7 @@ public final class ProtonSessionWrapper {
     }
 
     void endClose() {
-        if (isV2) {
+        if (session != null) {
             session.endClose();
         } else {
             handler.close();

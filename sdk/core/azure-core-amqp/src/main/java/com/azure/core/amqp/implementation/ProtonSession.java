@@ -34,7 +34,8 @@ import static reactor.core.publisher.Sinks.EmitFailureHandler.FAIL_FAST;
  * A type managing a QPid Proton-j session {@link Session} instance.
  */
 final class ProtonSession {
-    private static final String SESSION_NOT_OPENED_MESSAGE = "session has not been opened.";
+    private static final String SESSION_NOT_OPENED = "session has not been opened.";
+    private static final String NOT_OPENING_DISPOSED_SESSION = "session is already disposed, not opening.";
     private static final String DISPOSED_MESSAGE_FORMAT = "Cannot create %s in a closed session.";
     private static final String REACTOR_CLOSED_MESSAGE_FORMAT = "connectionId:[%s] sessionName:[%s] connection-reactor is disposed.";
     private static final String OBTAIN_CHANNEL_TIMEOUT_MESSAGE_FORMAT = "connectionId:[%s] sessionName:[%s] obtaining channel (%s) timed out.";
@@ -141,9 +142,8 @@ final class ProtonSession {
      * By design, no re-open attempt will be made within this type. Lifetime of a {@link ProtonSession} instance is
      * scoped to life time of one low level Qpid Proton-j session instance it manages. Re-establishing session requires
      * querying the connection-cache to obtain the latest connection (may not be same as the one this session was associated)
-     * then hosting and opening a new {@link ProtonSession} on it, this is the responsibility of the downstream that
-     * has access to the async chain rooted at connection-cache. This means, upon error from APIs in this type, the async
-     * chain at the call sites are carefully arranged to do any required retry to obtain a new {@link ProtonSession}.
+     * then hosting and opening a new {@link ProtonSession} on it. It means, upon error from any APIs in this type, the async
+     * chain at the call sites needs to be arranged to do any required retry to obtain a new {@link ProtonSession}.
      * </p>
      *
      * @return a mono that completes once the session is opened.
@@ -171,8 +171,7 @@ final class ProtonSession {
                 } else {
                     session.close();
                     if (s == State.DISPOSED) {
-                        openAwaiter.emitError(
-                            retriableAmqpError(null, "session is disposed.", null), FAIL_FAST);
+                        openAwaiter.emitError(new ProtonSessionClosedException(NOT_OPENING_DISPOSED_SESSION), FAIL_FAST);
                     } else {
                         openAwaiter.emitError(new IllegalStateException("session is already opened."), FAIL_FAST);
                     }
@@ -217,7 +216,7 @@ final class ProtonSession {
             }
             try {
                 getSession("channel");
-            } catch (RuntimeException e) {
+            } catch (ProtonSessionClosedException e) {
                 sink.error(e);
                 return;
             }
@@ -226,7 +225,7 @@ final class ProtonSession {
                     final Session session;
                     try {
                         session = getSession("channel");
-                    } catch (RuntimeException e) {
+                    } catch (ProtonSessionClosedException e) {
                         sink.error(e);
                         return;
                     }
@@ -262,7 +261,7 @@ final class ProtonSession {
      *
      * @return the sender.
      * @throws IllegalStateException if the attempt to obtain the receiver was made before opening the session.
-     * @throws AmqpException if the session was disposed.
+     * @throws ProtonSessionClosedException (a retriable {@link AmqpException}) if the session was disposed.
      */
     Sender senderUnsafe(String name) {
         final Session session = getSession("sender-link");
@@ -281,7 +280,7 @@ final class ProtonSession {
      *
      * @return the sender.
      * @throws IllegalStateException if the attempt to obtain the receiver was made before opening the session.
-     * @throws AmqpException if the session was disposed.
+     * @throws ProtonSessionClosedException a retriable {@link AmqpException}) if the session was disposed.
      */
     Receiver receiverUnsafe(String name) {
         final Session session = getSession("receive-link");
@@ -322,15 +321,15 @@ final class ProtonSession {
      *
      * @return the QPid Proton-j session.
      * @throws IllegalStateException if the attempt to obtain the session was made before opening via {@link #open()}.
-     * @throws AmqpException if the session was disposed.
+     * @throws ProtonSessionClosedException a retriable {@link AmqpException}) if the session was disposed.
      */
     private Session getSession(String resourceType) {
         final State s = state.get();
         if (s == State.EMPTY) {
-            throw new IllegalStateException(SESSION_NOT_OPENED_MESSAGE);
+            throw new IllegalStateException(SESSION_NOT_OPENED);
         }
         if (s == State.DISPOSED) {
-            throw retriableAmqpError(null, String.format(DISPOSED_MESSAGE_FORMAT, resourceType), null);
+            throw new ProtonSessionClosedException(String.format(DISPOSED_MESSAGE_FORMAT, resourceType));
         }
         return s.get();
     }
@@ -399,6 +398,15 @@ final class ProtonSession {
          */
         Receiver getReceiver() {
             return receiver;
+        }
+    }
+
+    /**
+     * A retriable AMQP exception indicating session is disposed.
+     */
+    static final class ProtonSessionClosedException extends AmqpException {
+        private ProtonSessionClosedException(String message) {
+            super(true, message, null);
         }
     }
 

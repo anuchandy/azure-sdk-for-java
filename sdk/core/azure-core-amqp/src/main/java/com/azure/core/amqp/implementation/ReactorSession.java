@@ -17,6 +17,7 @@ import com.azure.core.amqp.exception.AmqpErrorContext;
 import com.azure.core.amqp.exception.AmqpException;
 import com.azure.core.amqp.implementation.handler.SendLinkHandler;
 import com.azure.core.amqp.implementation.ProtonSessionWrapper.ProtonChannelWrapper;
+import com.azure.core.amqp.implementation.ProtonSession.ProtonSessionClosedException;
 import com.azure.core.util.CoreUtils;
 import com.azure.core.util.logging.ClientLogger;
 import com.azure.core.util.logging.LoggingEventBuilder;
@@ -43,6 +44,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
@@ -389,6 +391,10 @@ public class ReactorSession implements AmqpSession {
 
         final LinkSubscription<AmqpReceiveLink> existingLink = openReceiveLinks.get(linkName);
         if (existingLink != null) {
+            final ProtonSessionClosedException error = existingLink.getError();
+            if (error != null) {
+                return Mono.error(error);
+            }
             logger.atInfo()
                 .addKeyValue(LINK_NAME_KEY, linkName)
                 .addKeyValue(ENTITY_PATH_KEY, entityPath)
@@ -423,7 +429,12 @@ public class ReactorSession implements AmqpSession {
                                     receiverDesiredCapabilities, senderSettleMode, receiverSettleMode, tokenManager, consumerFactory);
                             });
 
-                        sink.success(computed.getLink());
+                        final ProtonSessionClosedException error = computed.getError();
+                        if (error != null) {
+                            sink.error(error);
+                        } else {
+                            sink.success(computed.getLink());
+                        }
                     });
                 } catch (IOException | RejectedExecutionException e) {
                     sink.error(e);
@@ -478,6 +489,10 @@ public class ReactorSession implements AmqpSession {
 
         final LinkSubscription<AmqpSendLink> existing = openSendLinks.get(linkName);
         if (existing != null) {
+            final ProtonSessionClosedException error = existing.getError();
+            if (error != null) {
+                return Mono.error(error);
+            }
             logger.atVerbose()
                 .addKeyValue(LINK_NAME_KEY, linkName)
                 .log("Returning existing send link.");
@@ -521,7 +536,12 @@ public class ReactorSession implements AmqpSession {
                                 tokenManager);
                         });
 
-                    sink.success(computed.getLink());
+                    final ProtonSessionClosedException error = computed.getError();
+                    if (error != null) {
+                        sink.error(error);
+                    } else {
+                        sink.success(computed.getLink());
+                    }
                 });
             } catch (IOException | RejectedExecutionException e) {
                 sink.error(e);
@@ -536,7 +556,12 @@ public class ReactorSession implements AmqpSession {
         org.apache.qpid.proton.amqp.transport.Target target, Map<Symbol, Object> linkProperties,
         AmqpRetryOptions options, TokenManager tokenManager) {
 
-        final Sender sender = protonSession.senderUnsafe(linkName);
+        final Sender sender;
+        try {
+            sender = protonSession.senderUnsafe(linkName);
+        } catch (ProtonSessionClosedException e) {
+            return LinkSubscription.<AmqpSendLink>error(e);
+        }
         sender.setTarget(target);
         sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
 
@@ -590,7 +615,12 @@ public class ReactorSession implements AmqpSession {
         Symbol[] receiverDesiredCapabilities, SenderSettleMode senderSettleMode, ReceiverSettleMode receiverSettleMode,
         TokenManager tokenManager, ConsumerFactory consumerFactory) {
 
-        final Receiver receiver = protonSession.receiverUnsafe(linkName);
+        final Receiver receiver;
+        try {
+            receiver = protonSession.receiverUnsafe(linkName);
+        } catch (ProtonSessionClosedException e) {
+            return LinkSubscription.<AmqpReceiveLink>error(e);
+        }
         final Source source = new Source();
         source.setAddress(entityPath);
 
@@ -775,11 +805,28 @@ public class ReactorSession implements AmqpSession {
         private final T link;
         private final Disposable subscription;
         private final String errorMessage;
+        private final ProtonSessionClosedException error;
+
+        private static <T extends AmqpLink> LinkSubscription<T> error(ProtonSessionClosedException error) {
+            return new LinkSubscription<>(error);
+        }
 
         private LinkSubscription(T link, Disposable subscription, String errorMessage) {
             this.link = link;
             this.subscription = subscription;
             this.errorMessage = errorMessage;
+            this.error = null;
+        }
+
+        private LinkSubscription(ProtonSessionClosedException error) {
+            this.link = null;
+            this.subscription = null;
+            this.errorMessage = null;
+            this.error = Objects.requireNonNull(error, "'error' cannot be null.");
+        }
+
+        ProtonSessionClosedException getError() {
+            return error;
         }
 
         public T getLink() {
