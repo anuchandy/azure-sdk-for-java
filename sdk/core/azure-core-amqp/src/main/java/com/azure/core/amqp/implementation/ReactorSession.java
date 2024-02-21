@@ -119,6 +119,7 @@ public class ReactorSession implements AmqpSession {
     public ReactorSession(AmqpConnection amqpConnection, ProtonSessionWrapper protonSession,
         ReactorHandlerProvider handlerProvider, AmqpLinkProvider linkProvider, Mono<ClaimsBasedSecurityNode> cbsNodeSupplier,
         TokenManagerProvider tokenManagerProvider, MessageSerializer messageSerializer, AmqpRetryOptions retryOptions) {
+        // TODO (anu): As part of v1 removal, ReactorSession will directly use 'ProtonSession' instead of 'ProtonSessionWrapper'.
         this.amqpConnection = amqpConnection;
         this.protonSession = protonSession;
         this.sessionName = protonSession.getName();
@@ -169,11 +170,13 @@ public class ReactorSession implements AmqpSession {
         shutdownSignals = amqpConnection.getShutdownSignals();
         subscriptions.add(this.endpointStates.subscribe());
         subscriptions.add(shutdownSignals.flatMap(signal ->  closeAsync("Shutdown signal received", null, false)).subscribe());
+        // TODO (anu): unsafe-open will be removed when dropping v1. In v2, ReactorSession::open() will be used for safe-open.
         protonSession.openUnsafeIfV1();
     }
 
-    final Mono<Void> open() {
-        return Mono.when(protonSession.open(), activeAwaiter);
+    final Mono<ReactorSession> open() {
+        // V2: Open the Qpid Proton-j session (if not already opened) and wait for it to be active.
+        return Mono.when(protonSession.open(), activeAwaiter).thenReturn(this);
     }
 
     final Mono<ProtonChannelWrapper> channel(String name) {

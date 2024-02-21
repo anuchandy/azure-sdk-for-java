@@ -31,7 +31,7 @@ import static com.azure.core.amqp.implementation.ClientConstants.SESSION_NAME_KE
 import static reactor.core.publisher.Sinks.EmitFailureHandler.FAIL_FAST;
 
 /**
- * A type representing QPid Proton-j session {@link Session} endpoint.
+ * A type managing a QPid Proton-j session {@link Session} instance.
  */
 final class ProtonSession {
     private static final String SESSION_NOT_OPENED_MESSAGE = "session has not been opened.";
@@ -129,12 +129,28 @@ final class ProtonSession {
 
     /**
      * Opens the session in the QPid Proton-j Connection.
-     *
-     * @return a mono that completes when the session is opened.
      * <p>
-     * <ul>the mono terminates with retriable {@link AmqpException} if
-     *      <li>the session disposal happened before opening,</li>
-     *      <li>or the connection reactor thread is shutdown.</li>
+     * The session open attempt is made upon the first subscription, once opened later subscriptions will complete
+     * immediately, i.e. there is an open-only-once semantics.
+     * </p>
+     * <p>
+     * If the session (or parent Qpid Proton-j connection) is disposed after opening, any later operation attempts
+     * (e.g., creating sender, receiver, channel) will fail with retriable {@link AmqpException}.
+     * </p>
+     * <p>
+     * By design, no re-open attempt will be made within this type. Lifetime of a {@link ProtonSession} instance is
+     * scoped to life time of one low level Qpid Proton-j session instance it manages. Re-establishing session requires
+     * querying the connection-cache to obtain the latest connection (may not be same as the one this session was associated)
+     * then hosting and opening a new {@link ProtonSession} on it, this is the responsibility of the downstream that
+     * has access to the async chain rooted at connection-cache. This means, upon error from APIs in this type, the async
+     * chain at the call sites are carefully arranged to do any required retry to obtain a new {@link ProtonSession}.
+     * </p>
+     *
+     * @return a mono that completes once the session is opened.
+     * <p>
+     * <ul>the mono can terminates with retriable {@link AmqpException} if
+     *      <li>the session disposal happened while opening,</li>
+     *      <li>or the connection reactor thread got shutdown while opening.</li>
      * </ul>
      * </p>
      */
@@ -176,10 +192,10 @@ final class ProtonSession {
     /**
      * Gets a channel on the session for sending and receiving messages.
      *
-     * @param name the channel name.
+     * @param name the channel name (used as the name prefix for sender and receiver in the channel).
      * @param timeout the timeout for obtaining the channel.
      *
-     * @return a mono that completes with a {@link ProtonChannel} when the channel is created in the session.
+     * @return a mono that completes with a {@link ProtonChannel} once the channel is created in the session.
      * <p>
      *  <ul>
      *      <li>the mono terminates with {@link IllegalStateException} if the session is not opened yet.</li>
@@ -227,6 +243,7 @@ final class ProtonSession {
                 }
             }
         });
+        // TODO (anu): when removing v1 support, move the timeout to the call site, ReactorSession::channel().
         return channel.timeout(timeout.plusSeconds(2), Mono.error(() -> {
             final String message = String.format(OBTAIN_CHANNEL_TIMEOUT_MESSAGE_FORMAT, getConnectionId(), getName(), name);
             return retriableAmqpError(TIMEOUT_ERROR, message, null);
@@ -271,6 +288,11 @@ final class ProtonSession {
         return session.receiver(name);
     }
 
+    /**
+     * Begin the disposal by locally closing the underlying QPid Proton-j session.
+     *
+     * @param errorCondition the error condition to close the session with.
+     */
     void beginClose(ErrorCondition errorCondition) {
         final State s = state.getAndSet(State.DISPOSED);
         if (s == State.EMPTY || s == State.DISPOSED) {
@@ -285,6 +307,9 @@ final class ProtonSession {
         }
     }
 
+    /**
+     * Completes the disposal by closing the {@link SessionHandler}.
+     */
     void endClose() {
         handler.close();
     }
@@ -378,7 +403,7 @@ final class ProtonSession {
     }
 
     /**
-     * A type to ensure atomic access to the QPid Proton-j session.
+     * A type to atomically access the underlying QPid Proton-j {@link Session} that {@link ProtonSession} manages.
      */
     private static final class State {
         private static final State EMPTY = new State();

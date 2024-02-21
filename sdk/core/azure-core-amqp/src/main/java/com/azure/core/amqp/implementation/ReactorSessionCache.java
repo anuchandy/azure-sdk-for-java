@@ -52,13 +52,6 @@ final class ReactorSessionCache {
     }
 
     /**
-     * Signal that the owner ({@link ReactorConnection}) of the cache is disposed of.
-     */
-    void setOwnerDisposed() {
-        isOwnerDisposed.set(true);
-    }
-
-    /**
      * Obtain the session with the given name from the cache, first loading and opening the session if necessary.
      * <p>
      * The session returned from the cache will be already connected to the broker and ready to use.
@@ -76,6 +69,7 @@ final class ReactorSessionCache {
      */
     Mono<ReactorSession> getOrLoad(Mono<Connection> connectionMono, String name,
         Function<ProtonSessionWrapper, ReactorSession> loader) {
+        // TODO (anu): loader: remove 'ProtonSessionWrapper' and use 'ProtonSession' directly when v1 support is removed.
         final Mono<Entry> cachedMono = connectionMono.map(connection -> {
             return entries.computeIfAbsent(name, sessionName -> {
                 final ReactorSession session = load(connection, sessionName, loader);
@@ -84,11 +78,13 @@ final class ReactorSessionCache {
             });
         });
         return cachedMono.flatMap(cached -> {
-            // 'openSession()' will open the session (connects to the broker) when called for the first time.
-            // Later calls to 'openSession()' only check if the session is still active (i.e., connected to the broker),
-            // if not then error will be returned.
-            return cached.openSession()
-                .doOnError(error -> evictOnError(name, "Evicting failed to open or in-active session.", error));
+            final ReactorSession session = cached.getSession();
+            return session.open()
+                .doOnError(error -> evict(session, "Evicting failed to open or in-active session.", error));
+            // 'ReactorSession::open()' has open-only-once semantics, i.e., the session open attempt is triggered upon
+            // the first subscription that loads session into the cache. Later subscriptions only trigger the session
+            // active check (i.e., checks if the broker connection is still active), if not, an error will be returned
+            // to evict from cache.
         });
     }
 
@@ -110,8 +106,15 @@ final class ReactorSessionCache {
     }
 
     /**
-     * When the owner {@link ReactorConnection} is being disposed of, all {@link ReactorSession} loaded into the
-     * cache will receive shutdown signal, this method waits for sessions to complete it closing.
+     * Signal that the owner ({@link ReactorConnection}) of the cache is disposed of.
+     */
+    void setOwnerDisposed() {
+        isOwnerDisposed.set(true);
+    }
+
+    /**
+     * When the owner {@link ReactorConnection} is being disposed of, all {@link ReactorSession} loaded into the cache
+     * will receive shutdown signal, the owner may use this method to waits for sessions to complete it closing.
      *
      * @return a Mono that completes when all sessions are closed via owner shutdown signaling.
      */
@@ -136,6 +139,7 @@ final class ReactorSessionCache {
         Function<ProtonSessionWrapper, ReactorSession> loader) {
         final ProtonSession protonSession = new ProtonSession(connectionId, fullyQualifiedNamespace, connection,
             handlerProvider, reactorProvider, name, openTimeout, logger);
+        // TODO (anu): Remove 'ProtonSessionWrapper' and use 'ProtonSession' directly when v1 support is removed.
         return loader.apply(new ProtonSessionWrapper(protonSession));
     }
 
@@ -146,35 +150,30 @@ final class ReactorSessionCache {
      * @return the registration disposable.
      */
     private Disposable setupAutoEviction(ReactorSession session) {
-        final String name = session.getSessionName();
         return session.getEndpointStates()
             .subscribe(__ -> {
             }, error -> {
-                evictOnError(name, "Evicting session terminated with error.", error);
+                evict(session, "Evicting session terminated with error.", error);
             }, () -> {
-                if (isOwnerDisposed.get()) {
-                    // See notes in 'evictOnError(..)' method.
-                    return;
-                }
-                evict(name);
+                evict(session, "Evicting terminated session.", null);
             });
     }
 
     /**
-     * Evicts the session from the cache due to a session error.
+     * Attempt to evict the session from the cache.
      *
-     * @param name the session name.
+     * @param session the session to evict.
      * @param message the message to log on eviction.
      * @param error the error triggered the eviction.
      */
-    private void evictOnError(String name, String message, Throwable error) {
+    private void evict(ReactorSession session, String message, Throwable error) {
         if (isOwnerDisposed.get()) {
-            // If (owning) connection is already disposing of, all session(s) would be discarded.
-            // Which means the whole cache itself would be discarded. Don’t evict individual entries, this avoids
-            // double close, subscription allocations and prevent downstream attempting to load sessions while connection
-            // cleanup is running.
+            // If (owner) connection is already disposing of, all session(s) would be discarded. Which means the whole
+            // cache itself would be discarded. Don’t evict individual entries, this avoids double close, subscription
+            // allocations and prevent downstream attempting to load new sessions while connection cleanup is running.
             return;
         }
+        final String name = session.getSessionName();
         logger.atInfo().addKeyValue(SESSION_NAME_KEY, name).log(message, error);
         evict(name);
     }
@@ -200,16 +199,16 @@ final class ReactorSessionCache {
         }
 
         /**
-         * Opens the session.
+         * Gets the session cached in the entry.
          *
-         * @return a Mono that completes when the session is opened.
+         * @return the session.
          */
-        private Mono<ReactorSession> openSession() {
-            return session.open().thenReturn(session);
+        private ReactorSession getSession() {
+            return session;
         }
 
         /**
-         * Await for the session to close.
+         * Await for the cached session to close.
          *
          * @return a Mono that completes when the session is closed.
          */
