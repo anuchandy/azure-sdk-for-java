@@ -33,7 +33,7 @@ public final class ProtonSessionWrapper {
     private final SessionHandler handler;
     private final ReactorProvider provider;
 
-    ProtonSessionWrapper(Session sessionUnsafe, String sessionName, String hostName, String connectionId,
+    public ProtonSessionWrapper(Session sessionUnsafe, String sessionName, String hostName, String connectionId,
         SessionHandler handler, ReactorProvider provider) {
         // V1
         this.sessionUnsafe = Objects.requireNonNull(sessionUnsafe, "'sessionUnsafe' cannot be null.");

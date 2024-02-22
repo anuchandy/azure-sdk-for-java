@@ -10,9 +10,11 @@ import com.azure.core.amqp.implementation.AmqpSendLink;
 import com.azure.core.amqp.implementation.AzureTokenManagerProvider;
 import com.azure.core.amqp.implementation.ConnectionOptions;
 import com.azure.core.amqp.implementation.MessageSerializer;
+import com.azure.core.amqp.implementation.ProtonSessionWrapper;
 import com.azure.core.amqp.implementation.ReactorConnection;
 import com.azure.core.amqp.implementation.ReactorHandlerProvider;
 import com.azure.core.amqp.implementation.ReactorProvider;
+import com.azure.core.amqp.implementation.ReactorSession;
 import com.azure.core.amqp.implementation.RetryUtil;
 import com.azure.core.amqp.implementation.TokenManager;
 import com.azure.core.amqp.implementation.TokenManagerProvider;
@@ -224,8 +226,8 @@ public class ServiceBusReactorAmqpConnection extends ReactorConnection implement
     }
 
     @Override
-    protected AmqpSession createSession(String sessionName, Session session, SessionHandler handler) {
-        return new ServiceBusReactorSession(this, session, handler, sessionName, reactorProvider,
+    protected ReactorSession createSession(ProtonSessionWrapper protonSession) {
+        return new ServiceBusReactorSession(this, protonSession,
             handlerProvider, linkProvider, getClaimsBasedSecurityNode(), tokenManagerProvider, messageSerializer, retryOptions,
             new ServiceBusCreateSessionOptions(distributedTransactionsSupport), isV2);
     }

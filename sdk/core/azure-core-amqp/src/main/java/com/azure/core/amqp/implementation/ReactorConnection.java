@@ -324,7 +324,9 @@ public class ReactorConnection implements AmqpConnection {
 
     /**
      * Creates a new AMQP session with the given parameters.
-     *
+     * <p>
+     * TODO (anu): Use 'ProtonSession' as the arg instead of 'ProtonSessionWrapper' when removing v1 support.
+     * </p>
      * @param protonSession the QPid Proton-j session.
      *
      * @return A new instance of AMQP session.

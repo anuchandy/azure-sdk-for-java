@@ -12,6 +12,7 @@ import com.azure.core.amqp.FixedAmqpRetryPolicy;
 import com.azure.core.amqp.exception.AmqpResponseCode;
 import com.azure.core.amqp.implementation.AmqpConstants;
 import com.azure.core.amqp.implementation.MessageSerializer;
+import com.azure.core.amqp.implementation.ProtonSessionWrapper;
 import com.azure.core.amqp.implementation.ReactorDispatcher;
 import com.azure.core.amqp.implementation.ReactorHandlerProvider;
 import com.azure.core.amqp.implementation.ReactorProvider;
@@ -183,11 +184,12 @@ public class ServiceBusReactorSessionTest {
         doNothing().when(senderEntity).setTarget(any(Target.class));
         when(senderEntity.attachments()).thenReturn(record);
         when(senderViaEntity.attachments()).thenReturn(record);
-
         when(reactorProvider.getReactorDispatcher()).thenReturn(dispatcher);
+        // TODO (anu): use 'ProtonSession' instead of 'ProtonSessionWrapper' when removing v1 support.
+        final ProtonSessionWrapper protonSession = new ProtonSessionWrapper(session, SESSION_NAME, HOSTNAME, CONNECTION_ID, handler, reactorProvider);
 
         when(connection.getShutdownSignals()).thenReturn(Flux.empty());
-        serviceBusReactorSession = new ServiceBusReactorSession(connection, session, handler, SESSION_NAME, reactorProvider,
+        serviceBusReactorSession = new ServiceBusReactorSession(connection, protonSession,
             handlerProvider, linkProvider, cbsNodeSupplier, tokenManagerProvider, messageSerializer, retryOptions,
             new ServiceBusCreateSessionOptions(false), true);
         when(connection.getShutdownSignals()).thenReturn(Flux.never());
@@ -290,9 +292,11 @@ public class ServiceBusReactorSessionTest {
         doNothing().when(coordinatorSenderEntity).setTarget(any(Target.class));
         when(coordinatorSenderEntity.attachments()).thenReturn(record);
         when(session.sender(transactionLinkName)).thenReturn(coordinatorSenderEntity);
+        // TODO (anu): use 'ProtonSession' instead of 'ProtonSessionWrapper' when removing v1 support.
+        final ProtonSessionWrapper protonSession = new ProtonSessionWrapper(session, SESSION_NAME, HOSTNAME, CONNECTION_ID, handler, reactorProvider);
 
-        final ServiceBusReactorSession serviceBusReactorSession = new ServiceBusReactorSession(connection, session, handler,
-            SESSION_NAME, reactorProvider, handlerProvider, linkProvider, cbsNodeSupplier, tokenManagerProvider, messageSerializer,
+        final ServiceBusReactorSession serviceBusReactorSession = new ServiceBusReactorSession(connection, protonSession,
+            handlerProvider, linkProvider, cbsNodeSupplier, tokenManagerProvider, messageSerializer,
             retryOptions, new ServiceBusCreateSessionOptions(true), true);
 
         when(handlerProvider.createSendLinkHandler(CONNECTION_ID, HOSTNAME, transactionLinkName, transactionLinkName))

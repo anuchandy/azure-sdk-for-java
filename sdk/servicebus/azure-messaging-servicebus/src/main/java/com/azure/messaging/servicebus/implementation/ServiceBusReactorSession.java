@@ -11,6 +11,7 @@ import com.azure.core.amqp.ClaimsBasedSecurityNode;
 import com.azure.core.amqp.implementation.AmqpConstants;
 import com.azure.core.amqp.implementation.ConsumerFactory;
 import com.azure.core.amqp.implementation.MessageSerializer;
+import com.azure.core.amqp.implementation.ProtonSessionWrapper;
 import com.azure.core.amqp.implementation.ReactorHandlerProvider;
 import com.azure.core.amqp.implementation.ReactorProvider;
 import com.azure.core.amqp.implementation.ReactorSession;
@@ -65,10 +66,7 @@ class ServiceBusReactorSession extends ReactorSession implements ServiceBusSessi
     /**
      * Creates a new AMQP session using proton-j.
      *
-     * @param session Proton-j session for this AMQP session.
-     * @param sessionHandler Handler for events that occur in the session.
-     * @param sessionName Name of the session.
-     * @param provider Provides reactor instances for messages to sent with.
+     * @param protonSession Proton-j session for this AMQP session.
      * @param handlerProvider Providers reactor handlers for listening to proton-j reactor events.
      * @param linkProvider Provides amqp links for send and receive.
      * @param cbsNodeSupplier Mono that returns a reference to the {@link ClaimsBasedSecurityNode}.
@@ -78,12 +76,12 @@ class ServiceBusReactorSession extends ReactorSession implements ServiceBusSessi
      * @param createOptions  the options to create {@link ServiceBusReactorSession}.
      * @param isV2 (temporary) flag indicating which receiver, v1 or v2, to create.
      */
-    ServiceBusReactorSession(AmqpConnection amqpConnection, Session session, SessionHandler sessionHandler,
-        String sessionName, ReactorProvider provider, ReactorHandlerProvider handlerProvider,
+    ServiceBusReactorSession(AmqpConnection amqpConnection, ProtonSessionWrapper protonSession, ReactorHandlerProvider handlerProvider,
         ServiceBusAmqpLinkProvider linkProvider, Mono<ClaimsBasedSecurityNode> cbsNodeSupplier, TokenManagerProvider tokenManagerProvider,
         MessageSerializer messageSerializer, AmqpRetryOptions retryOptions,
         ServiceBusCreateSessionOptions createOptions, boolean isV2) {
-        super(amqpConnection, session, sessionHandler, sessionName, provider, handlerProvider, linkProvider, cbsNodeSupplier,
+        // TODO (anu): use 'ProtonSession' instead of 'ProtonSessionWrapper' when removing v1 support.
+        super(amqpConnection, protonSession, handlerProvider, linkProvider, cbsNodeSupplier,
             tokenManagerProvider, messageSerializer, retryOptions);
         this.amqpConnection = amqpConnection;
         this.retryOptions = retryOptions;

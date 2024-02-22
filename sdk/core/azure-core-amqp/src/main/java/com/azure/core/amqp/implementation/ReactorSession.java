@@ -121,7 +121,7 @@ public class ReactorSession implements AmqpSession {
     public ReactorSession(AmqpConnection amqpConnection, ProtonSessionWrapper protonSession,
         ReactorHandlerProvider handlerProvider, AmqpLinkProvider linkProvider, Mono<ClaimsBasedSecurityNode> cbsNodeSupplier,
         TokenManagerProvider tokenManagerProvider, MessageSerializer messageSerializer, AmqpRetryOptions retryOptions) {
-        // TODO (anu): ReactorSession to directly use 'ProtonSession' instead of 'ProtonSessionWrapper' when v1 support is dropped.
+        // TODO (anu): use 'ProtonSession' instead of 'ProtonSessionWrapper' when removing v1 support.
         this.amqpConnection = amqpConnection;
         this.protonSession = protonSession;
         this.sessionName = protonSession.getName();
