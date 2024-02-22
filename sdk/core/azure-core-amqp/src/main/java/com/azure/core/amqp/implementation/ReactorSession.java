@@ -121,7 +121,7 @@ public class ReactorSession implements AmqpSession {
     public ReactorSession(AmqpConnection amqpConnection, ProtonSessionWrapper protonSession,
         ReactorHandlerProvider handlerProvider, AmqpLinkProvider linkProvider, Mono<ClaimsBasedSecurityNode> cbsNodeSupplier,
         TokenManagerProvider tokenManagerProvider, MessageSerializer messageSerializer, AmqpRetryOptions retryOptions) {
-        // TODO (anu): As part of v1 removal, ReactorSession will directly use 'ProtonSession' instead of 'ProtonSessionWrapper'.
+        // TODO (anu): ReactorSession to directly use 'ProtonSession' instead of 'ProtonSessionWrapper' when v1 support is dropped.
         this.amqpConnection = amqpConnection;
         this.protonSession = protonSession;
         this.sessionName = protonSession.getName();
@@ -179,7 +179,7 @@ public class ReactorSession implements AmqpSession {
     /**
      * Create a channel on the session for sending and receiving messages.
      * <p>
-     *  TODO (anu): return Mono of ProtonChannel instead of ProtonChannelWrapper once v1 is removed.
+     *  TODO (anu): return Mono of 'ProtonChannel' instead of 'ProtonChannelWrapper' once v1 is removed.
      * </p>
      *
      * @param name the channel name.
