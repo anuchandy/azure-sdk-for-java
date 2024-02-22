@@ -318,7 +318,7 @@ public class ReactorConnection implements AmqpConnection {
      */
     @Override
     public Mono<AmqpSession> createSession(String sessionName) {
-        final Function<ProtonSessionWrapper, ReactorSession> loader = this::createSession;
+        final ReactorSessionCache.Loader loader = this::createSession;
         return sessionCache.getOrLoad(connectionMono, sessionName, loader).cast(AmqpSession.class);
     }
 

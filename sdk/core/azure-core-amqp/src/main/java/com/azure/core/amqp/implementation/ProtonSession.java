@@ -255,7 +255,6 @@ final class ProtonSession {
      * The call site required to invoke this method on Reactor dispatcher thread using {@link #getReactorProvider()}.
      * It is possible to run into race conditions with QPid Proton-j if invoked from any other threads.
      * </p>
-     * @see #getReactorProvider()
      *
      * @param name the sender name.
      *
@@ -274,7 +273,6 @@ final class ProtonSession {
      * The call site required to invoke this method on Reactor dispatcher thread using {@link #getReactorProvider()}.
      * It is possible to run into race conditions with QPid Proton-j if invoked from any other threads.
      * </p>
-     * @see #getReactorProvider()
      *
      * @param name the sender name.
      *
@@ -337,11 +335,11 @@ final class ProtonSession {
     /**
      * Creates a retriable AMQP exception.
      * <p>
-     * The call sites uses this method to translate a session unavailability "event" (session disposed, or
-     * connection being closed) to a retriable error. While the "event" is transient, resolving it (e.g. by creating
-     * a new session on current connection or on a new connection) needs to be done not by the parent 'AmqpConnection'
-     * owning this ProtonSession but by the downstream layer. E.g., the downstream Consumer, Producer Client that has
-     * access to the chain to propagate retry request to top level connection-cache (or v1 connection-processor).
+     * The call sites uses this method to translate a session unavailability "event" (session disposed, session operation
+     * timed-out or connection being closed) to a retriable error. While the "event" is transient, resolving it
+     * (e.g. by creating a new session on current connection or on a new connection) needs to be done not by the parent
+     * 'ReactorConnection' provided this ProtonSession but by the downstream layer. E.g., the downstream Consumer, Producer
+     * Client that has access to the chain to propagate retry request to top level connection-cache (or v1 connection-processor).
      * </p>
      * @param condition the error condition.
      * @param message the error message.

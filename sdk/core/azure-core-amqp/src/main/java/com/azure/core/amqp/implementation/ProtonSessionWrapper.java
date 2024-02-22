@@ -3,7 +3,6 @@
 
 package com.azure.core.amqp.implementation;
 
-import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.amqp.exception.AmqpErrorContext;
 import com.azure.core.amqp.implementation.handler.SessionHandler;
 import com.azure.core.amqp.implementation.ProtonSession.ProtonChannel;
@@ -18,6 +17,13 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.Objects;
 
+/**
+ * Temporary type to support direct operations on Qpid Proton-j low-level {@link Session} in v1 and operations on
+ * v2 ({@link ProtonSession}) side by side.
+ * <p>
+ * TODO (anu): remove the temporary type once v1's side by side support with v2 is no longer needed.
+ * </p>
+ */
 public final class ProtonSessionWrapper {
     private final Session sessionUnsafe;
     private final ProtonSession session;
@@ -48,10 +54,6 @@ public final class ProtonSessionWrapper {
         this.handler = null;
         this.provider = null;
         this.sessionUnsafe = null;
-    }
-
-    boolean isV2() {
-        return session != null;
     }
 
     String getName() {
@@ -184,7 +186,7 @@ public final class ProtonSessionWrapper {
         }
 
         boolean isV2() {
-            return false;
+            return isV2;
         }
 
         String getName() {

@@ -13,12 +13,11 @@ import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 
 import static com.azure.core.amqp.implementation.ClientConstants.SESSION_NAME_KEY;
 
 /**
- * A cache of {@link ReactorSession} owned by a {@link ReactorConnection}.
+ * A cache of {@link ReactorSession} instances owned by a {@link ReactorConnection}.
  */
 final class ReactorSessionCache {
     private final ConcurrentMap<String, Entry> entries = new ConcurrentHashMap<>();
@@ -62,23 +61,21 @@ final class ReactorSessionCache {
      *
      * @param connectionMono the Mono that emits QPid Proton-j {@link Connection} that host the session.
      * @param name the session name.
-     * @param loader the function to load the session on cache miss, cache miss can happen if session is requested
+     * @param loader to load the session on cache miss, cache miss can happen if session is requested
      *  for the first time or previously loaded one was evicted.
      *
      * @return the session, that is active and connected to the broker.
      */
-    Mono<ReactorSession> getOrLoad(Mono<Connection> connectionMono, String name,
-        Function<ProtonSessionWrapper, ReactorSession> loader) {
-        // TODO (anu): loader: remove 'ProtonSessionWrapper' and use 'ProtonSession' directly when v1 support is removed.
-        final Mono<Entry> cachedMono = connectionMono.map(connection -> {
+    Mono<ReactorSession> getOrLoad(Mono<Connection> connectionMono, String name, Loader loader) {
+        final Mono<Entry> entryMono = connectionMono.map(connection -> {
             return entries.computeIfAbsent(name, sessionName -> {
                 final ReactorSession session = load(connection, sessionName, loader);
                 final Disposable disposable = setupAutoEviction(session);
                 return new Entry(session, disposable);
             });
         });
-        return cachedMono.flatMap(cached -> {
-            final ReactorSession session = cached.getSession();
+        return entryMono.flatMap(entry -> {
+            final ReactorSession session = entry.getSession();
             return session.open()
                 .doOnError(error -> evict(session, "Evicting failed to open or in-active session.", error));
             // 'ReactorSession::open()' has open-only-once semantics, i.e., the session open attempt is triggered upon
@@ -114,7 +111,8 @@ final class ReactorSessionCache {
 
     /**
      * When the owner {@link ReactorConnection} is being disposed of, all {@link ReactorSession} loaded into the cache
-     * will receive shutdown signal, the owner may use this method to waits for sessions to complete it closing.
+     * will receive shutdown signal through the channel established at ReactorSession's construction time, the owner
+     * may use this method to waits for sessions to complete it closing.
      *
      * @return a Mono that completes when all sessions are closed via owner shutdown signaling.
      */
@@ -135,12 +133,11 @@ final class ReactorSessionCache {
      *
      * @return the session to cache.
      */
-    private ReactorSession load(Connection connection, String name,
-        Function<ProtonSessionWrapper, ReactorSession> loader) {
+    private ReactorSession load(Connection connection, String name, Loader loader) {
         final ProtonSession protonSession = new ProtonSession(connectionId, fullyQualifiedNamespace, connection,
             handlerProvider, reactorProvider, name, openTimeout, logger);
-        // TODO (anu): Remove 'ProtonSessionWrapper' and use 'ProtonSession' directly when v1 support is removed.
-        return loader.apply(new ProtonSessionWrapper(protonSession));
+        // TODO (anu): Update loader signature to use 'ProtonSession' instead of 'ProtonSessionWrapper' when removing v1.
+        return loader.load(new ProtonSessionWrapper(protonSession));
     }
 
     /**
@@ -174,12 +171,34 @@ final class ReactorSessionCache {
             return;
         }
         final String name = session.getSessionName();
-        logger.atInfo().addKeyValue(SESSION_NAME_KEY, name).log(message, error);
+        if (error != null) {
+            logger.atInfo().addKeyValue(SESSION_NAME_KEY, name).log(message, error);
+        } else {
+            logger.atInfo().addKeyValue(SESSION_NAME_KEY, name).log(message);
+        }
         evict(name);
     }
 
     /**
-     * An entry in the cache holding {@link ReactorSession} and disposable for the task to evict the entry
+     * Type to load a {@link ReactorSession} for caching it.
+     */
+    @FunctionalInterface
+    interface Loader {
+        /**
+         * Load a {@link ReactorSession} for caching.
+         *
+         * @param protonSession the {@link ProtonSession} to back the loaded {@link ReactorSession}.
+         * <p>
+         * TODO (anu): Update signature to use 'ProtonSession' instead of 'ProtonSessionWrapper' when removing v1.
+         * </p>
+         *
+         * @return the session to cache.
+         */
+        ReactorSession load(ProtonSessionWrapper protonSession);
+    }
+
+    /**
+     * An entry in the cache holding {@link ReactorSession} and {@link Disposable} for the task to evict the entry
      * from the cache.
      */
     private static final class Entry extends AtomicBoolean {
