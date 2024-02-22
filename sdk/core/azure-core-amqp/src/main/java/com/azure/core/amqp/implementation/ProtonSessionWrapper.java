@@ -120,7 +120,7 @@ public final class ProtonSessionWrapper {
 
     Mono<ProtonChannelWrapper> channel(String name, Duration timeout) {
         if (session != null) {
-            // TODO (anu) - When removing v1 (hence the ProtonSessionWrapper), the ReactorSession::channel() API
+            // TODO (anu) - When removing v1 (hence this ProtonSessionWrapper class), the ReactorSession::channel() API
             //  will directly invoke ProtonSession::channel().
             //
             return session.channel(name, timeout).map(ProtonChannelWrapper::new);
