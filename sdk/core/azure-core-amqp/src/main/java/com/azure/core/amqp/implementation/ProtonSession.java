@@ -136,14 +136,15 @@ final class ProtonSession {
      * </p>
      * <p>
      * If the session (or parent Qpid Proton-j connection) is disposed after opening, any later operation attempts
-     * (e.g., creating sender, receiver, channel) will fail with retriable {@link AmqpException}.
+     * (e.g., creating sender, receiver, channel) will fail.
      * </p>
      * <p>
      * By design, no re-open attempt will be made within this type. Lifetime of a {@link ProtonSession} instance is
      * scoped to life time of one low level Qpid Proton-j session instance it manages. Re-establishing session requires
-     * querying the connection-cache to obtain the latest connection (may not be same as the one this session was associated)
-     * then hosting and opening a new {@link ProtonSession} on it. It means, upon error from any APIs in this type, the async
-     * chain at the call sites needs to be arranged to do any required retry to obtain a new {@link ProtonSession}.
+     * querying the connection-cache to obtain the latest connection (may not be same as the owning connection of this
+     * session) then hosting and opening a new {@link ProtonSession} on it. It means, upon a retriable {@link AmqpException}
+     * from any APIs (e.g., creating sender, receiver, channel) in this type, the async chain at the call sites needs to
+     * obtain a new {@link ProtonSession}.
      * </p>
      *
      * @return a mono that completes once the session is opened.
