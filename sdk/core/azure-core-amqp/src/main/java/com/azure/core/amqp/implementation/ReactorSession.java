@@ -153,34 +153,38 @@ public class ReactorSession implements AmqpSession {
             .doOnComplete(() -> handleClose())
             .cache(1);
 
-        // session-active-timeout = session-open-timeout + 2 seconds buffer.
-        final Duration activeTimeout = retryOptions.getTryTimeout().plusSeconds(2);
-        this.activeAwaiter = this.endpointStates
-            .filter(state -> state == AmqpEndpointState.ACTIVE)
-            .next()
-            .switchIfEmpty(Mono.defer(() -> {
-                final String message = String.format(COMPLETED_WITHOUT_ACTIVE, connectionId, sessionName);
-                return Mono.error(new AmqpException(true, message, getErrorContext()));
-            }))
-            .timeout(activeTimeout,
-                Mono.error(() -> {
-                    final String message = String.format(ACTIVE_WAIT_TIMED_OUT, connectionId, sessionName);
-                    return new AmqpException(true, TIMEOUT_ERROR, message, getErrorContext());
-                }))
-            .then();
+        this.activeAwaiter = activeAwaiter(connectionId, protonSession, retryOptions.getTryTimeout(), endpointStates);
 
         shutdownSignals = amqpConnection.getShutdownSignals();
         subscriptions.add(this.endpointStates.subscribe());
         subscriptions.add(shutdownSignals.flatMap(signal ->  closeAsync("Shutdown signal received", null, false)).subscribe());
-        // TODO (anu): unsafe-open will be removed when dropping v1. In v2, ReactorSession::open() will be used for safe-open.
+        // TODO (anu): delete unsafe-open when dropping v1. In v2, ReactorSession::open() is used for safe-open.
         protonSession.openUnsafeIfV1();
     }
 
+    /**
+     * Open the session if not already opened.
+     * <p>
+     * The session open attempt is made upon the first subscription, i.e. there is an open-only-once semantics.
+     * Later subscriptions only trigger the session active check (i.e., checks if the broker connection is still active),
+     * if not, an error will be returned.
+     * </p>
+     *
+     * @return the Mono that completes once the session is opened and active.
+     */
     final Mono<ReactorSession> open() {
-        // V2: Open the Qpid Proton-j session (if not already opened) and wait for it to be active.
         return Mono.when(protonSession.open(), activeAwaiter).thenReturn(this);
     }
 
+    /**
+     * Create a channel on the session for sending and receiving messages.
+     * <p>
+     *  TODO (anu): return Mono of ProtonChannel instead of ProtonChannelWrapper once v1 is removed.
+     * </p>
+     *
+     * @param name the channel name.
+     * @return the Mono that completes with the channel.
+     */
     final Mono<ProtonChannelWrapper> channel(String name) {
         return protonSession.channel(name, retryOptions.getTryTimeout());
     }
@@ -361,19 +365,19 @@ public class ReactorSession implements AmqpSession {
      * <a href="http://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-messaging-v1.0-os.html#doc-idp326640">Filtering
      * Messages</a> and <a href="https://www.amqp.org/specification/1.0/filters">AMQP Filters</a> for more information.
      *
-     * @param linkName Name of the receive link.
-     * @param entityPath Address in the message broker for the link.
-     * @param timeout Operation timeout when creating the link.
-     * @param retry Retry policy to apply when link creation times out.
-     * @param sourceFilters Add any filters to the source when creating the receive link.
-     * @param receiverProperties Any properties to associate with the receive link when attaching to message
-     *     broker.
+     * @param linkName                    Name of the receive link.
+     * @param entityPath                  Address in the message broker for the link.
+     * @param timeout                     Operation timeout when creating the link.
+     * @param retry                       Retry policy to apply when link creation times out.
+     * @param sourceFilters               Add any filters to the source when creating the receive link.
+     * @param receiverProperties          Any properties to associate with the receive link when attaching to message
+     *                                    broker.
      * @param receiverDesiredCapabilities Capabilities that the receiver link supports.
-     * @param senderSettleMode Amqp {@link SenderSettleMode} mode for receiver.
-     * @param receiverSettleMode Amqp {@link ReceiverSettleMode} mode for receiver.
-     * @param consumerFactory a temporary parameter to support both v1 and v2 receivers. When removing the v1
-     *       receiver support, two new parameters, 'ReceiverSettleMode' and 'includeDeliveryTagInMessage' will be introduced,
-     *       and 'consumerFactory' will be removed.
+     * @param senderSettleMode            Amqp {@link SenderSettleMode} mode for receiver.
+     * @param receiverSettleMode          Amqp {@link ReceiverSettleMode} mode for receiver.
+     * @param consumerFactory             a temporary parameter to support both v1 and v2 receivers. When removing the v1
+     *                                    receiver support, two new parameters, 'ReceiverSettleMode' and 'includeDeliveryTagInMessage' will be introduced,
+     *                                    and 'consumerFactory' will be removed.
      * @return A new instance of an {@link AmqpReceiveLink} with the correct properties set.
      */
     protected Mono<AmqpReceiveLink> createConsumer(String linkName, String entityPath, Duration timeout,
@@ -449,12 +453,11 @@ public class ReactorSession implements AmqpSession {
     /**
      * Creates an {@link AmqpLink} that has AMQP specific capabilities set.
      *
-     * @param linkName Name of the receive link.
-     * @param entityPath Address in the message broker for the link.
+     * @param linkName       Name of the receive link.
+     * @param entityPath     Address in the message broker for the link.
      * @param linkProperties The properties needed to be set on the link.
-     * @param timeout Operation timeout when creating the link.
-     * @param retry Retry policy to apply when link creation times out.
-     *
+     * @param timeout        Operation timeout when creating the link.
+     * @param retry          Retry policy to apply when link creation times out.
      * @return A new instance of an {@link AmqpLink} with the correct properties set.
      */
     protected Mono<AmqpLink> createProducer(String linkName, String entityPath, Duration timeout,
@@ -798,6 +801,26 @@ public class ReactorSession implements AmqpSession {
 
     private AmqpErrorContext getErrorContext() {
         return protonSession.getErrorContext();
+    }
+
+    private static Mono<Void> activeAwaiter(String connectionId, ProtonSessionWrapper protonSession, Duration tryTimeout,
+        Flux<AmqpEndpointState> endpointStates) {
+        // session-active-timeout = session-open-timeout + 2 seconds buffer. (do we need buffer?)
+        final Duration activeTimeout = tryTimeout.plusSeconds(2);
+        final String sessionName = protonSession.getName();
+        return endpointStates
+            .filter(state -> state == AmqpEndpointState.ACTIVE)
+            .next()
+            .switchIfEmpty(Mono.defer(() -> {
+                final String message = String.format(COMPLETED_WITHOUT_ACTIVE, connectionId, sessionName);
+                return Mono.error(new AmqpException(true, message, protonSession.getErrorContext()));
+            }))
+            .timeout(activeTimeout,
+                Mono.error(() -> {
+                    final String message = String.format(ACTIVE_WAIT_TIMED_OUT, connectionId, sessionName);
+                    return new AmqpException(true, TIMEOUT_ERROR, message, protonSession.getErrorContext());
+                }))
+            .then();
     }
 
     private static final class LinkSubscription<T extends AmqpLink> {
