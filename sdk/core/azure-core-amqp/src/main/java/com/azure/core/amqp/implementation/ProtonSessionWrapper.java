@@ -120,6 +120,9 @@ public final class ProtonSessionWrapper {
 
     Mono<ProtonChannelWrapper> channel(String name, Duration timeout) {
         if (session != null) {
+            // TODO (anu) - When removing v1 (hence the ProtonSessionWrapper), the ReactorSession::channel() API
+            //  will directly invoke ProtonSession::channel().
+            //
             return session.channel(name, timeout).map(ProtonChannelWrapper::new);
         } else {
             return Mono.just(new ProtonChannelWrapper(name, sessionUnsafe));
@@ -173,6 +176,8 @@ public final class ProtonSessionWrapper {
             this.isV2 = false;
             this.name = Objects.requireNonNull(name, "'name' cannot be null.");
             Objects.requireNonNull(sessionUnsafe, "'sessionUnsafe' cannot be null.");
+            // In v1 the RequestResponseChannel's sender and receiver gets created outside of dispatcher thread.
+            // Continue to do the same here (i.e, no behavioral change) in wrapper when in v1 mode.
             this.sender = sessionUnsafe.sender(name + ":sender");
             this.receiver = sessionUnsafe.receiver(name + ":receiver");
         }
