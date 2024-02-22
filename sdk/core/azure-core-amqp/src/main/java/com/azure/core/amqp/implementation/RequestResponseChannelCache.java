@@ -77,6 +77,8 @@ public final class RequestResponseChannelCache implements Disposable {
         final Mono<RequestResponseChannel> newChannel = Mono.defer(() -> {
             final RecoveryTerminatedException terminatedError = checkRecoveryTerminated("new-channel");
             if (terminatedError != null) {
+                // This RecoveryTerminatedException is inspected in retryWhenSpec(..) and propagated further down as
+                // RequestResponseChannelClosedException.
                 return Mono.error(terminatedError);
             }
             return connection.newRequestResponseChannel(sessionName, linksName, entityPath);
