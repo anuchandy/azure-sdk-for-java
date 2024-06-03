@@ -4,7 +4,7 @@
 
 ### Features Added
 
-- Added the support for batch-delete APIs in Receiver client.
+- Added the support for batch delete APIs in `ServiceBusReceiverClient` and `ServiceBusReceiverAsyncClient`.
 
 ### Breaking Changes
 
