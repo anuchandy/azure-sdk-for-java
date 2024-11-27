@@ -361,7 +361,7 @@ public final class ChatCompletionsClientBuilder implements HttpTrait<ChatComplet
      */
     @Generated
     public ChatCompletionsClient buildClient() {
-        return new ChatCompletionsClient(buildInnerClient());
+        return new ChatCompletionsClient(buildInnerClient(), this.clientOptions);
     }
 
     private static final ClientLogger LOGGER = new ClientLogger(ChatCompletionsClientBuilder.class);

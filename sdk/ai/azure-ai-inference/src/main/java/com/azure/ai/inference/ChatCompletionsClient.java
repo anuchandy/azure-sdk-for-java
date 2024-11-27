@@ -27,6 +27,8 @@ import com.azure.core.http.rest.Response;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.IterableStream;
 import java.nio.ByteBuffer;
+import java.util.function.BiFunction;
+
 import reactor.core.publisher.Flux;
 
 /**
@@ -37,15 +39,19 @@ public final class ChatCompletionsClient {
 
     @Generated
     private final ChatCompletionsClientImpl serviceClient;
+    // not-generated
+    private final com.azure.ai.inference.implementation.Tracing tracing;
 
     /**
      * Initializes an instance of ChatCompletionsClient class.
      *
      * @param serviceClient the service client implementation.
+     * @param clientOptions the client options (not-generated).
      */
     @Generated
-    ChatCompletionsClient(ChatCompletionsClientImpl serviceClient) {
+    ChatCompletionsClient(ChatCompletionsClientImpl serviceClient, com.azure.core.util.ClientOptions clientOptions) {
         this.serviceClient = serviceClient;
+        this.tracing = new com.azure.ai.inference.implementation.Tracing(serviceClient.getEndpoint(), clientOptions);
     }
 
     /**
@@ -161,7 +167,7 @@ public final class ChatCompletionsClient {
      * Returns information about the AI model.
      * The method makes a REST API call to the `/info` route on the given endpoint.
      * <p><strong>Response Body Schema</strong></p>
-     * 
+     *
      * <pre>
      * {@code
      * {
@@ -226,6 +232,34 @@ public final class ChatCompletionsClient {
         }
         return completeWithResponse(completeRequest, requestOptions).getValue().toObject(ChatCompletions.class);
     }
+
+    //<editor-fold desc="complete(ChatCompletionsOptions, com.azure.core.util.Context)">
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public ChatCompletions complete(ChatCompletionsOptions options, com.azure.core.util.Context context) {
+        RequestOptions requestOptions = new RequestOptions();
+        CompleteRequest completeRequestObj
+            = new CompleteRequest(options.getMessages()).setFrequencyPenalty(options.getFrequencyPenalty())
+                .setStream(options.isStream())
+                .setPresencePenalty(options.getPresencePenalty())
+                .setTemperature(options.getTemperature())
+                .setTopP(options.getTopP())
+                .setMaxTokens(options.getMaxTokens())
+                .setResponseFormat(options.getResponseFormat())
+                .setStop(options.getStop())
+                .setTools(options.getTools())
+                .setToolChoice(options.getToolChoice())
+                .setSeed(options.getSeed())
+                .setModel(options.getModel());
+        BinaryData completeRequest = BinaryData.fromObject(completeRequestObj);
+        ExtraParameters extraParams = options.getExtraParams();
+        if (extraParams != null) {
+            requestOptions.setHeader(HttpHeaderName.fromString("extra-parameters"), extraParams.toString());
+        }
+        BiFunction<BinaryData, RequestOptions, ChatCompletions> operation
+            = (arg0, arg1) -> completeWithResponse(arg0, arg1).getValue().toObject(ChatCompletions.class);
+        return tracing.traceComplete(options, operation, completeRequest, requestOptions, context);
+    }
+    //</editor-fold>
 
     /**
      * Gets completions for the provided input prompt. Completions support a wide variety of tasks and generate text
