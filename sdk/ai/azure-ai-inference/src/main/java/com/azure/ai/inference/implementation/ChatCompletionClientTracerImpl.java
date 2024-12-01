@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * implementation for {@link ChatCompletionClientTracer}.
@@ -114,16 +115,16 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
         final Function<StreamingChatCompletionsState, Flux<StreamingChatCompletionsUpdate>> resourceClosure
             = resource -> {
                 final RequestOptions rOptions = resource.requestOptions.setContext(resource.span);
-                final Flux<StreamingChatCompletionsUpdate> completions
+                final Flux<StreamingChatCompletionsUpdate> completionChunks
                     = resource.operation.invoke(resource.completeRequest, rOptions);
-                return completions.doOnNext(resource::onNextCompletion);
+                return completionChunks.doOnNext(resource::onNextChunk);
             };
 
         final Function<StreamingChatCompletionsState, Mono<Void>> asyncComplete = resource -> {
-            final StreamingChatCompletionsUpdate lastCompletion = resource.lastCompletion;
+            final StreamingChatCompletionsUpdate lastChunk = resource.lastChunk;
             final List<CompletionsFinishReason> finishReasons = resource.finishReasons;
             final Context span = resource.span;
-            traceCompletionResponseAttributes(lastCompletion, finishReasons, span);
+            traceCompletionResponseAttributes(lastChunk, finishReasons, span);
             traceChoiceEvent(resource.toJson(logger), OffsetDateTime.now(ZoneOffset.UTC), span);
             tracer.end(null, null, span);
             return Mono.empty();
@@ -353,10 +354,11 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
         private final RequestOptions requestOptions;
         private final StringBuilder content;
         private final List<StreamingChatResponseToolCallUpdate> toolCalls;
+        private final List<String> toolCallIds;
         private final List<CompletionsFinishReason> finishReasons;
         private final Context parent;
         private Context span;
-        private StreamingChatCompletionsUpdate lastCompletion;
+        private StreamingChatCompletionsUpdate lastChunk;
         private CompletionsFinishReason finishReason;
         private int index;
 
@@ -371,6 +373,7 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
             this.parent = parent;
             this.content = new StringBuilder();
             this.toolCalls = new ArrayList<>();
+            this.toolCallIds = new ArrayList<>();
             this.finishReasons = new ArrayList<>();
         }
 
@@ -379,27 +382,37 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
             return this;
         }
 
-        void onNextCompletion(StreamingChatCompletionsUpdate completion) {
-            lastCompletion = completion;
-            final List<StreamingChatChoiceUpdate> choices = completion.getChoices();
+        void onNextChunk(StreamingChatCompletionsUpdate chunk) {
+            this.lastChunk = chunk;
+            final List<StreamingChatChoiceUpdate> choices = chunk.getChoices();
             if (choices == null || choices.isEmpty()) {
                 return;
             }
             for (StreamingChatChoiceUpdate choice : choices) {
-                finishReason = choice.getFinishReason();
-                index = choice.getIndex();
+                this.finishReason = choice.getFinishReason();
+                this.index = choice.getIndex();
                 if (choice.getFinishReason() != null) {
-                    finishReasons.add(choice.getFinishReason());
+                    this.finishReasons.add(choice.getFinishReason());
                 }
                 final StreamingChatResponseMessageUpdate delta = choice.getDelta();
                 if (delta == null) {
                     return;
                 }
-                if (traceContent && delta.getContent() != null) {
-                    content.append(delta.getContent());
-                }
-                if (delta.getToolCalls() != null) {
-                    toolCalls.addAll(delta.getToolCalls());
+                final List<StreamingChatResponseToolCallUpdate> toolCalls = delta.getToolCalls();
+                if (this.traceContent) {
+                    if (delta.getContent() != null) {
+                        this.content.append(delta.getContent());
+                    }
+                    if (toolCalls != null) {
+                        this.toolCalls.addAll(toolCalls);
+                    }
+                } else {
+                    if (toolCalls != null) {
+                        final List<String> ids = toolCalls.stream()
+                            .map(StreamingChatResponseToolCallUpdate::getId)
+                            .collect(Collectors.toList());
+                        this.toolCallIds.addAll(ids);
+                    }
                 }
             }
         }
@@ -409,23 +422,27 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
                 JsonWriter writer = JsonProviders.createWriter(stream)) {
                 writer.writeStartObject();
                 writer.writeStartObject("message");
-                writer.writeStringField("content", content.toString());
-                writer.writeStartArray("tool_calls");
-                for (StreamingChatResponseToolCallUpdate toolCall : toolCalls) {
-                    if (traceContent) {
+                if (this.traceContent) {
+                    writer.writeStringField("content", this.content.toString());
+                    writer.writeStartArray("tool_calls");
+                    for (StreamingChatResponseToolCallUpdate toolCall : this.toolCalls) {
                         toolCall.toJson(writer);
-                    } else {
+                    }
+                    writer.writeEndArray();
+                } else {
+                    writer.writeStartArray("tool_calls");
+                    for (String toolCallId : this.toolCallIds) {
                         writer.writeStartObject();
-                        writer.writeStringField("id", toolCall.getId());
+                        writer.writeStringField("id", toolCallId);
                         writer.writeEndObject();
                     }
+                    writer.writeEndArray();
                 }
-                writer.writeEndArray();
                 writer.writeEndObject();
-                if (finishReason != null) {
-                    writer.writeStringField("finish_reason", finishReason.getValue());
+                if (this.finishReason != null) {
+                    writer.writeStringField("finish_reason", this.finishReason.getValue());
                 }
-                writer.writeIntField("index", index);
+                writer.writeIntField("index", this.index);
                 writer.writeEndObject();
                 writer.flush();
                 return new String(stream.toByteArray(), StandardCharsets.UTF_8);
