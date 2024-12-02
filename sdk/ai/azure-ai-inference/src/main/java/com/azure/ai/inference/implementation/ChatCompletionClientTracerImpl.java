@@ -105,7 +105,7 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
 
         final Mono<StreamingChatCompletionsState> resourceSupplier = Mono.fromSupplier(() -> {
             final StreamingChatCompletionsState resource = state;
- 
+
             final Context span
                 = tracer.start(rootSpanName(resource.request), new StartSpanOptions(SpanKind.CLIENT), resource.parent);
             traceCompletionRequestAttributes(resource.request, span);
@@ -392,7 +392,7 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
                 }
                 final StreamingChatResponseMessageUpdate delta = choice.getDelta();
                 if (delta == null) {
-                    return;
+                    continue;
                 }
                 final List<StreamingChatResponseToolCallUpdate> toolCalls = delta.getToolCalls();
                 if (this.traceContent) {
