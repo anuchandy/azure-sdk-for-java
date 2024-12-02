@@ -39,7 +39,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +105,7 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
 
         final Mono<StreamingChatCompletionsState> resourceSupplier = Mono.fromSupplier(() -> {
             final StreamingChatCompletionsState resource = state;
+ 
             final Context span
                 = tracer.start(rootSpanName(resource.request), new StartSpanOptions(SpanKind.CLIENT), resource.parent);
             traceCompletionRequestAttributes(resource.request, span);
@@ -121,9 +122,10 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
             };
 
         final Function<StreamingChatCompletionsState, Mono<Void>> asyncComplete = resource -> {
-            final StreamingChatCompletionsUpdate lastChunk = resource.lastChunk;
-            final List<CompletionsFinishReason> finishReasons = resource.finishReasons;
             final Context span = resource.span;
+            final StreamingChatCompletionsUpdate lastChunk = resource.lastChunk;
+            final String finishReasons = resource.getFinishReasons();
+
             traceCompletionResponseAttributes(lastChunk, finishReasons, span);
             traceChoiceEvent(resource.toJson(logger), OffsetDateTime.now(ZoneOffset.UTC), span);
             tracer.end(null, null, span);
@@ -132,6 +134,7 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
 
         final BiFunction<StreamingChatCompletionsState, Throwable, Mono<Void>> asyncError = (resource, throwable) -> {
             final Context span = resource.span;
+
             tracer.setAttribute("error.type", throwable.getClass().getName(), span);
             traceChoiceEvent(FINISH_REASON_ERROR, OffsetDateTime.now(ZoneOffset.UTC), span);
             tracer.end(null, throwable, span);
@@ -140,6 +143,7 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
 
         final Function<StreamingChatCompletionsState, Mono<Void>> asyncCancel = resource -> {
             final Context span = resource.span;
+            tracer.setAttribute("error.type", "canceled", span); // check with Liudmila, is it correct to record canceled as an 'error'?
             traceChoiceEvent(FINISH_REASON_CANCELED, OffsetDateTime.now(ZoneOffset.UTC), span);
             tracer.end(null, new RuntimeException("canceled"), span);
             return Mono.empty();
@@ -209,8 +213,8 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
         }
     }
 
-    private void traceCompletionResponseAttributes(StreamingChatCompletionsUpdate response,
-        List<CompletionsFinishReason> finishReasons, Context span) {
+    private void traceCompletionResponseAttributes(StreamingChatCompletionsUpdate response, String finishReasons,
+        Context span) {
         tracer.setAttribute("gen_ai.response.id", response.getId(), span);
         tracer.setAttribute("gen_ai.response.model", response.getModel(), span);
         final CompletionsUsage usage = response.getUsage();
@@ -218,7 +222,7 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
             tracer.setAttribute("gen_ai.usage.input_tokens", usage.getPromptTokens(), span);
             tracer.setAttribute("gen_ai.usage.output_tokens", usage.getCompletionTokens(), span);
         }
-        tracer.setAttribute("gen_ai.response.finish_reasons", getStreamingFinishReasons(finishReasons), span);
+        tracer.setAttribute("gen_ai.response.finish_reasons", finishReasons, span);
     }
 
     private void traceCompletionResponseEvents(ChatCompletions response, Context span) {
@@ -305,16 +309,6 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
         return finishReasons.toString();
     }
 
-    private static String getStreamingFinishReasons(List<CompletionsFinishReason> finishReasons) {
-        final StringBuilder finishReasonsSb = new StringBuilder("[");
-        for (CompletionsFinishReason finishReason : finishReasons) {
-            finishReasonsSb.append(finishReason.getValue());
-            finishReasonsSb.append(", ");
-        }
-        finishReasonsSb.append("]");
-        return finishReasonsSb.toString();
-    }
-
     private static URL parse(String endpoint, ClientLogger logger) {
         if (CoreUtils.isNullOrEmpty(endpoint)) {
             return null;
@@ -352,11 +346,13 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
         private final StreamingCompleteOperation operation;
         private final BinaryData completeRequest;
         private final RequestOptions requestOptions;
-        private final StringBuilder content;
-        private final List<StreamingChatResponseToolCallUpdate> toolCalls;
-        private final List<String> toolCallIds;
-        private final List<CompletionsFinishReason> finishReasons;
         private final Context parent;
+        // mutable part of the state to accumulate partial data from Completion chunks.
+        private final StringBuilder content;
+        private final ArrayDeque<StreamingChatResponseToolCallUpdate> toolCalls; // uses Dequeue to release slots once consumed.
+        private final ArrayDeque<String> toolCallIds;
+        private final ArrayDeque<CompletionsFinishReason> finishReasons;
+        //
         private Context span;
         private StreamingChatCompletionsUpdate lastChunk;
         private CompletionsFinishReason finishReason;
@@ -372,9 +368,9 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
             this.requestOptions = requestOptions;
             this.parent = parent;
             this.content = new StringBuilder();
-            this.toolCalls = new ArrayList<>();
-            this.toolCallIds = new ArrayList<>();
-            this.finishReasons = new ArrayList<>();
+            this.toolCalls = new ArrayDeque<>();
+            this.toolCallIds = new ArrayDeque<>();
+            this.finishReasons = new ArrayDeque<>();
         }
 
         StreamingChatCompletionsState setSpan(Context context) {
@@ -425,13 +421,15 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
                 if (this.traceContent) {
                     writer.writeStringField("content", this.content.toString());
                     writer.writeStartArray("tool_calls");
-                    for (StreamingChatResponseToolCallUpdate toolCall : this.toolCalls) {
+                    StreamingChatResponseToolCallUpdate toolCall;
+                    while ((toolCall = this.toolCalls.poll()) != null) {
                         toolCall.toJson(writer);
                     }
                     writer.writeEndArray();
                 } else {
                     writer.writeStartArray("tool_calls");
-                    for (String toolCallId : this.toolCallIds) {
+                    String toolCallId;
+                    while ((toolCallId = this.toolCallIds.poll()) != null) {
                         writer.writeStartObject();
                         writer.writeStringField("id", toolCallId);
                         writer.writeEndObject();
@@ -451,6 +449,16 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
             }
             return null;
         }
-    }
 
+        String getFinishReasons() {
+            final StringBuilder finishReasonsSb = new StringBuilder("[");
+            CompletionsFinishReason reason;
+            while ((reason = finishReasons.poll()) != null) {
+                finishReasonsSb.append(reason.getValue());
+                finishReasonsSb.append(", ");
+            }
+            finishReasonsSb.append("]");
+            return finishReasonsSb.toString();
+        }
+    }
 }
