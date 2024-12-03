@@ -9,8 +9,6 @@ import com.azure.ai.inference.models.ChatCompletionsOptions;
 import com.azure.ai.inference.models.StreamingChatCompletionsUpdate;
 import com.azure.core.http.rest.RequestOptions;
 import com.azure.core.util.BinaryData;
-import com.azure.core.util.ClientOptions;
-import com.azure.core.util.Context;
 import com.azure.core.util.CoreUtils;
 import reactor.core.publisher.Flux;
 
@@ -36,42 +34,39 @@ public interface ChatCompletionClientTracer {
          * Creates an instance of  {@link ChatCompletionClientTracer} implementation.
          *
          * @param endpoint the service endpoint.
-         * @param clientOptions the client options.
          * @return the ChatCompletionClientTracer implementation instance.
          */
-        ChatCompletionClientTracer create(String endpoint, ClientOptions clientOptions);
+        ChatCompletionClientTracer create(String endpoint);
     }
 
     /**
      * loads an implementation of {@link ChatCompletionClientTracer}.
      *
      * @param endpoint the service endpoint.
-     * @param clientOptions the client options.
      * @return the {@link ChatCompletionClientTracer} implementation instance.
      */
-    static ChatCompletionClientTracer load(String endpoint, ClientOptions clientOptions) {
+    static ChatCompletionClientTracer load(String endpoint) {
         final ServiceLoader<ChatCompletionClientTracer.Provider> serviceLoader = ServiceLoader
             .load(ChatCompletionClientTracer.Provider.class, ChatCompletionClientTracer.class.getClassLoader());
         final Iterator<ChatCompletionClientTracer.Provider> iterator = serviceLoader.iterator();
         if (iterator.hasNext()) {
             final Provider provider = iterator.next();
-            return provider.create(endpoint, clientOptions);
+            return provider.create(endpoint);
         }
         return NOP;
     }
 
     /**
-     * Traces the {@link com.azure.ai.inference.ChatCompletionsClient#complete(ChatCompletionsOptions, Context)} API.
+     * Traces the {@link com.azure.ai.inference.ChatCompletionsClient#complete(ChatCompletionsOptions)} API.
      *
      * @param request input options containing chat options for complete API.
      * @param operation the operation performing the actual completion call.
      * @param completeRequest The completeRequest parameter for the {@code operation}.
      * @param requestOptions The requestOptions parameter for the {@code operation}.
-     * @param context the context.
      * @return chat completions for the provided chat messages.
      */
     ChatCompletions traceComplete(ChatCompletionsOptions request, CompleteOperation operation,
-        BinaryData completeRequest, RequestOptions requestOptions, Context context);
+        BinaryData completeRequest, RequestOptions requestOptions);
 
     /**
      * Reference to the operation performing the actual completion call.
@@ -89,18 +84,16 @@ public interface ChatCompletionClientTracer {
     }
 
     /**
-     * Traces the {@link com.azure.ai.inference.ChatCompletionsClient#completeStream(ChatCompletionsOptions, Context)} API.
+     * Traces the {@link com.azure.ai.inference.ChatCompletionsClient#completeStream(ChatCompletionsOptions)} API.
      *
      * @param request input options containing chat options for complete streaming API.
      * @param operation the operation performing the actual streaming completion call.
      * @param completeRequest The completeRequest parameter for the {@code operation}.
      * @param requestOptions The requestOptions parameter for the {@code operation}.
-     * @param context the context.
      * @return chat completions streaming for the provided chat messages.
      */
     Flux<StreamingChatCompletionsUpdate> traceStreamingCompletion(ChatCompletionsOptions request,
-        StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions,
-        Context context);
+        StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions);
 
     /**
      * Reference to the operation performing the actual completion streaming call.
@@ -123,15 +116,14 @@ public interface ChatCompletionClientTracer {
     final class NOP implements ChatCompletionClientTracer {
         @Override
         public ChatCompletions traceComplete(ChatCompletionsOptions request, CompleteOperation operation,
-            BinaryData completeRequest, RequestOptions requestOptions, Context context) {
-            return operation.invoke(completeRequest, requestOptions.setContext(context));
+            BinaryData completeRequest, RequestOptions requestOptions) {
+            return operation.invoke(completeRequest, requestOptions);
         }
 
         @Override
         public Flux<StreamingChatCompletionsUpdate> traceStreamingCompletion(ChatCompletionsOptions request,
-            StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions,
-            Context context) {
-            return operation.invoke(completeRequest, requestOptions.setContext(context));
+            StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions) {
+            return operation.invoke(completeRequest, requestOptions);
         }
     }
 }

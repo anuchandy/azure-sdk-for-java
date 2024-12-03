@@ -49,7 +49,7 @@ public final class ChatCompletionsClient {
     @Generated
     ChatCompletionsClient(ChatCompletionsClientImpl serviceClient) {
         this.serviceClient = serviceClient;
-        this.tracer = ChatCompletionClientTracer.load(this.serviceClient.getEndpoint(), null);
+        this.tracer = ChatCompletionClientTracer.load(this.serviceClient.getEndpoint());
     }
 
     /**
@@ -228,54 +228,10 @@ public final class ChatCompletionsClient {
         if (extraParams != null) {
             requestOptions.setHeader(HttpHeaderName.fromString("extra-parameters"), extraParams.toString());
         }
-        return completeWithResponse(completeRequest, requestOptions).getValue().toObject(ChatCompletions.class);
-    }
-
-    //<editor-fold desc="complete(ChatCompletionsOptions, com.azure.core.util.Context)">
-    /**
-     * Gets chat completions for the provided chat messages.
-     * Completions support a wide variety of tasks and generate text that continues from or "completes"
-     * provided prompt data. The method makes a REST API call to the `/chat/completions` route
-     * on the given endpoint.
-     *
-     * @param options Options for complete API.
-     * @param context the context.
-     * @throws IllegalArgumentException thrown if parameters fail the validation.
-     * @throws HttpResponseException thrown if the request is rejected by server.
-     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.
-     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.
-     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.
-     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.
-     * @return chat completions for the provided chat messages.
-     * Completions support a wide variety of tasks and generate text that continues from or "completes"
-     * provided prompt data.
-     */
-    @ServiceMethod(returns = ReturnType.SINGLE)
-    public ChatCompletions complete(ChatCompletionsOptions options, com.azure.core.util.Context context) {
-        RequestOptions requestOptions = new RequestOptions();
-        CompleteRequest completeRequestObj
-            = new CompleteRequest(options.getMessages()).setFrequencyPenalty(options.getFrequencyPenalty())
-                .setStream(options.isStream())
-                .setPresencePenalty(options.getPresencePenalty())
-                .setTemperature(options.getTemperature())
-                .setTopP(options.getTopP())
-                .setMaxTokens(options.getMaxTokens())
-                .setResponseFormat(options.getResponseFormat())
-                .setStop(options.getStop())
-                .setTools(options.getTools())
-                .setToolChoice(options.getToolChoice())
-                .setSeed(options.getSeed())
-                .setModel(options.getModel());
-        BinaryData completeRequest = BinaryData.fromObject(completeRequestObj);
-        ExtraParameters extraParams = options.getExtraParams();
-        if (extraParams != null) {
-            requestOptions.setHeader(HttpHeaderName.fromString("extra-parameters"), extraParams.toString());
-        }
         ChatCompletionClientTracer.CompleteOperation operation
             = (arg0, arg1) -> completeWithResponse(arg0, arg1).getValue().toObject(ChatCompletions.class);
-        return tracer.traceComplete(options, operation, completeRequest, requestOptions, context);
+        return tracer.traceComplete(options, operation, completeRequest, requestOptions);
     }
-    //</editor-fold>
 
     /**
      * Gets completions for the provided input prompt. Completions support a wide variety of tasks and generate text
@@ -334,57 +290,10 @@ public final class ChatCompletionsClient {
         if (extraParams != null) {
             requestOptions.setHeader(HttpHeaderName.fromString("extra-parameters"), extraParams.toString());
         }
-        Flux<ByteBuffer> responseStream
-            = completeWithResponse(completeRequest, requestOptions).getValue().toFluxByteBuffer();
-        InferenceServerSentEvents<StreamingChatCompletionsUpdate> chatCompletionsStream
-            = new InferenceServerSentEvents<>(responseStream, StreamingChatCompletionsUpdate.class);
-        return new IterableStream<>(chatCompletionsStream.getEvents());
-    }
-
-    //<editor-fold desc="completeStream(ChatCompletionsOptions, com.azure.core.util.Context)">
-    /**
-     * Gets chat completions for the provided chat messages in streaming mode. Chat completions support a wide variety
-     * of tasks and generate text that continues from or "completes" provided prompt data.
-     *
-     * @param options The configuration information for a chat completions request. Completions support a
-     * wide variety of tasks and generate text that continues from or "completes" provided prompt data.
-     * @param context the context.
-     * @throws IllegalArgumentException thrown if parameters fail the validation.
-     * @throws HttpResponseException thrown if the request is rejected by server.
-     * @throws ClientAuthenticationException thrown if the request is rejected by server on status code 401.
-     * @throws ResourceNotFoundException thrown if the request is rejected by server on status code 404.
-     * @throws ResourceModifiedException thrown if the request is rejected by server on status code 409.
-     * @throws RuntimeException all other wrapped checked exceptions if the request fails to be sent.
-     * @return chat completions stream for the provided chat messages. Completions support a wide variety of tasks and
-     * generate text that continues from or "completes" provided prompt data.
-     */
-    @ServiceMethod(returns = ReturnType.COLLECTION)
-    public IterableStream<StreamingChatCompletionsUpdate> completeStream(ChatCompletionsOptions options,
-        com.azure.core.util.Context context) {
-        ChatCompletionsOptionsAccessHelper.setStream(options, true);
-        RequestOptions requestOptions = new RequestOptions();
-        CompleteRequest completeRequestObj
-            = new CompleteRequest(options.getMessages()).setFrequencyPenalty(options.getFrequencyPenalty())
-                .setStream(options.isStream())
-                .setPresencePenalty(options.getPresencePenalty())
-                .setTemperature(options.getTemperature())
-                .setTopP(options.getTopP())
-                .setMaxTokens(options.getMaxTokens())
-                .setResponseFormat(options.getResponseFormat())
-                .setStop(options.getStop())
-                .setTools(options.getTools())
-                .setToolChoice(options.getToolChoice())
-                .setSeed(options.getSeed())
-                .setModel(options.getModel());
-        BinaryData completeRequest = BinaryData.fromObject(completeRequestObj);
-        ExtraParameters extraParams = options.getExtraParams();
-        if (extraParams != null) {
-            requestOptions.setHeader(HttpHeaderName.fromString("extra-parameters"), extraParams.toString());
-        }
         final ChatCompletionClientTracer.StreamingCompleteOperation operation
             = (arg0, arg1) -> completionStreaming(arg0, arg1);
         final Flux<StreamingChatCompletionsUpdate> events
-            = tracer.traceStreamingCompletion(options, operation, completeRequest, requestOptions, context);
+            = tracer.traceStreamingCompletion(options, operation, completeRequest, requestOptions);
         return new IterableStream<>(events);
     }
 
@@ -396,7 +305,6 @@ public final class ChatCompletionsClient {
             = new InferenceServerSentEvents<>(responseStream, StreamingChatCompletionsUpdate.class);
         return chatCompletionsStream.getEvents();
     }
-    //</editor-fold>
 
     /**
      * Returns information about the AI model.

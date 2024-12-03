@@ -17,7 +17,6 @@ import com.azure.ai.inference.models.StreamingChatResponseMessageUpdate;
 import com.azure.ai.inference.models.StreamingChatResponseToolCallUpdate;
 import com.azure.core.http.rest.RequestOptions;
 import com.azure.core.util.BinaryData;
-import com.azure.core.util.ClientOptions;
 import com.azure.core.util.Context;
 import com.azure.core.util.CoreUtils;
 import com.azure.core.util.logging.ClientLogger;
@@ -62,25 +61,21 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
      * Creates ChatCompletionClientTracerImpl.
      *
      * @param endpoint the service endpoint.
-     * @param clientOptions the client options.
      */
-    public ChatCompletionClientTracerImpl(String endpoint, com.azure.core.util.ClientOptions clientOptions) {
+    public ChatCompletionClientTracerImpl(String endpoint) {
         this.logger = new ClientLogger(ChatCompletionClientTracerImpl.class);
         this.endpoint = parse(endpoint, logger);
         this.traceContent = true;
-        final com.azure.core.util.TracingOptions tracingOptions
-            = clientOptions == null ? null : clientOptions.getTracingOptions();
-        this.tracer
-            = TracerProvider.getDefaultProvider().createTracer(CLIENT_NAME, CLIENT_VERSION, "Azure.AI", tracingOptions);
+        this.tracer = TracerProvider.getDefaultProvider().createTracer(CLIENT_NAME, CLIENT_VERSION, "Azure.AI", null);
     }
 
     @Override
     public ChatCompletions traceComplete(ChatCompletionsOptions request, CompleteOperation operation,
-        BinaryData completeRequest, RequestOptions requestOptions, Context parent) {
+        BinaryData completeRequest, RequestOptions requestOptions) {
         if (!tracer.isEnabled()) {
-            return operation.invoke(completeRequest, requestOptions.setContext(parent));
+            return operation.invoke(completeRequest, requestOptions);
         }
-        final Context span = tracer.start(rootSpanName(request), new StartSpanOptions(SpanKind.CLIENT), parent);
+        final Context span = tracer.start(rootSpanName(request), new StartSpanOptions(SpanKind.CLIENT), Context.NONE);
         traceCompletionRequestAttributes(request, span);
         traceCompletionRequestEvents(request.getMessages(), span);
 
@@ -98,16 +93,18 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
 
     @Override
     public Flux<StreamingChatCompletionsUpdate> traceStreamingCompletion(ChatCompletionsOptions request,
-        StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions,
-        Context context) {
-        final StreamingChatCompletionsState state = new StreamingChatCompletionsState(traceContent, request, operation,
-            completeRequest, requestOptions, context);
+        StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions) {
+        if (!tracer.isEnabled()) {
+            return operation.invoke(completeRequest, requestOptions);
+        }
+        final StreamingChatCompletionsState state
+            = new StreamingChatCompletionsState(traceContent, request, operation, completeRequest, requestOptions);
 
         final Mono<StreamingChatCompletionsState> resourceSupplier = Mono.fromSupplier(() -> {
             final StreamingChatCompletionsState resource = state;
 
             final Context span
-                = tracer.start(rootSpanName(resource.request), new StartSpanOptions(SpanKind.CLIENT), resource.parent);
+                = tracer.start(rootSpanName(resource.request), new StartSpanOptions(SpanKind.CLIENT), Context.NONE);
             traceCompletionRequestAttributes(resource.request, span);
             traceCompletionRequestEvents(resource.request.getMessages(), span);
             return resource.setSpan(span);
@@ -335,8 +332,8 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
      */
     public static final class ProviderImpl implements ChatCompletionClientTracer.Provider {
         @Override
-        public ChatCompletionClientTracer create(String endpoint, ClientOptions clientOptions) {
-            return new ChatCompletionClientTracerImpl(endpoint, clientOptions);
+        public ChatCompletionClientTracer create(String endpoint) {
+            return new ChatCompletionClientTracerImpl(endpoint);
         }
     }
 
@@ -346,7 +343,6 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
         private final StreamingCompleteOperation operation;
         private final BinaryData completeRequest;
         private final RequestOptions requestOptions;
-        private final Context parent;
         // mutable part of the state to accumulate partial data from Completion chunks.
         private final StringBuilder content;
         private final ArrayDeque<StreamingChatResponseToolCallUpdate> toolCalls; // uses Dequeue to release slots once consumed.
@@ -359,14 +355,12 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
         private int index;
 
         StreamingChatCompletionsState(boolean traceContent, ChatCompletionsOptions request,
-            StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions,
-            Context parent) {
+            StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions) {
             this.traceContent = traceContent;
             this.request = request;
             this.operation = operation;
             this.completeRequest = completeRequest;
             this.requestOptions = requestOptions;
-            this.parent = parent;
             this.content = new StringBuilder();
             this.toolCalls = new ArrayDeque<>();
             this.toolCallIds = new ArrayDeque<>();
