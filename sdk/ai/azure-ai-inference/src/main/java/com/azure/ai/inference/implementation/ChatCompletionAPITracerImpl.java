@@ -47,9 +47,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * implementation for {@link ChatCompletionClientTracer}.
+ * implementation for {@link ChatCompletionAPITracer}.
  */
-public final class ChatCompletionClientTracerImpl implements ChatCompletionClientTracer {
+public final class ChatCompletionAPITracerImpl implements ChatCompletionAPITracer {
     private static final String FINISH_REASON_ERROR = "{\"finish_reason\": \"error\"}";
     private static final String FINISH_REASON_CANCELED = "{\"finish_reason\": \"canceled\"}";
     private final ClientLogger logger;
@@ -62,8 +62,8 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
      *
      * @param endpoint the service endpoint.
      */
-    public ChatCompletionClientTracerImpl(String endpoint) {
-        this.logger = new ClientLogger(ChatCompletionClientTracerImpl.class);
+    public ChatCompletionAPITracerImpl(String endpoint) {
+        this.logger = new ClientLogger(ChatCompletionAPITracerImpl.class);
         this.endpoint = parse(endpoint, logger);
         this.traceContent = true;
         this.tracer = TracerProvider.getDefaultProvider().createTracer(CLIENT_NAME, CLIENT_VERSION, "Azure.AI", null);
@@ -330,10 +330,10 @@ public final class ChatCompletionClientTracerImpl implements ChatCompletionClien
     /**
      * The service loader provider implementation to create ChatCompletionClientTracerImpl instance.
      */
-    public static final class ProviderImpl implements ChatCompletionClientTracer.Provider {
+    public static final class ProviderImpl implements ChatCompletionAPITracer.Provider {
         @Override
-        public ChatCompletionClientTracer create(String endpoint) {
-            return new ChatCompletionClientTracerImpl(endpoint);
+        public ChatCompletionAPITracer create(String endpoint) {
+            return new ChatCompletionAPITracerImpl(endpoint);
         }
     }
 
