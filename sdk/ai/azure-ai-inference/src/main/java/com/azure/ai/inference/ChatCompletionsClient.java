@@ -49,7 +49,7 @@ public final class ChatCompletionsClient {
     @Generated
     ChatCompletionsClient(ChatCompletionsClientImpl serviceClient) {
         this.serviceClient = serviceClient;
-        this.tracer = ChatCompletionClientTracer.load(this.serviceClient.getEndpoint());
+        this.tracer = new ChatCompletionClientTracer(serviceClient.getEndpoint());
     }
 
     /**
@@ -228,7 +228,7 @@ public final class ChatCompletionsClient {
         if (extraParams != null) {
             requestOptions.setHeader(HttpHeaderName.fromString("extra-parameters"), extraParams.toString());
         }
-        ChatCompletionClientTracer.CompleteOperation operation
+        final ChatCompletionClientTracer.CompleteOperation operation
             = (arg0, arg1) -> completeWithResponse(arg0, arg1).getValue().toObject(ChatCompletions.class);
         return tracer.traceComplete(options, operation, completeRequest, requestOptions);
     }
