@@ -53,7 +53,8 @@ import java.util.stream.Collectors;
  */
 public final class ChatCompletionClientTracer {
     private static final String INFERENCE_GEN_AI_SYSTEM_NAME = "az.ai.inference";
-    private static final String OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT";
+    private static final String OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT
+        = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT";
     private static final String FINISH_REASON_ERROR = "{\"finish_reason\": \"error\"}";
     private static final String FINISH_REASON_CANCELED = "{\"finish_reason\": \"canceled\"}";
 
@@ -213,9 +214,9 @@ public final class ChatCompletionClientTracer {
 
         final Function<StreamingChatCompletionsState, Mono<Void>> asyncCancel = resource -> {
             final Context span = resource.span;
-            tracer.setAttribute("error.type", "canceled", span); // check with Liudmila, is it correct to record canceled as an 'error'?
+            tracer.setAttribute("error.type", "cancelled", span);
             traceChoiceEvent(FINISH_REASON_CANCELED, OffsetDateTime.now(ZoneOffset.UTC), span);
-            tracer.end(null, new RuntimeException("canceled"), span);
+            tracer.end("cancelled", null, span);
             return Mono.empty();
         };
 
@@ -422,7 +423,7 @@ public final class ChatCompletionClientTracer {
     }
 
     private static final class StreamingChatCompletionsState {
-        private final boolean traceContent;
+        private final boolean captureContent;
         private final ChatCompletionsOptions request;
         private final StreamingCompleteOperation operation;
         private final BinaryData completeRequest;
@@ -438,9 +439,9 @@ public final class ChatCompletionClientTracer {
         private CompletionsFinishReason finishReason;
         private int index;
 
-        StreamingChatCompletionsState(boolean traceContent, ChatCompletionsOptions request,
+        StreamingChatCompletionsState(boolean captureContent, ChatCompletionsOptions request,
             StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions) {
-            this.traceContent = traceContent;
+            this.captureContent = captureContent;
             this.request = request;
             this.operation = operation;
             this.completeRequest = completeRequest;
@@ -473,7 +474,7 @@ public final class ChatCompletionClientTracer {
                     continue;
                 }
                 final List<StreamingChatResponseToolCallUpdate> toolCalls = delta.getToolCalls();
-                if (this.traceContent) {
+                if (this.captureContent) {
                     if (delta.getContent() != null) {
                         this.content.append(delta.getContent());
                     }
@@ -484,6 +485,7 @@ public final class ChatCompletionClientTracer {
                     if (toolCalls != null) {
                         final List<String> ids = toolCalls.stream()
                             .map(StreamingChatResponseToolCallUpdate::getId)
+                            .filter(s -> !CoreUtils.isNullOrEmpty(s))
                             .collect(Collectors.toList());
                         this.toolCallIds.addAll(ids);
                     }
@@ -496,7 +498,7 @@ public final class ChatCompletionClientTracer {
                 JsonWriter writer = JsonProviders.createWriter(stream)) {
                 writer.writeStartObject();
                 writer.writeStartObject("message");
-                if (this.traceContent) {
+                if (this.captureContent) {
                     writer.writeStringField("content", this.content.toString());
                     writer.writeStartArray("tool_calls");
                     StreamingChatResponseToolCallUpdate toolCall;
