@@ -17,8 +17,10 @@ import com.azure.ai.inference.models.StreamingChatResponseMessageUpdate;
 import com.azure.ai.inference.models.StreamingChatResponseToolCallUpdate;
 import com.azure.core.http.rest.RequestOptions;
 import com.azure.core.util.BinaryData;
+import com.azure.core.util.ClientOptions;
 import com.azure.core.util.Context;
 import com.azure.core.util.CoreUtils;
+import com.azure.core.util.TracingOptions;
 import com.azure.core.util.logging.ClientLogger;
 import com.azure.core.util.tracing.SpanKind;
 import com.azure.core.util.tracing.StartSpanOptions;
@@ -50,19 +52,18 @@ import java.util.stream.Collectors;
  * Tracing for convenience (handwritten) methods in {@link com.azure.ai.inference.ChatCompletionsClient}.
  */
 public final class ChatCompletionClientTracer {
-    private final Map<String, String> PROPERTIES = CoreUtils.getProperties("azure-ai-inference.properties");
-    private final String CLIENT_NAME = PROPERTIES.getOrDefault("name", "UnknownName");
-    private final String CLIENT_VERSION = PROPERTIES.getOrDefault("version", "UnknownVersion");
-    private final String INFERENCE_GEN_AI_SYSTEM_NAME = "az.ai.inference";
-
+    private static final String INFERENCE_GEN_AI_SYSTEM_NAME = "az.ai.inference";
+    private static final String OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT";
     private static final String FINISH_REASON_ERROR = "{\"finish_reason\": \"error\"}";
     private static final String FINISH_REASON_CANCELED = "{\"finish_reason\": \"canceled\"}";
+
     private final ClientLogger logger;
-    private final boolean traceContent; // make it configurable (com.azure.core.util.Configuration?)
-    private final URL endpoint;
+    private final String host;
+    private final int port;
+    private final boolean captureContent;
     private final Tracer tracer;
 
-    //<editor-fold desc="Call contracts">
+    //<editor-fold desc="operation contracts">
 
     /**
      * Reference to the operation performing the actual completion call.
@@ -102,10 +103,27 @@ public final class ChatCompletionClientTracer {
      * @param endpoint the service endpoint.
      */
     public ChatCompletionClientTracer(String endpoint) {
+        this(endpoint, null);
+    }
+
+    /**
+     * Creates ChatCompletionClientTracer.
+     *
+     * @param endpoint the service endpoint.
+     * @param clientOptions the client options.
+     */
+    public ChatCompletionClientTracer(String endpoint, ClientOptions clientOptions) {
         this.logger = new ClientLogger(ChatCompletionClientTracer.class);
-        this.endpoint = parse(endpoint, logger);
-        this.traceContent = true;
-        this.tracer = TracerProvider.getDefaultProvider().createTracer(CLIENT_NAME, CLIENT_VERSION, "Azure.AI", null);
+        final URL url = parse(endpoint, logger);
+        if (url != null) {
+            this.host = url.getHost();
+            this.port = url.getPort() == -1 ? url.getDefaultPort() : url.getPort();
+        } else {
+            this.host = null;
+            this.port = -1;
+        }
+        this.captureContent = isContentCapturingEnabled();
+        this.tracer = createTracer(clientOptions);
     }
 
     /**
@@ -153,7 +171,7 @@ public final class ChatCompletionClientTracer {
             return operation.invoke(completeRequest, requestOptions);
         }
         final StreamingChatCompletionsState state
-            = new StreamingChatCompletionsState(traceContent, request, operation, completeRequest, requestOptions);
+            = new StreamingChatCompletionsState(captureContent, request, operation, completeRequest, requestOptions);
 
         final Mono<StreamingChatCompletionsState> resourceSupplier = Mono.fromSupplier(() -> {
             final StreamingChatCompletionsState resource = state;
@@ -224,16 +242,14 @@ public final class ChatCompletionClientTracer {
         if (request.getTopP() != null) {
             tracer.setAttribute("gen_ai.request.top_p", request.getTopP(), span);
         }
-        if (endpoint != null) {
-            tracer.setAttribute("server.address", endpoint.getHost(), span);
-            if (endpoint.getPort() != 443) {
-                tracer.setAttribute("server.port", endpoint.getPort(), span);
-            }
+        if (host != null) {
+            tracer.setAttribute("server.address", host, span);
+            tracer.setAttribute("server.port", port, span);
         }
     }
 
     private void traceCompletionRequestEvents(List<ChatRequestMessage> messages, Context span) {
-        if (!traceContent) {
+        if (!captureContent) {
             return;
         }
         if (messages != null) {
@@ -313,7 +329,7 @@ public final class ChatCompletionClientTracer {
             JsonWriter writer = JsonProviders.createWriter(stream)) {
             writer.writeStartObject();
             writer.writeStartObject("message");
-            if (traceContent) {
+            if (captureContent) {
                 writer.writeStringField("content", choice.getMessage().getContent());
             }
             if (choice.getMessage() != null) {
@@ -321,7 +337,7 @@ public final class ChatCompletionClientTracer {
                 if (toolCalls != null && !toolCalls.isEmpty()) {
                     writer.writeStartArray("tool_calls");
                     for (ChatCompletionsToolCall toolCall : toolCalls) {
-                        if (traceContent) {
+                        if (captureContent) {
                             toolCall.toJson(writer);
                         } else {
                             writer.writeStartObject();
@@ -361,6 +377,27 @@ public final class ChatCompletionClientTracer {
         }
         finishReasons.append("]");
         return finishReasons.toString();
+    }
+
+    private static boolean isContentCapturingEnabled() {
+        final String key = OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT;
+        final String envVal = System.getenv(key);
+        if (!CoreUtils.isNullOrEmpty(envVal)) {
+            return "true".equalsIgnoreCase(envVal);
+        }
+        final String propVal = System.getenv(key);
+        if (!CoreUtils.isNullOrEmpty(propVal)) {
+            return "true".equalsIgnoreCase(propVal);
+        }
+        return false;
+    }
+
+    private static Tracer createTracer(ClientOptions clientOptions) {
+        final Map<String, String> properties = CoreUtils.getProperties("azure-ai-inference.properties");
+        final String clientName = properties.getOrDefault("name", "UnknownName");
+        final String clientVersion = properties.getOrDefault("version", "UnknownVersion");
+        final TracingOptions options = clientOptions == null ? null : clientOptions.getTracingOptions();
+        return TracerProvider.getDefaultProvider().createTracer(clientName, clientVersion, "Azure.AI", options);
     }
 
     private static URL parse(String endpoint, ClientLogger logger) {
