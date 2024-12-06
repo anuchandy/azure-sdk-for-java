@@ -28,7 +28,6 @@ import com.azure.core.http.rest.Response;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.IterableStream;
 import java.nio.ByteBuffer;
-
 import reactor.core.publisher.Flux;
 
 /**
@@ -165,7 +164,7 @@ public final class ChatCompletionsClient {
      * Returns information about the AI model.
      * The method makes a REST API call to the `/info` route on the given endpoint.
      * <p><strong>Response Body Schema</strong></p>
-     *
+     * 
      * <pre>
      * {@code
      * {
@@ -228,9 +227,9 @@ public final class ChatCompletionsClient {
         if (extraParams != null) {
             requestOptions.setHeader(HttpHeaderName.fromString("extra-parameters"), extraParams.toString());
         }
-        final ChatCompletionClientTracer.CompleteOperation operation
+        final ChatCompletionClientTracer.SyncCompleteOperation operation
             = (arg0, arg1) -> completeWithResponse(arg0, arg1).getValue().toObject(ChatCompletions.class);
-        return tracer.traceComplete(options, operation, completeRequest, requestOptions);
+        return tracer.syncTraceComplete(options, operation, completeRequest, requestOptions);
     }
 
     /**

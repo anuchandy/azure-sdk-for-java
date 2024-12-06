@@ -44,12 +44,14 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Tracing for convenience (handwritten) methods in {@link com.azure.ai.inference.ChatCompletionsClient}.
+ * Tracing for the convenience methods in {@link com.azure.ai.inference.ChatCompletionsClient} and
+ * {@link com.azure.ai.inference.ChatCompletionsAsyncClient}.
  */
 public final class ChatCompletionClientTracer {
     private static final String INFERENCE_GEN_AI_SYSTEM_NAME = "az.ai.inference";
@@ -65,12 +67,11 @@ public final class ChatCompletionClientTracer {
     private final Tracer tracer;
 
     //<editor-fold desc="operation contracts">
-
     /**
      * Reference to the operation performing the actual completion call.
      */
     @FunctionalInterface
-    public interface CompleteOperation {
+    public interface SyncCompleteOperation {
         /**
          * invokes the operation.
          *
@@ -82,7 +83,22 @@ public final class ChatCompletionClientTracer {
     }
 
     /**
-     * Reference to the operation performing the actual completion streaming call.
+     * Reference to the async operation performing the actual completion call.
+     */
+    @FunctionalInterface
+    public interface CompleteOperation {
+        /**
+         * invokes the operation.
+         *
+         * @param completeRequest The completeRequest parameter for the {@code operation}.
+         * @param requestOptions The requestOptions parameter for the {@code operation}.
+         * @return chat completions for the provided chat messages.
+         */
+        Mono<ChatCompletions> invoke(BinaryData completeRequest, RequestOptions requestOptions);
+    }
+
+    /**
+     * Reference to the async operation performing the actual completion streaming call.
      */
     @FunctionalInterface
     public interface StreamingCompleteOperation {
@@ -95,7 +111,6 @@ public final class ChatCompletionClientTracer {
          */
         Flux<StreamingChatCompletionsUpdate> invoke(BinaryData completeRequest, RequestOptions requestOptions);
     }
-
     //</editor-fold>
 
     /**
@@ -128,7 +143,7 @@ public final class ChatCompletionClientTracer {
     }
 
     /**
-     * Traces the convenience API - {@link com.azure.ai.inference.ChatCompletionsClient#complete(ChatCompletionsOptions)} API.
+     * Traces the synchronous convenience API - {@link com.azure.ai.inference.ChatCompletionsClient#complete(ChatCompletionsOptions)}.
      *
      * @param request input options containing chat options for complete API.
      * @param operation the operation performing the actual completion call.
@@ -136,7 +151,8 @@ public final class ChatCompletionClientTracer {
      * @param requestOptions The requestOptions parameter for the {@code operation}.
      * @return chat completions for the provided chat messages.
      */
-    public ChatCompletions traceComplete(ChatCompletionsOptions request, CompleteOperation operation,
+    @SuppressWarnings("try")
+    public ChatCompletions syncTraceComplete(ChatCompletionsOptions request, SyncCompleteOperation operation,
         BinaryData completeRequest, RequestOptions requestOptions) {
         if (!tracer.isEnabled()) {
             return operation.invoke(completeRequest, requestOptions);
@@ -147,7 +163,7 @@ public final class ChatCompletionClientTracer {
 
         try (AutoCloseable ignored = tracer.makeSpanCurrent(span)) {
             final ChatCompletions response = operation.invoke(completeRequest, requestOptions.setContext(span));
-            traceCompletionResponseAttributes(response, ignored, span);
+            traceCompletionResponseAttributes(response, span);
             traceCompletionResponseEvents(response, span);
             tracer.end(null, null, span);
             return response;
@@ -158,7 +174,58 @@ public final class ChatCompletionClientTracer {
     }
 
     /**
-     * Traces the convenience API - {@link com.azure.ai.inference.ChatCompletionsClient#completeStream(ChatCompletionsOptions)} API.
+     * Traces the convenience API - {@link com.azure.ai.inference.ChatCompletionsAsyncClient#complete(ChatCompletionsOptions)}.
+     *
+     * @param request input options containing chat options for complete API.
+     * @param operation the operation performing the actual completion call.
+     * @param completeRequest The completeRequest parameter for the {@code operation}.
+     * @param requestOptions The requestOptions parameter for the {@code operation}.
+     * @return chat completions for the provided chat messages.
+     */
+    public Mono<ChatCompletions> traceComplete(ChatCompletionsOptions request, CompleteOperation operation,
+        BinaryData completeRequest, RequestOptions requestOptions) {
+        if (!tracer.isEnabled()) {
+            return operation.invoke(completeRequest, requestOptions);
+        }
+
+        final Mono<Context> resourceSupplier = Mono.fromSupplier(() -> {
+            final Context span = tracer.start(rootSpanName(request), new StartSpanOptions(SpanKind.CLIENT), Context.NONE);
+            traceCompletionRequestAttributes(request, span);
+            traceCompletionRequestEvents(request.getMessages(), span);
+            return span;
+        });
+
+        final Function<Context, Mono<ChatCompletions>> resourceClosure = span -> {
+            final RequestOptions rOptions = requestOptions.setContext(span);
+
+            return operation.invoke(completeRequest, rOptions)
+                    .map(response -> {
+                        traceCompletionResponseAttributes(response, span);
+                        traceCompletionResponseEvents(response, span);
+                        return response;
+                    });
+        };
+
+        final BiFunction<Context, Throwable, Mono<Void>> asyncError = (span, throwable) -> {
+            tracer.setAttribute("error.type", throwable.getClass().getName(), span);
+            traceChoiceEvent(FINISH_REASON_ERROR, OffsetDateTime.now(ZoneOffset.UTC), span);
+            tracer.end(null, throwable, span);
+            return Mono.empty();
+        };
+
+        final Function<Context, Mono<Void>> asyncCancel = span -> {
+            tracer.setAttribute("error.type", "cancelled", span);
+            traceChoiceEvent(FINISH_REASON_CANCELED, OffsetDateTime.now(ZoneOffset.UTC), span);
+            tracer.end("cancelled", null, span);
+            return Mono.empty();
+        };
+
+        return Mono.usingWhen(resourceSupplier, resourceClosure, span -> Mono.empty(), asyncError, asyncCancel);
+    }
+
+    /**
+     * Traces the convenience APIs - {@link com.azure.ai.inference.ChatCompletionsClient#completeStream(ChatCompletionsOptions)}
+     * and {@link com.azure.ai.inference.ChatCompletionsAsyncClient#completeStream(ChatCompletionsOptions)}}.
      *
      * @param request input options containing chat options for complete streaming API.
      * @param operation the operation performing the actual streaming completion call.
@@ -224,7 +291,6 @@ public final class ChatCompletionClientTracer {
     }
 
     //<editor-fold desc="Private util types, methods">
-
     private String rootSpanName(ChatCompletionsOptions completeRequest) {
         return CoreUtils.isNullOrEmpty(completeRequest.getModel()) ? "chat" : "chat " + completeRequest.getModel();
     }
@@ -270,7 +336,7 @@ public final class ChatCompletionClientTracer {
         }
     }
 
-    private void traceCompletionResponseAttributes(ChatCompletions response, AutoCloseable ignored, Context span) {
+    private void traceCompletionResponseAttributes(ChatCompletions response, Context span) {
         tracer.setAttribute("gen_ai.response.id", response.getId(), span);
         tracer.setAttribute("gen_ai.response.model", response.getModel(), span);
         final CompletionsUsage usage = response.getUsage();
@@ -366,31 +432,23 @@ public final class ChatCompletionClientTracer {
     }
 
     private static String getFinishReasons(List<ChatChoice> choices) {
-        final StringBuilder finishReasons = new StringBuilder("[");
+        final StringJoiner finishReasons = new StringJoiner(",", "[", "]");
         for (ChatChoice choice : choices) {
             final CompletionsFinishReason finishReason = choice.getFinishReason();
-            if (finishReason == null) {
-                finishReasons.append("none");
-            } else {
-                finishReasons.append(finishReason.getValue());
+            if (finishReason != null) {
+                finishReasons.add(finishReason.getValue());
             }
-            finishReasons.append(", ");
         }
-        finishReasons.append("]");
         return finishReasons.toString();
     }
 
     private static boolean isContentCapturingEnabled() {
-        final String key = OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT;
-        final String envVal = System.getenv(key);
-        if (!CoreUtils.isNullOrEmpty(envVal)) {
-            return "true".equalsIgnoreCase(envVal);
+        final String envVal = System.getenv(OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT);
+        if ("true".equalsIgnoreCase(envVal)) {
+            return true;
         }
-        final String propVal = System.getenv(key);
-        if (!CoreUtils.isNullOrEmpty(propVal)) {
-            return "true".equalsIgnoreCase(propVal);
-        }
-        return false;
+        final String propVal = System.getProperty(OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT);
+        return "true".equalsIgnoreCase(propVal);
     }
 
     private static Tracer createTracer(ClientOptions clientOptions) {
@@ -433,7 +491,6 @@ public final class ChatCompletionClientTracer {
         private final ArrayDeque<StreamingChatResponseToolCallUpdate> toolCalls; // uses Dequeue to release slots once consumed.
         private final ArrayDeque<String> toolCallIds;
         private final ArrayDeque<CompletionsFinishReason> finishReasons;
-        //
         private Context span;
         private StreamingChatCompletionsUpdate lastChunk;
         private CompletionsFinishReason finishReason;
@@ -531,16 +588,13 @@ public final class ChatCompletionClientTracer {
         }
 
         String getFinishReasons() {
-            final StringBuilder finishReasonsSb = new StringBuilder("[");
+            final StringJoiner finishReasonsSj = new StringJoiner(",", "[", "]");
             CompletionsFinishReason reason;
             while ((reason = finishReasons.poll()) != null) {
-                finishReasonsSb.append(reason.getValue());
-                finishReasonsSb.append(", ");
+                finishReasonsSj.add(reason.getValue());
             }
-            finishReasonsSb.append("]");
-            return finishReasonsSb.toString();
+            return finishReasonsSj.toString();
         }
     }
-
     //</editor-fold>
 }
