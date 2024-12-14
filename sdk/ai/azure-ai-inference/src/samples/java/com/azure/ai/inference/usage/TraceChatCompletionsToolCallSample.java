@@ -20,12 +20,15 @@ import com.azure.ai.inference.models.FunctionCall;
 import com.azure.ai.inference.models.FunctionDefinition;
 import com.azure.core.credential.AzureKeyCredential;
 import com.azure.core.util.BinaryData;
+import com.azure.core.util.Configuration;
+import com.azure.core.util.ConfigurationBuilder;
 import com.azure.json.JsonProviders;
 import com.azure.json.JsonReader;
 import com.azure.json.JsonSerializable;
 import com.azure.json.JsonToken;
 import com.azure.json.JsonWriter;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
@@ -42,19 +45,19 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 public class TraceChatCompletionsToolCallSample {
-    private static final String APP_NAMESPACE = "contoso-weather-temperature-app";
-
     /**
      * @param args Unused. Arguments to the program.
      */
     @SuppressWarnings("try")
     public static void main(final String[] args) {
         final OpenTelemetrySdk telemetry = configureOpenTelemetry();
-        final ChatCompletionsClient client = createChatCompletionClient();
-        final Tracer tracer = telemetry.getTracer(APP_NAMESPACE);
+        final Tracer tracer = telemetry.getTracer(TraceChatCompletionsToolCallSample.class.getName());
 
-        final Span span = tracer.spanBuilder("Contoso.App").startSpan();
+        final Span span = tracer.spanBuilder("main").startSpan();
         try (AutoCloseable scope = span.makeCurrent()) {
+
+            final ChatCompletionsClient client = createChatCompletionClient();
+
             final List<ChatRequestMessage> messages = new ArrayList<>();
             messages.add(new ChatRequestSystemMessage("You are a helpful assistant."));
             messages.add(new ChatRequestUserMessage("What is the weather and temperature in Seattle?"));
@@ -75,13 +78,11 @@ public class TraceChatCompletionsToolCallSample {
             }
 
             System.out.println("Model response: " + modelResponseContent(response));
-            span.end();
         } catch (Exception e) {
-            span.setAttribute("error.type", e.getClass().getName());
-            span.end();
+            span.setStatus(StatusCode.ERROR, e.getMessage());
             throw new RuntimeException(e);
         } finally {
-            telemetry.close();
+            span.end();
         }
     }
 
@@ -102,7 +103,9 @@ public class TraceChatCompletionsToolCallSample {
         return sdkBuilder
             .addPropertiesSupplier(() -> {
                 final Map<String, String> properties = new HashMap<>();
-                properties.put("otel.exporter.otlp.endpoint", "http://localhost:4317");
+                properties.put("otel.service.name", "samples");
+                // change to your endpoint address
+                // properties.put("otel.exporter.otlp.endpoint", "http://localhost:4317");
                 return properties;
             })
             .setResultAsGlobal()
@@ -114,6 +117,7 @@ public class TraceChatCompletionsToolCallSample {
         return new ChatCompletionsClientBuilder()
             .endpoint(System.getenv("MODEL_ENDPOINT"))
             .credential(new AzureKeyCredential(System.getenv("AZURE_API_KEY")))
+            .configuration(new ConfigurationBuilder().putProperty("otel.instrumentation.genai.capture_message_content", "true").build())
             .buildClient();
     }
 
