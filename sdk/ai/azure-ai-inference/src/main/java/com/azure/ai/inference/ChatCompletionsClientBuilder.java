@@ -361,7 +361,6 @@ public final class ChatCompletionsClientBuilder implements HttpTrait<ChatComplet
             .tracer(createTracer())
             .build();
 
-
         return httpPipeline;
     }
 
@@ -384,9 +383,9 @@ public final class ChatCompletionsClientBuilder implements HttpTrait<ChatComplet
     }
 
     private Tracer createTracer() {
-        final TracingOptions tracingOptions = this.clientOptions == null ? null : this.clientOptions.getTracingOptions();
-        return TracerProvider.getDefaultProvider()
-            .createTracer(TELEMETRY_OPTIONS, tracingOptions);
+        final TracingOptions tracingOptions
+            = this.clientOptions == null ? null : this.clientOptions.getTracingOptions();
+        return TracerProvider.getDefaultProvider().createTracer(TELEMETRY_OPTIONS, tracingOptions);
     }
 
     private ChatCompletionClientTracer createInferenceTracer() {

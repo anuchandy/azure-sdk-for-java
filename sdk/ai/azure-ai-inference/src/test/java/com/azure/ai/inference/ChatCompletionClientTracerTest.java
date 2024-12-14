@@ -102,7 +102,8 @@ public final class ChatCompletionClientTracerTest {
             = new OpenTelemetryTracingOptions().setOpenTelemetry(OpenTelemetrySdk.builder()
                 .setTracerProvider(SdkTracerProvider.builder().addSpanProcessor(spanProcessor).build())
                 .build());
-        tracer = TracerProvider.getDefaultProvider().createTracer("test", null, "Microsoft.CognitiveServices", tracingOptions);
+        tracer = TracerProvider.getDefaultProvider()
+            .createTracer("test", null, "Microsoft.CognitiveServices", tracingOptions);
     }
 
     @AfterEach
@@ -363,8 +364,7 @@ public final class ChatCompletionClientTracerTest {
                 .putProperty("azure.tracing.gen_ai.content_recording_enabled", "true")
                 .build();
         } else {
-            return new com.azure.core.util.ConfigurationBuilder()
-                .build();
+            return new com.azure.core.util.ConfigurationBuilder().build();
         }
     }
 
