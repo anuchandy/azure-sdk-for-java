@@ -26,7 +26,6 @@ import com.azure.core.http.HttpHeaderName;
 import com.azure.core.http.rest.RequestOptions;
 import com.azure.core.http.rest.Response;
 import com.azure.core.util.BinaryData;
-import com.azure.core.util.Configuration;
 import com.azure.core.util.IterableStream;
 import java.nio.ByteBuffer;
 import reactor.core.publisher.Flux;

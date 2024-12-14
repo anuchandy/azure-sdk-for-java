@@ -155,7 +155,7 @@ public final class ChatCompletionClientTracer {
      */
     @SuppressWarnings("try")
     public ChatCompletions traceSyncComplete(ChatCompletionsOptions request, SyncCompleteOperation operation,
-                                             BinaryData completeRequest, RequestOptions requestOptions) {
+        BinaryData completeRequest, RequestOptions requestOptions) {
         if (!tracer.isEnabled()) {
             return operation.invoke(completeRequest, requestOptions);
         }
@@ -190,7 +190,7 @@ public final class ChatCompletionClientTracer {
      * @return chat completions for the provided chat messages.
      */
     public Mono<ChatCompletions> traceComplete(ChatCompletionsOptions request, CompleteOperation operation,
-                                               BinaryData completeRequest, RequestOptions requestOptions) {
+        BinaryData completeRequest, RequestOptions requestOptions) {
         if (!tracer.isEnabled()) {
             return operation.invoke(completeRequest, requestOptions);
         }
@@ -251,7 +251,7 @@ public final class ChatCompletionClientTracer {
      * @return chat completions streaming for the provided chat messages.
      */
     public Flux<StreamingChatCompletionsUpdate> traceStreamingCompletion(ChatCompletionsOptions request,
-                                                                         StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions) {
+        StreamingCompleteOperation operation, BinaryData completeRequest, RequestOptions requestOptions) {
         if (!tracer.isEnabled()) {
             return operation.invoke(completeRequest, requestOptions);
         }
