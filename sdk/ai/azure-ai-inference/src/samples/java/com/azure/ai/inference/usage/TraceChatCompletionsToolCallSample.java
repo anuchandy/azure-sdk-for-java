@@ -20,8 +20,6 @@ import com.azure.ai.inference.models.FunctionCall;
 import com.azure.ai.inference.models.FunctionDefinition;
 import com.azure.core.credential.AzureKeyCredential;
 import com.azure.core.util.BinaryData;
-import com.azure.core.util.Configuration;
-import com.azure.core.util.ConfigurationBuilder;
 import com.azure.json.JsonProviders;
 import com.azure.json.JsonReader;
 import com.azure.json.JsonSerializable;
@@ -97,14 +95,14 @@ public class TraceChatCompletionsToolCallSample {
         // The output of the docker command includes a link to the dashboard. For more information on Aspire Dashboard,
         // see https://learn.microsoft.com/dotnet/aspire/fundamentals/dashboard/overview
         //
-        // For production telemetry use cases, see Azure Monitor, https://learn.microsoft.com/java/api/overview/azure/monitor-opentelemetry-exporter-readme
+        // See https://learn.microsoft.com/azure/developer/java/sdk/tracing for more information on tracing with Azure SDK.
         //
         final AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
         return sdkBuilder
             .addPropertiesSupplier(() -> {
                 final Map<String, String> properties = new HashMap<>();
                 properties.put("otel.service.name", "samples");
-                // change to your endpoint address
+                // change to your endpoint address, "http://localhost:4317" is used by default
                 // properties.put("otel.exporter.otlp.endpoint", "http://localhost:4317");
                 return properties;
             })
@@ -117,7 +115,8 @@ public class TraceChatCompletionsToolCallSample {
         return new ChatCompletionsClientBuilder()
             .endpoint(System.getenv("MODEL_ENDPOINT"))
             .credential(new AzureKeyCredential(System.getenv("AZURE_API_KEY")))
-            .configuration(new ConfigurationBuilder().putProperty("otel.instrumentation.genai.capture_message_content", "true").build())
+            // uncomment to capture message content in the telemetry (or you can set AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED environment variable to `true`)
+            // .configuration(new ConfigurationBuilder().putProperty("azure.tracing.gen_ai.content_recording_enabled", "true").build())
             .buildClient();
     }
 
@@ -273,14 +272,6 @@ public class TraceChatCompletionsToolCallSample {
                     return byteArrayOutputStream.toByteArray();
                 } catch (IOException ioe) {
                     throw new UncheckedIOException(ioe);
-                }
-            }
-
-            private static void sleep() {
-                try {
-                    TimeUnit.SECONDS.sleep(1);
-                } catch (InterruptedException e) {
-                    // ignored
                 }
             }
         }
