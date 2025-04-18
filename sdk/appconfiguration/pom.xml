@@ -15,5 +15,6 @@
 
     <!-- V2 libraries -->
     <module>azure-data-appconfiguration-v2</module>
+    <module>azure-data-appconfiguration-ts-1</module>
   </modules>
 </project>
